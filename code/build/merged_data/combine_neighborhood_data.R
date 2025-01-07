@@ -1,0 +1,211 @@
+# This script combines the neighborhood data from the Census, Zillow, and HOLC datasets,
+# and saves the combined dataset to a GeoPackage file.
+
+
+# Preliminaries -----
+library(tidyverse)
+library(sf)
+library(tigris)
+library(crsuggest)
+library(mapview)
+library(maps)
+library(ragg)
+library(viridis)
+library(geosphere)
+library(here)
+library(segregation)
+library(readxl)
+  
+rm(list = ls())
+
+
+data_path <- here("data")
+census_data_path <- here(data_path, "derived", "census")
+census_ed_tract_data_path <- here(census_data_path, "full_count", "tract")
+zillow_data_path <- here(data_path, "derived", "zillow")
+holc_data_path <- here(data_path, "derived", "holc")
+cpi_data_path <- here(data_path, "raw", "measuring_worth")
+cbsa_data_path <- here(data_path, "raw", "cbsa_crosswalk")
+
+merged_data_path <- here(data_path, "derived", "merged")
+
+# Common functions and variables
+tract_id_variables <- c("YEAR", "STATEA", "COUNTYA", "TRACTA")
+
+# Function to read and process census data ----
+read_census_data <- function() {
+  census_pop_data <- read_sf(here(census_data_path, "tract_population_data.gpkg"))
+  
+  census_housing_data <- read_sf(here(census_data_path, "tract_housing_data.gpkg")) %>%
+    st_drop_geometry() %>%
+    dplyr::select(any_of(tract_id_variables), contains("median"), total_units, vacancy_rate,
+           share_needing_repair, share_no_water, housing_density)
+  
+  census_income_data <- read_sf(here(census_data_path, "tract_income_data.gpkg")) %>%
+    st_drop_geometry() %>%
+    dplyr::select(any_of(tract_id_variables), contains("median"))
+  
+  census_education_data <- read_sf(here(census_data_path, "tract_education_data.gpkg")) %>%
+    filter(YEAR >= 1940) %>%
+    st_drop_geometry() %>%
+    dplyr::select(any_of(tract_id_variables), contains("median"), contains("pct"))
+  
+  census_employment_data <- read_sf(here(census_data_path, "tract_employment_data.gpkg")) %>%
+    st_drop_geometry() %>%
+    dplyr::select(any_of(tract_id_variables), contains("pop"), contains("rate"))
+  
+  census_occupation_data <- read_sf(here(census_data_path, "tract_occupation_data.gpkg")) %>%
+    st_drop_geometry() %>%
+    dplyr::select(any_of(tract_id_variables), contains("occupation"), contains("share"))
+  
+  census_tract_data_full <- census_pop_data %>%
+    left_join(census_housing_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+    left_join(census_income_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+    left_join(census_education_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+    left_join(census_employment_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+    left_join(census_occupation_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+    mutate(employment_pop_ratio = employed_pop / total_pop)
+  
+  return(census_tract_data_full)
+}
+
+
+## read and process census tract data  -----
+census_tract_data_full <- read_census_data()
+
+## Read in Census tract data constructed from full count ----
+# 1/2025: Use tract-data from full count for any tracts unavailable in the tract-level data
+# this mostly includes tracts in cities that were not available at the tract level in those years
+# but also includes some in cities that were partially included 
+
+# from fc
+census_tract_data_from_full_count <-
+  read_sf(here(census_ed_tract_data_path, "tract_data_concorded_from_ed_1930_1940.gpkg")) %>% 
+  dplyr::rename(employed_pop = employed,
+                unemployed_pop = unemployed,
+                not_in_lf_pop = not_in_lf) %>% 
+  mutate(employment_pop_ratio = employed_pop / total_pop)
+
+census_tract_data_full_1930_and_1940 <- census_tract_data_full %>% 
+  filter(YEAR %in% c(1930, 1940))
+
+
+additional_tracts_from_full_count_1930_1940 <- 
+  census_tract_data_from_full_count %>% 
+  anti_join(census_tract_data_full_1930_and_1940 %>% st_drop_geometry(), by = c("STATEA", "COUNTYA", "TRACTA", "YEAR"))
+
+# add these tracts to the full count data
+census_tract_data_full <- 
+  bind_rows(census_tract_data_full, additional_tracts_from_full_count_1930_1940)
+
+# variables that are in the full count data but not in the tract-level data
+
+
+## compare with original -----
+x <- names(census_tract_data_full_1930_and_1940)
+y <- names(additional_tracts_from_full_count_1930_1940)
+setdiff(x, y)
+
+merged_fc_and_fc_tracts <- 
+  census_tract_data_from_full_count %>% st_drop_geometry() %>% 
+  left_join(census_tract_data_full_1930_and_1940 %>% st_drop_geometry(),
+            by = c("STATE", "COUNTY", "TRACTA", "YEAR"),
+            suffix = c("_fc", "_orig")) %>% 
+  mutate(diff = total_pop_fc - total_pop_orig,
+         total_pop_fc = round(total_pop_fc,2))
+
+# Note: These are not equivalent, though they are extremely highly correlated
+# Population counts, in particular, are often off by a fair amount...
+# coefficient is only around .45, though very very significant
+summary(lm(total_pop_fc ~ total_pop_orig, data = merged_fc_and_fc_tracts))
+summary(lm(black_pop_fc ~ black_pop_orig, data = merged_fc_and_fc_tracts))
+summary(lm(median_rent_calculated_fc ~ median_rent_calculated_orig, data = merged_fc_and_fc_tracts))
+summary(lm(median_home_value_calculated_fc ~ median_home_value_calculated_orig, data = merged_fc_and_fc_tracts))
+summary(lm(black_share_fc ~ black_share_orig, data = merged_fc_and_fc_tracts))
+
+# check cities where orig is missing in 1930
+# merged_fc_and_fc_tracts %>% 
+#   filter(is.na(total_pop_orig), total_pop_fc != 0, YEAR == 1930) %>% 
+#   select(STATE, COUNTY, YEAR, total_pop_fc, total_pop_orig) %>% 
+#   View()
+#   
+
+
+### calculate deflator for monetary values -----
+# read in cpi data
+cpi_data_raw <- read_csv(here(cpi_data_path, "USCPI_1930-1990.csv"), skip = 3, 
+                     col_names = c("year", "cpi"))
+
+# keep only relevant years, calculate deflator to 1990
+cpi_data <- cpi_data_raw %>% 
+  filter(year %in% seq(1930, 1990, 10)) %>% 
+  mutate(deflator = cpi[year ==1990] / cpi)
+
+# join to census data, apply deflator to monetary values of median home value and median rent
+census_tract_data_full <- census_tract_data_full %>% 
+  left_join(cpi_data, by = c("YEAR" = "year")) %>% 
+  mutate_at(vars("median_home_value_calculated", "median_home_value_reported",
+                 "median_home_value_reported_alt", 
+                 "median_rent_calculated", "median_rent_reported",
+                 "median_rent_reported_alt",
+                 "median_income"),
+            ~ . * deflator) %>%
+  dplyr::select(-deflator) %>% 
+  # convert income and home values to 1000s of $ for easier interpretation
+  mutate(median_home_value_calculated = median_home_value_calculated / 1000,
+         median_home_value_reported = median_home_value_reported / 1000,
+         median_home_value_reported_alt = median_home_value_reported_alt / 1000,
+         median_income = median_income / 1000)
+
+
+## add additional tract-level data -----
+###  zillow neighborhoods  -----
+zillow_neighborhoods <-
+  read_csv(here(zillow_data_path, "tracts_with_zillow_neighborhoods.csv")) %>% 
+  dplyr::rename(zillow_neighborhood = neighborhood)
+
+### HOLC classifications
+holc_classifications <- 
+  read_csv(here(holc_data_path, "tract_holc_classifications.csv")) %>% 
+  dplyr::select(-city)
+
+### CBSA classifications -----
+# use 2003 cbsa crosswalk to avoid Census changes since then, especially wrt Connecticut
+
+cbsa_data <- 
+  read_xlsx(here(cbsa_data_path, "cbsa_crosswalk_2003.xlsx"), skip = 2) %>%
+  dplyr::select(`CBSA Title`, FIPS) %>% 
+  dplyr::rename(cbsa_title = `CBSA Title`) %>%
+  mutate(COUNTYA = substr(FIPS, 3, 5),
+         STATEA = substr(FIPS, 1, 2)) %>% 
+  dplyr::select(-FIPS)
+
+
+# Combine datasets -----
+combined_data <- 
+  census_tract_data_full %>%
+  left_join(zillow_neighborhoods, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
+  left_join(holc_classifications) %>% 
+  # if tract is not in HOLC data, assume it was not redlined
+  mutate_at(vars(contains('redlined_binary')), ~ifelse(is.na(.), 0, .)) %>% 
+  left_join(cbsa_data, by = c("STATEA", "COUNTYA")) %>% 
+  # manually fix Dade county CBSA
+  mutate(cbsa_title = ifelse(COUNTYA == "025" & STATEA == "12",
+                             "Miami-Fort Lauderdale-Miami Beach, FL",
+                             cbsa_title)) %>% 
+  # create unique tract identifier
+  mutate(unique_tract_id = paste0(STATEA, COUNTYA, TRACTA))
+
+
+# Calculate segregation indices --------
+# TODO
+# See https://www.huduser.gov/portal/periodicals/cityscpe/vol17num1/ch8.pdf
+# for possible local segregation indices I could think about 
+
+
+
+# Output ----
+# output 
+write_sf(combined_data, here(merged_data_path, "census_tract_data_full.gpkg"))
+
+

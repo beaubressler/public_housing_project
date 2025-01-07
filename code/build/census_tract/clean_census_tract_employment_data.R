@@ -1,0 +1,396 @@
+####
+# Read in raw NHGIS tract-level employment data
+
+####
+
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(ipumsr)
+
+
+geographic_crosswalk_dir <- "data/derived/geographic_crosswalks/"
+
+
+
+# Write function for caluculating median years of employment in a census tract
+
+calculate_median_ed_from_census <- function(data, rank_df, var_code, var_name) {
+  data %>% 
+    # convert all the pop variables to numeric
+    mutate_at(vars(contains(var_code)), as.numeric) %>%
+    pivot_longer(cols = starts_with(var_code), names_to = "range", values_to = "num_in_sample") %>%
+    left_join(rank_df, by = c("range" = "name")) %>%
+    group_by(YEAR, STATEA, COUNTYA, TRACTA) %>%
+    arrange(YEAR, STATEA, COUNTYA, TRACTA, rank) %>% 
+    mutate(
+      cumulative_freq = cumsum(num_in_sample),
+      total = sum(num_in_sample),
+      median_position = total / 2) %>% 
+    filter(cumulative_freq >= median_position) %>%
+    slice(1) %>% 
+    select(YEAR, STATEA, COUNTYA, TRACTA, range) %>% 
+    dplyr::rename(!!var_name := range) %>% 
+    # drop geometry
+    st_drop_geometry()
+}
+
+
+# Read in geographic tract crosswalks ----
+# crosswalks, 1930 to 1990
+tract_crosswalk_1930 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1990.csv"))
+tract_crosswalk_1940 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1990.csv"))
+tract_crosswalk_1950 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1950_to_1990.csv"))
+tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1990.csv"))
+tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1990.csv"))
+tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1990.csv"))
+
+# Compile tract-level Census employment data ----
+
+# shared variables we want to keep
+tract_background_variables <-
+  c("NHGISST","NHGISCTY", "GISJOIN", "GISJOIN2", "SHAPE_AREA", "SHAPE_LEN",
+    "geometry", "YEAR", "STATE", "STATEA", "COUNTY", "COUNTYA",
+    "TRACTA", "POSTTRCTA", "AREANAME")
+
+
+### 1930 -----
+chicago_1930_tract_raw <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1930/nhgis0040_ds58_1930_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1930/US_tract_1930.shp",
+      file_select = starts_with("US_tract_1930")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+cleveland_1930_tract_raw <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1930/nhgis0040_ds60_1930_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1930/US_tract_1930.shp",
+      file_select = starts_with("US_tract_1930")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+
+stl_1930_tract_raw <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1930/nhgis0040_ds68_1930_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1930/US_tract_1930.shp",
+      file_select = starts_with("US_tract_1930")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+misc_1930_tract_raw <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1930/nhgis0040_ds63_1930_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1930/US_tract_1930.shp",
+      file_select = starts_with("US_tract_1930")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+# compile 1930 data
+columns_to_convert <-
+  c("STATEA", "COUNTYA", "PRETRACTA", "TRACTA", "POSTTRCTA")
+
+
+# convert these columns to character in all these tract datasets using lapply
+list_of_1930_dfs <-
+  list(chicago_1930_tract_raw, cleveland_1930_tract_raw, stl_1930_tract_raw, misc_1930_tract_raw)
+
+list_of_1930_dfs_converted <- lapply(list_of_1930_dfs, function(df) {
+  df %>% mutate(across(all_of(columns_to_convert), as.character))
+})
+
+# save names of those dfs as a string vector
+names_1930_dfs = c("chicago_1930_tract_raw", "cleveland_1930_tract_raw",
+                   "stl_1930_tract_raw", "misc_1930_tract_raw")
+
+# reassign to the global environment
+names(list_of_1930_dfs_converted) <- names_1930_dfs
+list2env(list_of_1930_dfs_converted, envir = .GlobalEnv)
+
+# create full tract dataset
+full_tract_data_1930 <-
+  bind_rows(chicago_1930_tract_raw, cleveland_1930_tract_raw,
+            stl_1930_tract_raw, misc_1930_tract_raw)
+
+####  harmonize variables and create tract-level employment dataset----
+
+tract_employment_data_1930 <- 
+  full_tract_data_1930 %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), contains("BPN"), contains("BIC"),
+         contains("BKO"), contains("BMO")) %>% 
+  # create employed pop variable
+  mutate(employed_pop = case_when(!is.na(BIC001) ~ BIC001 + BIC002,
+                                      !is.na(BPN001) ~ BPN001 + BPN002,
+                                      !is.na(BKO001) ~ BKO001 + BKO002,
+                                      !is.na(BMO001) ~ BMO001 + BMO002)) %>%
+  select(any_of(tract_background_variables), contains("pop"))
+
+### 1940  -------
+full_tract_data_1940 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1940/nhgis0039_ds76_1940_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1940/US_tract_1940.shp",
+      file_select = starts_with("US_tract_1940")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+
+#### harmonization ----
+
+# calculate employed pop, LFP rate, and unemployed pop and rate
+
+tract_employment_data_1940 <- 
+  full_tract_data_1940 %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), contains("BUW"), contains("BUZ")) %>% 
+  # create employed pop variable: men + women in labor force - unemployed
+  # create LFP rate (labor force/not in labor force)
+  # create unemployment rate
+  mutate(employed_pop = BUW001 + BUW003 - BUZ001 - BUZ002-BUZ003-BUZ004,
+         unemployed_pop = BUZ001 + BUZ002 + BUZ003 + BUZ004,
+         not_in_lf_pop = BUW002 + BUW004,
+         lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop),
+         unemp_rate = (unemployed_pop)/(employed_pop + unemployed_pop)) %>%
+  select(any_of(tract_background_variables), contains("rate"), contains("pop"))
+
+### 1950 -----
+
+
+full_tract_data_1950 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1950/nhgis0041_ds82_1950_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1950/US_tract_1950.shp",
+      file_select = starts_with("US_tract_1950")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+#### harmonization -----
+tract_employment_data_1950 <- 
+  full_tract_data_1950 %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), contains("B0P"), contains("B0N")) %>% 
+  mutate(employed_pop = B0P001 + B0P003,
+         unemployed_pop = B0P002 + B0P004,
+         unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
+         not_in_lf_pop = B0N002 + B0N004, 
+         lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
+  select(any_of(tract_background_variables), contains("rate"), contains("pop"))
+
+
+### 1960 -----
+full_tract_data_1960 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1960/nhgis0039_ds92_1960_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1960/US_tract_1960.shp",
+      file_select = starts_with("US_tract_1960")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+#### harmonization -----
+tract_employment_data_1960 <- 
+  full_tract_data_1960 %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), contains("B82")) %>% 
+  mutate(employed_pop = B82001 + B82005,
+         unemployed_pop = B82002 + B82006,
+         armed_forces_pop = B82003 + B82007,
+         unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
+         not_in_lf_pop = B82004 + B82008,
+         # dont consider armed forces in labor force
+         lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
+  select(any_of(tract_background_variables), contains("rate"), contains("pop"))
+
+### 1970 -----
+full_tract_data_1970 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1970/nhgis0039_ds98_1970_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1970/US_tract_1970.shp",
+      file_select = starts_with("US_tract_1970")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+#### harmonization -----
+
+tract_employment_data_1970 <- 
+  full_tract_data_1970 %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), contains("C07")) %>% 
+  mutate(employed_pop = C07002,
+         unemployed_pop = C07003,
+         armed_forces_pop = C07001,
+         unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
+         not_in_lf_pop = C07004,
+         # consider armed forces as part of the labor force (or not, just exclude)
+         lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop))
+
+
+### 1980 -----
+
+full_tract_data_1980 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1980/nhgis0039_ds107_1980_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1980/US_tract_1980.shp",
+      file_select = starts_with("US_tract_1980")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+#### harmonization -----
+
+tract_employment_data_1980 <- 
+  full_tract_data_1980 %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), contains("DHX")) %>% 
+  mutate(employed_pop = DHX002 + DHX006,
+         unemployed_pop = DHX003 + DHX007,
+         armed_forces_pop = DHX001 + DHX005,
+         unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
+         not_in_lf_pop = DHX004 + DHX008,
+         # consider armed forces as part of the labor force (or not, just exclude)
+         lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
+  select(any_of(tract_background_variables), contains("rate"), contains("pop"))
+
+
+
+### 1990 -----
+
+full_tract_data_1990 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/1990/nhgis0039_ds123_1990_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1990/US_tract_1990.shp",
+      file_select = starts_with("US_tract_1990")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+
+#### harmonization -----
+
+tract_employment_data_1990 <- 
+  full_tract_data_1990 %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), contains("E4I")) %>% 
+  mutate(employed_pop = E4I002 + E4I006,
+         unemployed_pop = E4I003 + E4I007,
+         armed_forces_pop = E4I001 + E4I005,
+         unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
+         not_in_lf_pop = E4I004 + E4I008, 
+         # consider armed forces as part of the labor force (or not, just exclude)
+         lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
+  select(any_of(tract_background_variables), contains("rate"), contains("pop"))
+
+
+
+#### save 1990 Census tract information ----
+tract_info_1990 <-
+  tract_employment_data_1990 %>% 
+  select(any_of(tract_background_variables), -YEAR)
+
+# Concord datasets to 1990 Census tracts ----
+# 1. Join on crosswalk to get GISJOIN_1990 and weights
+# 2. Weight populations by "weight" and collapse to GISJOIN_1990
+# 3. Merge geography information from 1990 NHGIS file
+
+## Loop for 1930-1990 -----
+years <- c(1930, 1940, 1950, 1960, 1970, 1980)
+
+for (year in years) {
+  # Construct variable names and file names dynamically based on the year
+  tract_employment_data_var <- paste0("tract_employment_data_", year)
+  tract_crosswalk_var <- paste0("tract_crosswalk_", year)
+  tract_employment_data_concorded_var <- paste0("tract_employment_data_", year, "_concorded")
+  
+  # Execute the operations inside the loop
+  assign(tract_employment_data_concorded_var, 
+         get(tract_employment_data_var) %>% 
+           # join on crosswalk
+           left_join(get(tract_crosswalk_var), by = c("GISJOIN" = paste0("GISJOIN_", year))) %>%
+           # weight populations
+           mutate_at(vars(contains("pop")), ~ . * weight) %>%
+           st_drop_geometry() %>% 
+           # collapse to GISJOIN_1990
+           group_by(GISJOIN_1990, YEAR) %>% 
+           summarise_at(vars(contains("pop")), sum, na.rm = TRUE) %>%
+           ungroup()  %>%
+           # merge geography information from 1990 NHGIS file
+           left_join(tract_info_1990, by = c("GISJOIN_1990" = "GISJOIN"))
+  )
+}
+
+
+# Combine tract-level datasets ----
+
+# tract population data concorded to 1990 tracts
+tract_employment_data_concorded <-
+  bind_rows(tract_employment_data_1930_concorded, tract_employment_data_1940_concorded,
+            tract_employment_data_1950_concorded, tract_employment_data_1960_concorded,
+            tract_employment_data_1970_concorded, tract_employment_data_1980_concorded,
+            tract_employment_data_1990) %>%
+  # calculate unemployment rate, lfp rate
+  mutate(unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
+         lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
+  select(any_of(tract_background_variables), contains("pop"), contains("rate")) %>% 
+  # drop rows with missing geometry
+  filter(!st_is_empty(geometry))
+
+# Save ----
+# save concorded tract_employment_data as shapefile
+st_write(tract_employment_data_concorded, "data/derived/census/tract_employment_data.gpkg",
+         append = FALSE, layer = "points", driver = "GPKG")
+
+
+
+
+
+
