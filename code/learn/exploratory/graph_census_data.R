@@ -5,6 +5,7 @@ library(lmtest)
 library(fixest)
 library(here)
 library(RColorBrewer)
+library(ggrepel)
 
 # libraries for covariate testing
 library(cobalt)
@@ -95,8 +96,8 @@ census_tract_data_geo <-
          asinh_pop_white = asinh(white_pop),
          asinh_pop_black = asinh(black_pop),
          asinh_median_income = asinh(median_income),
-         asinh_median_rent = asinh(median_rent),
-         asinh_median_home_value = asinh(median_home_value),
+         asinh_median_rent = asinh(median_rent_calculated),
+         asinh_median_home_value = asinh(median_home_value_calculated),
          asinh_distance_from_cbd = asinh(distance_from_cbd)) %>% 
   dplyr::rename(year = YEAR) %>% 
   # for HOLC variables (grade and category) if category is missisng ,set to "missing"
@@ -211,6 +212,87 @@ moran.test(census_tract_data_no_isolated %>% pull(black_share), weights)
 
 
 # Graphs -----
+
+## US map of data coverage -----
+unique_cbsas <- 
+  census_tract_data_geo %>% 
+  st_drop_geometry() %>% 
+  select(cbsa_title) %>% 
+  distinct()
+
+cbsa_data <- 
+  census_tract_data_geo %>% 
+  filter(year == 1990) %>% 
+  group_by(cbsa_title) %>% 
+  summarize(
+    population = sum(total_pop, na.rm = TRUE)/1000,  # Aggregate population
+    geometry = st_union(geom)  # Merge geometries
+  ) %>%
+  ungroup()
+
+# mainland us
+states <- 
+  tigris::states(cb = TRUE) %>%
+  filter(!STUSPS %in% c("HI", "AK", "PR"))  # Exclude Hawaii, Alaska, and Puerto Rico
+states <- st_transform(states, st_crs(cbsa_data))
+
+
+
+mainland_bbox <- st_bbox(c(
+  xmin = -125,  # Western edge
+  xmax = -65,   # Eastern edge
+  ymin = 24,    # Southern edge
+  ymax = 50     # Northern edge
+), crs = st_crs(states))  # Use the CRS of cbsa_data
+
+
+cbsa_centroids <- cbsa_data %>%
+  st_centroid() %>% # Compute centroids for each CBSA
+  st_transform(crs = 3857) %>%  # Transform to a projected CRS
+  mutate(
+    buffer_size = sqrt(population) / max(sqrt(population)) * 125000,  # Adjust scaling as needed
+    label = str_extract(cbsa_title, "^[^-,]+")  # Extract text up to the first "-" or ","
+  )
+
+cbsa_circles <- st_buffer(cbsa_centroids, dist = cbsa_centroids$buffer_size)
+
+# Crop states and CBSA data to mainland USA
+states_cropped <- st_crop(states, mainland_bbox)
+cbsa_data_cropped <- st_crop(cbsa_data, mainland_bbox)
+
+ggplot() +
+  # Add base map
+  geom_sf(data = states_cropped, fill = "gray90", color = "white", size = 0.2) +
+  
+  # Add CBSA locations, with size by population
+  geom_sf(data = cbsa_circles, size = cbsa_circles$buffer_size, color = "dodgerblue", fill = "dodgerblue", alpha = 0.6) +
+  
+  geom_text_repel(data = cbsa_centroids, aes(label = label, geometry = geometry), stat = "sf_coordinates", size = 2.5) +
+
+  # Scale for population size
+  scale_fill_continuous(
+    name = "Population",
+    labels = scales::comma
+  ) +
+  
+  # Theme and labels
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),              # Remove gridlines
+    axis.title = element_blank(),              # Remove axis titles
+    axis.text = element_blank(),               # Remove axis text (latitude/longitude labels)
+    axis.ticks = element_blank()               # Remove axis ticks
+  )  +
+  labs(
+    title = "Geographic Coverage of Sample"
+  )
+
+# save map 
+ggsave(here(map_dir, "cbsa_coverage_map.png"), 
+       width = 8, height = 6, dpi = 900,
+       bg = "white")
+
+
 ## Graphs of each variable by city ----
 outcome_vars <- c("black_share", "asinh_pop_total", "total_pop", "black_pop", "asinh_pop_black",
                   "white_pop", "asinh_pop_white", "median_income", "median_home_value", "median_rent",

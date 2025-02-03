@@ -8,6 +8,7 @@ build_dir <- here("code", "build")
 census_tract_build_dir <- here(build_dir, "census_tract")
 full_count_build_dir <- here(build_dir, "full_count")
 public_housing_build_dir <- here(build_dir, "public_housing")
+other_data_build_dir <- here(build_dir, "other_data")
 merged_build_dir <- here(build_dir, "merged_data")
 
 learn_dir <- here("code", "learn")
@@ -52,10 +53,13 @@ source(here(full_count_build_dir, "collapse_ed_to_tract_data.R"))
 
 ## Clean other neighborhood data----
 # clean holc map/redlining data
-source(here(build_dir, "clean_holc_data.R"))
+source(here(other_data_build_dir, "clean_holc_data.R"))
+
+# clean urban renewal data 
+source(here(other_data_build_dir, "clean_urban_renewal_data.R"))
 
 # clean Zillow neighborhoods
-source(here(build_dir, "clean_zillow_neighborhoods.R"))
+source(here(other_data_build_dir, "clean_zillow_neighborhoods.R"))
 
 ## Combine Census and neighborhood data -----
 source(here(merged_build_dir, "combine_neighborhood_data.R"))

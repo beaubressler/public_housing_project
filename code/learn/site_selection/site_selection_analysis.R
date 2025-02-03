@@ -238,7 +238,7 @@ low_skill_share_model <- feols(treated ~ low_skill_share_1950 | cbsa_title, cens
 black_share_model <- feols(treated ~ black_share_1950 | cbsa_title, census_tract_sample_1990)
 
 
-
+## 1950 characteristics -----
 ## Model 1. Demographics
 model_1_probit <- 
   feglm(treated ~
@@ -336,11 +336,80 @@ modelsummary(
   #   "Standard errors in parentheses are clustered by neighborhood ID.",
   #   "Columns 1 and 3 show the results from linear probability models (LPM), while columns 2 and 4 show the marginal effects from probit models.",
   #   "Probit coefficients represent effects on a latent variable, not direct changes in probability."),
-  output = here(site_selection_output_dir, "ever_treated_site_selection_models_20250107.tex")
+  output = here(site_selection_output_dir, "ever_treated_site_selection_models_probit.tex")
+)
+
+## Estimate linear probability models -----
+## Model 1. Demographics
+model_1_lpm <- 
+  feols(treated ~
+          black_share_1950 + 
+          median_income_1950  + 
+          pct_hs_grad_1950 | cbsa_title, 
+        data = census_tract_sample_1990,
+        cluster = "neighborhood_id")
+model_1_lpm
+
+## Model 2. Add neighborhood characteristics
+model_2_lpm <- 
+  feols(treated ~
+          black_share_1950 + 
+          median_income_1950  + 
+          pct_hs_grad_1950 +
+          unemp_rate_1950 + 
+          redlined_binary_80pp + 
+          population_density_1950 +
+          cbd + 
+          asinh_distance_from_cbd | cbsa_title, 
+        data = census_tract_sample_1990,
+        cluster = "neighborhood_id")
+model_2_lpm
+
+## Model 3. Add housing characteristics
+model_3_lpm <- 
+  feols(treated ~
+          black_share_1950 + 
+          median_income_1950  + 
+          pct_hs_grad_1950 +
+          unemp_rate_1950 + 
+          redlined_binary_80pp + 
+          population_density_1950 +
+          asinh_distance_from_cbd + 
+          cbd + 
+          share_needing_repair_1940 + 
+          median_home_value_calculated_1950 + 
+          median_rent_calculated_1950 + 
+          median_housing_age_1950 | cbsa_title, 
+        data = census_tract_sample_1990,
+        cluster = "neighborhood_id")
+model_3_lpm
+
+
+models_lpm <- list(
+  "(1)" = model_1_lpm,
+  "(2)" = model_2_lpm,
+  "(3)" = model_3_lpm
 )
 
 
-## Try with logs for all variables
+modelsummary(
+  models_lpm,
+  estimate = "{estimate} ({std.error}){stars}",   # Shows coefficient with standard error below in parentheses
+  statistic = NULL,                        # Removes additional statistics beside SEs
+  coef_omit = "(Intercept)",               # Omits the intercept if not needed
+  coef_map = variable_labels,              # Maps variable names to custom labels
+  stars = TRUE,                            # Significance stars
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits unneeded goodness-of-fit statistics
+  title = "Predicting likelihood of ever receiving a public housing project (1951-1973)",
+  add_rows = fe_row,
+  # notes = c(
+  #   "Standard errors in parentheses are clustered by neighborhood ID.",
+  #   "Columns 1 and 3 show the results from linear probability models (LPM), while columns 2 and 4 show the marginal effects from probit models.",
+  #   "Probit coefficients represent effects on a latent variable, not direct changes in probability."),
+  output = here(site_selection_output_dir, "ever_treated_site_selection_models_lpm.tex")
+)
+
+
 
 # 
 # ## Probability of being treated based on previous decades variables ----

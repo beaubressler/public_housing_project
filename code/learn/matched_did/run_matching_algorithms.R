@@ -142,17 +142,20 @@ group_types <- c("treated", "inner")
 #                    "asinh_pop_black", "asinh_pop_total",
 #                    "black_share", "high_skill_share")
 
-# new matching vars
-matching_vars <- c("population_density", "asinh_distance_from_cbd",
-                    "asinh_pop_black", "asinh_pop_total",
-                    "black_share", "unemp_rate", "pct_hs_grad",
-                    "asinh_median_home_value_calculated")
-
-# matching_vars <- c("population_density", "asinh_distance_from_cbd", 
+# matching_vars <- c("population_density", "asinh_distance_from_cbd",
 #                     "asinh_pop_black", "asinh_pop_total",
-#                     "black_share", "unemp_rate", "pct_hs_grad",
-#                     "asinh_median_home_value_calculated", "low_skill_share", 
-#                     "asinh_median_rent_calculated", "total_units")
+#                     "black_share", "unemp_rate", 
+#                     "pct_hs_grad",
+#                     "asinh_median_income",
+#                     "asinh_median_rent_calculated", "asinh_median_home_value_calculated")
+
+matching_vars <- c("population_density", "asinh_distance_from_cbd",
+                   "asinh_pop_black", "asinh_pop_total",
+                   "black_share",
+                   "unemp_rate", 
+                   "pct_hs_grad",
+                   "asinh_median_home_value_calculated",
+                   "asinh_median_rent_calculated")
 
 
 # function for plotting density plots
@@ -627,188 +630,120 @@ write_csv(tract_data_matched_1_year_replacement, here(output_data_dir, "tract_da
 write_csv(tract_data_matched_2_year_replacement, here(output_data_dir, "tract_data_matched_2_year_with_replacement.csv"))
 
 
-# ## Create and output balance tables ----
-# TODO: move this elsewhere
+# # # Create maps of treated and control tracts for each city-----
+# # TODO: Move to another 
+# # # get all tracts in our data with their status
 # 
-# # function for outputting balance tables
-# create_balance_tables <- function(data, covariates, output_dir) {
-#   # Function to create and save balance table
-#   create_and_save_table <- function(data, covariates, strata_var, filename) {
-#     balance <- CreateTableOne(vars = covariates,
-#                               strata = strata_var,
-#                               data = data,
-#                               test = TRUE)
-#     
-#     balance_html <- kable(print(balance, printToggle = FALSE, smd = TRUE), format = "html") %>%
-#       kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
-#     
-#     save_kable(balance_html, file = file.path(output_dir, filename))
+# # Switch from 1990 to just all unique tracts
+# all_tracts_with_status <-
+#   census_tract_sample_raw %>%
+#   filter(YEAR == 1990) %>%
+#   left_join(tract_data_matched_1_year %>%
+#               filter(year == 1990) %>%
+#               dplyr::select(STATE, COUNTY, TRACTA, location_type, weights, matched_treatment_year, group_type),
+#             by = c("STATE", "COUNTY", "TRACTA")) %>%
+#   group_by(STATE, COUNTY, TRACTA) %>%
+#   # create combined_group_type equal to a combined string of the unique group types for donor_pool tracts
+#   # this tells us which groups the donor_pool tract serves as a control for (which can be multiple)
+#   # something about this isn't working
+#   mutate(
+#     combined_group_type = case_when(
+#       any(location_type == "donor_pool") ~ paste(sort(unique(group_type[group_type != ""])), collapse = "-"),
+#       TRUE ~ NA_character_
+#     ),
+#     final_type = case_when(
+#       is.na(location_type) | (location_type == "donor_pool" & (is.na(combined_group_type) | combined_group_type == "")) ~ "unmatched",
+#       location_type != "donor_pool" ~ location_type,
+#       TRUE ~ combined_group_type
+#     )
+#   ) %>%
+#   ungroup() %>%
+#   distinct(STATE, COUNTY, TRACTA, .keep_all = TRUE) %>%
+#   # if tract is donor pool, set final type = donor_pool + final_type
+#   mutate(final_type = case_when(
+#     location_type == "donor_pool" ~ paste("donor_pool", final_type, sep = "_"),
+#     TRUE ~ final_type
+#   ))
+# 
+# # view
+# # View(all_tracts_with_status %>% dplyr::select(STATE, COUNTY, TRACTA, location_type, final_type, combined_group_type))
+# 
+# create_city_map <- function(data, cbsa_name) {
+#   # Filter data for the specific city
+#   city_data <- data %>%
+#     filter(cbsa_title == cbsa_name)
+# 
+#   # Function to mix colors
+#   mix_colors <- function(colors) {
+#     col_matrix <- col2rgb(colors)
+#     mixed_col <- rgb(
+#       red = mean(col_matrix["red", ]),
+#       green = mean(col_matrix["green", ]),
+#       blue = mean(col_matrix["blue", ]),
+#       maxColorValue = 255
+#     )
+#     return(mixed_col)
 #   }
-#   
-#   # Create inner vs donor_pool balance table
-#   inner_donor <- data %>% 
-#     filter(location_type %in% c("inner", "donor_pool") & group_type == "inner")
-#   create_and_save_table(inner_donor, covariates, "location_type", "inner_vs_donor_balance_table.html")
-#   
-#   # Create treated vs donor_pool balance table
-#   treated_donor <- data %>% 
-#     filter(location_type %in% c("treated", "donor_pool") & group_type == "treated")
-#   create_and_save_table(treated_donor, covariates, "location_type", "treated_vs_donor_balance_table.html")
-#   
-#   # Create balance tables for each city
-#   cities <- unique(data$city)
-#   
-#   for (city in cities) {
-#     city_data <- data %>% filter(city == !!city)
-#     
-#     # Inner vs donor_pool for the city
-#     city_inner_donor <- city_data %>% 
-#       filter(location_type %in% c("inner", "donor_pool") & group_type == "inner")
-#     create_and_save_table(city_inner_donor, covariates, "location_type", 
-#                           paste0(city, "_inner_vs_donor_balance_table.html"))
-#     
-#     # Treated vs donor_pool for the city
-#     city_treated_donor <- city_data %>% 
-#       filter(location_type %in% c("treated", "donor_pool") & group_type == "treated")
-#     create_and_save_table(city_treated_donor, covariates, "location_type", 
-#                           paste0(city, "_treated_vs_donor_balance_table.html"))
-#   }
+# 
+#   # Define color palette with more distinct base colors
+#   color_palette <- c(
+#     "treated" = "darkred",
+#     "inner" = "darkgreen",
+#     "outer" = "blue",
+#     "donor_pool_treated" = "#FF9999",
+#     "donor_pool_inner" = "#99FF99",
+#     "donor_pool_outer" = "#9999FF",
+#     "donor_pool_inner-treated" = "#FFFF00",
+#     "donor_pool_outer-treated" = "#FF00FF",
+#     "donor_pool_inner-outer" = "#00FFFF",
+#     "donor_pool_inner-outer-treated" = "black",
+#     "donor_pool_unmatched" = "#DDDDDD"
+#   )
+# 
+#   color_labels <- c(
+#     "treated" = "Treated",
+#     "inner" = "Inner Ring",
+#     "outer" = "Outer Ring",
+#     "donor_pool_treated" = "Control: Treated",
+#     "donor_pool_inner" = "Control: Inner",
+#     "donor_pool_outer" = "Control: Outer",
+#     "donor_pool_inner-treated" = "Control: Treated + Inner",
+#     "donor_pool_outer-treated" = "Control: Treated + Outer",
+#     "donor_pool_inner-outer" = "Control: Inner + Outer",
+#     "donor_pool_inner-outer-treated" = "Control: Treated + Inner + Outer",
+#     "donor_pool_unmatched" = "Unmatched"
+#   )
+# 
+# 
+#   # Create the map
+#   ggplot() +
+#     geom_sf(data = city_data, aes(fill = final_type), color = "black", size = 0.1) +
+#     scale_fill_manual(values = color_palette,
+#                       name = "Tract Type",
+#                       labels = color_labels,
+#                       drop = FALSE) +
+#     theme_minimal() +
+#     theme(
+#       plot.background = element_rect(fill = "white", color = NA),
+#       panel.background = element_rect(fill = "white", color = NA),
+#       plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+#       legend.position = "bottom",
+#       legend.background = element_rect(fill = "white", color = "black"),
+#       legend.key = element_rect(color = "black", size = 0.2),
+#       axis.text = element_blank(),
+#       axis.ticks = element_blank()
+#     ) +
+#     guides(fill = guide_legend(ncol = 2)) +
+#     ggtitle(paste("Tract types in", cbsa_name))
 # }
 # 
-# create_balance_tables(balanced_data, covariates, balance_table_dir)
+# # Create maps for each city
+# cities <- unique(all_tracts_with_status$cbsa_title)
+# for (city in cities) {
+#   map <- create_city_map(all_tracts_with_status, city)
 # 
+#   ggsave(filename = paste0(map_dir, gsub(" ", "_", city), "_refined_tract_types_map.png"),
+#          plot = map, width = 12, height = 10, dpi = 300, bg = "white")
 # 
-# 
-# # Create balance tables for each city 
-# for (city in unique(tract_data_matched_1_year$city)) {
-#   balance_table <- CreateTableOne(vars = covariates,
-#                                   strata = "location_type",
-#                                   data = balanced_data %>% filter(city == city),
-#                                   test = TRUE)
-#   
-#   # Print the table
-#   print(balance_table, smd = TRUE)
+#   print(paste("Map created for", city))
 # }
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# # Create maps of treated and control tracts for each city-----
-# # get all tracts in our data with their status
-
-# Switch from 1990 to just all unique tracts
-all_tracts_with_status <-
-  census_tract_sample_raw %>%
-  filter(YEAR == 1990) %>%
-  left_join(tract_data_matched_1_year %>%
-              filter(year == 1990) %>%
-              dplyr::select(STATE, COUNTY, TRACTA, location_type, weights, matched_treatment_year, group_type),
-            by = c("STATE", "COUNTY", "TRACTA")) %>%
-  group_by(STATE, COUNTY, TRACTA) %>%
-  # create combined_group_type equal to a combined string of the unique group types for donor_pool tracts
-  # this tells us which groups the donor_pool tract serves as a control for (which can be multiple)
-  # something about this isn't working
-  mutate(
-    combined_group_type = case_when(
-      any(location_type == "donor_pool") ~ paste(sort(unique(group_type[group_type != ""])), collapse = "-"),
-      TRUE ~ NA_character_
-    ),
-    final_type = case_when(
-      is.na(location_type) | (location_type == "donor_pool" & (is.na(combined_group_type) | combined_group_type == "")) ~ "unmatched",
-      location_type != "donor_pool" ~ location_type,
-      TRUE ~ combined_group_type
-    )
-  ) %>%
-  ungroup() %>%
-  distinct(STATE, COUNTY, TRACTA, .keep_all = TRUE) %>%
-  # if tract is donor pool, set final type = donor_pool + final_type
-  mutate(final_type = case_when(
-    location_type == "donor_pool" ~ paste("donor_pool", final_type, sep = "_"),
-    TRUE ~ final_type
-  ))
-
-# view
-# View(all_tracts_with_status %>% dplyr::select(STATE, COUNTY, TRACTA, location_type, final_type, combined_group_type))
-
-create_city_map <- function(data, cbsa_name) {
-  # Filter data for the specific city
-  city_data <- data %>%
-    filter(cbsa_title == cbsa_name)
-
-  # Function to mix colors
-  mix_colors <- function(colors) {
-    col_matrix <- col2rgb(colors)
-    mixed_col <- rgb(
-      red = mean(col_matrix["red", ]),
-      green = mean(col_matrix["green", ]),
-      blue = mean(col_matrix["blue", ]),
-      maxColorValue = 255
-    )
-    return(mixed_col)
-  }
-
-  # Define color palette with more distinct base colors
-  color_palette <- c(
-    "treated" = "darkred",
-    "inner" = "darkgreen",
-    "outer" = "blue",
-    "donor_pool_treated" = "#FF9999",
-    "donor_pool_inner" = "#99FF99",
-    "donor_pool_outer" = "#9999FF",
-    "donor_pool_inner-treated" = "#FFFF00",
-    "donor_pool_outer-treated" = "#FF00FF",
-    "donor_pool_inner-outer" = "#00FFFF",
-    "donor_pool_inner-outer-treated" = "black",
-    "donor_pool_unmatched" = "#DDDDDD"
-  )
-
-  color_labels <- c(
-    "treated" = "Treated",
-    "inner" = "Inner Ring",
-    "outer" = "Outer Ring",
-    "donor_pool_treated" = "Control: Treated",
-    "donor_pool_inner" = "Control: Inner",
-    "donor_pool_outer" = "Control: Outer",
-    "donor_pool_inner-treated" = "Control: Treated + Inner",
-    "donor_pool_outer-treated" = "Control: Treated + Outer",
-    "donor_pool_inner-outer" = "Control: Inner + Outer",
-    "donor_pool_inner-outer-treated" = "Control: Treated + Inner + Outer",
-    "donor_pool_unmatched" = "Unmatched"
-  )
-
-
-  # Create the map
-  ggplot() +
-    geom_sf(data = city_data, aes(fill = final_type), color = "black", size = 0.1) +
-    scale_fill_manual(values = color_palette,
-                      name = "Tract Type",
-                      labels = color_labels,
-                      drop = FALSE) +
-    theme_minimal() +
-    theme(
-      plot.background = element_rect(fill = "white", color = NA),
-      panel.background = element_rect(fill = "white", color = NA),
-      plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
-      legend.position = "bottom",
-      legend.background = element_rect(fill = "white", color = "black"),
-      legend.key = element_rect(color = "black", size = 0.2),
-      axis.text = element_blank(),
-      axis.ticks = element_blank()
-    ) +
-    guides(fill = guide_legend(ncol = 2)) +
-    ggtitle(paste("Tract types in", cbsa_name))
-}
-
-# Create maps for each city
-cities <- unique(all_tracts_with_status$cbsa_title)
-for (city in cities) {
-  map <- create_city_map(all_tracts_with_status, city)
-
-  ggsave(filename = paste0(map_dir, gsub(" ", "_", city), "_refined_tract_types_map.png"),
-         plot = map, width = 12, height = 10, dpi = 300, bg = "white")
-
-  print(paste("Map created for", city))
-}

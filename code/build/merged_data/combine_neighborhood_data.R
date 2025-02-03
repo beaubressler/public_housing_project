@@ -24,6 +24,7 @@ census_data_path <- here(data_path, "derived", "census")
 census_ed_tract_data_path <- here(census_data_path, "full_count", "tract")
 zillow_data_path <- here(data_path, "derived", "zillow")
 holc_data_path <- here(data_path, "derived", "holc")
+ur_data_path <- here(data_path, "derived", "urban_renewal")
 cpi_data_path <- here(data_path, "raw", "measuring_worth")
 cbsa_data_path <- here(data_path, "raw", "cbsa_crosswalk")
 
@@ -73,7 +74,11 @@ read_census_data <- function() {
 ## read and process census tract data  -----
 census_tract_data_full <- read_census_data()
 
-## Read in Census tract data constructed from full count ----
+## Incorporate in Census tract data constructed from full count ----
+# Two uses:
+# 1. Use tract-data from full count for any tracts unavailable in the tract-level data (1930 and 1940)
+# 2. 1940: Income data is only available as constructed from full count data -> use it here
+
 # 1/2025: Use tract-data from full count for any tracts unavailable in the tract-level data
 # this mostly includes tracts in cities that were not available at the tract level in those years
 # but also includes some in cities that were partially included 
@@ -84,22 +89,38 @@ census_tract_data_from_full_count <-
   dplyr::rename(employed_pop = employed,
                 unemployed_pop = unemployed,
                 not_in_lf_pop = not_in_lf) %>% 
-  mutate(employment_pop_ratio = employed_pop / total_pop)
+  mutate(employment_pop_ratio = employed_pop / total_pop) %>% 
+  # drop a couple of erroneous observations
+  filter(total_pop != 0 )
 
-census_tract_data_full_1930_and_1940 <- census_tract_data_full %>% 
+census_tract_data_full_1930_and_1940 <-
+  census_tract_data_full %>% 
   filter(YEAR %in% c(1930, 1940))
-
 
 additional_tracts_from_full_count_1930_1940 <- 
   census_tract_data_from_full_count %>% 
-  anti_join(census_tract_data_full_1930_and_1940 %>% st_drop_geometry(), by = c("STATEA", "COUNTYA", "TRACTA", "YEAR"))
+  anti_join(census_tract_data_full_1930_and_1940 %>% st_drop_geometry(),
+            by = c("STATEA", "COUNTYA", "TRACTA", "YEAR"))
+
+
+# Census tract data constructed from full count, 1940, only Income
+census_tract_data_from_full_count_income <- 
+  census_tract_data_from_full_count %>%
+  select(STATE, COUNTY, TRACTA, YEAR, median_income) %>% 
+  filter(YEAR == 1940) %>% 
+  dplyr::rename(median_income_fc = median_income)  %>% 
+  st_drop_geometry()
+
 
 # add these tracts to the full count data
 census_tract_data_full <- 
-  bind_rows(census_tract_data_full, additional_tracts_from_full_count_1930_1940)
+  bind_rows(census_tract_data_full, additional_tracts_from_full_count_1930_1940) %>% 
+  left_join(census_tract_data_from_full_count_income) %>% 
+  # replace median income with median income fc if missing 
+  mutate(median_income = coalesce(median_income, median_income_fc)) %>% 
+  select(-median_income_fc)
 
 # variables that are in the full count data but not in the tract-level data
-
 
 ## compare with original -----
 x <- names(census_tract_data_full_1930_and_1940)
@@ -122,6 +143,8 @@ summary(lm(black_pop_fc ~ black_pop_orig, data = merged_fc_and_fc_tracts))
 summary(lm(median_rent_calculated_fc ~ median_rent_calculated_orig, data = merged_fc_and_fc_tracts))
 summary(lm(median_home_value_calculated_fc ~ median_home_value_calculated_orig, data = merged_fc_and_fc_tracts))
 summary(lm(black_share_fc ~ black_share_orig, data = merged_fc_and_fc_tracts))
+summary(lm(pct_hs_grad_fc ~ pct_hs_grad_orig, data = merged_fc_and_fc_tracts))
+
 
 # check cities where orig is missing in 1930
 # merged_fc_and_fc_tracts %>% 
@@ -164,10 +187,14 @@ zillow_neighborhoods <-
   read_csv(here(zillow_data_path, "tracts_with_zillow_neighborhoods.csv")) %>% 
   dplyr::rename(zillow_neighborhood = neighborhood)
 
-### HOLC classifications
+### HOLC classifications ----
 holc_classifications <- 
   read_csv(here(holc_data_path, "tract_holc_classifications.csv")) %>% 
   dplyr::select(-city)
+
+### Urban renewal classifications  -----
+urban_renewal_classifications <- 
+  read_csv(here(ur_data_path, "tract_urban_renewal_classifications.csv"))
 
 ### CBSA classifications -----
 # use 2003 cbsa crosswalk to avoid Census changes since then, especially wrt Connecticut
@@ -186,6 +213,7 @@ combined_data <-
   census_tract_data_full %>%
   left_join(zillow_neighborhoods, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
   left_join(holc_classifications) %>% 
+  left_join(urban_renewal_classifications, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
   # if tract is not in HOLC data, assume it was not redlined
   mutate_at(vars(contains('redlined_binary')), ~ifelse(is.na(.), 0, .)) %>% 
   left_join(cbsa_data, by = c("STATEA", "COUNTYA")) %>% 

@@ -21,6 +21,7 @@ balance_table_dir <- here("output", "balance_tables", "matched_did", data_type)
 # Read in 2 year 
 tract_data_matched_2_year <- read_csv(here(match_data_dir, "tract_data_matched_2_year.csv"))
 
+# Produce matching tables -----
 
 ## Balance on pre-treatment covariate
 pre_treatment_data <-
@@ -34,14 +35,13 @@ covariates <- c("total_pop", "black_pop",
                  "white_pop","black_share", "redlined_binary_80pp", "median_income",
                 "median_home_value_calculated", "median_rent_calculated","median_housing_age", 
                 "distance_from_cbd", "population_density", 
-                "housing_density","total_units",  "pct_hs_grad",
-                "low_skill_share")  
+                "housing_density","total_units",  "pct_hs_grad")  
 
 
 # Create tables for each group_type, output 
 group_types <- c("treated", "inner")
 for (group in group_types ) {
-  cat(paste("Processing group:", group, "in dataset", dataset_name, "\n"))
+  # cat(paste("Processing group:", group, "in dataset", dataset_name, "\n"))
   
   data <- 
     pre_treatment_data %>% 
@@ -55,13 +55,12 @@ for (group in group_types ) {
                   `Median Income` = median_income,
                   `Median Home Value` = median_home_value_calculated,
                   `Median Rent` = median_rent_calculated,
-                  `Median Housing Age` = median_housing_age,
+                  # `Median Housing Age` = median_housing_age,
                   `Distance from CBD` = distance_from_cbd,
                   `Population Density` = population_density,
                   `Housing Density` = housing_density,
                   `Total Units` = total_units,
-                  `Pct HS Grad` = pct_hs_grad,
-                  `Low Skill Share` = low_skill_share) %>% 
+                  `Pct HS Grad` = pct_hs_grad) %>% 
     mutate(location_type = case_when(location_type == "treated" ~ "Treated",
                                     location_type == "inner" ~ "Inner Ring",
                                     TRUE ~ "Donor Pool"))

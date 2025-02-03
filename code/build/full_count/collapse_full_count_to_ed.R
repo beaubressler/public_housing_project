@@ -34,16 +34,6 @@ output_dir <- here("data", "derived", "census", "full_count", "ed_by_city")
 # that I cleaned
 grf_dir <- here("data", "derived", "geographic_reference_file")
 
-## 1930
-grf_1930 <- read_csv(here(grf_dir, "grf_1930_histid_ed_city.csv"))
-
-grf_1930 <- grf_1930 %>% 
-  select(histid, b_ed) %>%
-  dplyr::rename(HISTID = histid)
-
-# convert to datatable
-setDT(grf_1930)
-setkey(grf_1930, HISTID)
 
 # Cities for which I have ED map data
 cities <- c(
@@ -74,6 +64,17 @@ ddi_1930 <- read_ipums_ddi(ddi_file_path_1930)
 
 # read 10000 rows, all variables
 sample_1930 <- read_ipums_micro(ddi_1930, n_max = 10000)
+
+## 1930
+grf_1930 <- read_csv(here(grf_dir, "grf_1930_histid_ed_city.csv"))
+
+grf_1930 <- grf_1930 %>% 
+  select(histid, b_ed) %>%
+  dplyr::rename(HISTID = histid)
+
+# convert to datatable
+setDT(grf_1930)
+setkey(grf_1930, HISTID)
 
 
 
@@ -341,7 +342,7 @@ setkey(grf_1940, HISTID)
 
 
 
-ddi_file_path_1940 <- here(full_count_dir, "usa_00031.xml")
+ddi_file_path_1940 <- here(full_count_dir, "usa_00033.xml")
 
 ddi_1940 <- read_ipums_ddi(ddi_file_path_1940)
 
@@ -391,45 +392,159 @@ pop_by_race_by_city_ed_1940 <-
          other_pop = Chinese + `American Indian or Alaska Native` + Japanese +`Other Asian or Pacific Islander`) %>% 
   select(CITY_NAME, b_ed, white_pop, black_pop, other_pop) 
 
+## Education -----
+# Following 1940 tract data: Persons 25 years and older by years of school completed
+
+cb_function_educ_1940 <- function(x, pos) {
+  setDT(x)  # Ensure x is a data.table
+  
+  # Merge with grf_1930
+  x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
+  
+  x <- as_tibble(x)
+  
+  # Create educ attainment
+  x <- x %>%
+    # Keep only persons 25 years and older
+    filter(AGE >= 25) %>% 
+    # drop NA, missing, or no schooling
+    filter(EDUC != 0, EDUC != 99)
+  
+  # Convert back to data.table
+  setDT(x)
+  
+  # Group by CITY, b_ed, and rent_group and calculate population
+  result <- x[, .(population = .N), by = .(CITY, b_ed, EDUC)]
+  
+  return(result)
+}
+
+cb_education_1940 <- IpumsDataFrameCallback$new(cb_function_educ_1940)
+
+chunked_results_educ_1940 <-
+  read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_education_1940, chunk_size = chunk_size_param)
+
+
+pop_by_educ_by_city_ed_1940 <-
+  chunked_results_educ_1940 %>%
+  # drop missing CITY and b_ed
+  filter(CITY != 0, !is.na(b_ed)) %>% 
+  mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
+  group_by(CITY_NAME, b_ed, EDUC) %>%
+  summarize(population= sum(population), .groups = "drop") %>% 
+  # create 
+  # create education binary variables
+  mutate(hs_grad = ifelse(EDUC >= 6, population, 0),
+         some_college = ifelse(EDUC >= 7, population, 0)) %>% 
+  group_by(CITY_NAME, b_ed) %>%
+  # total pop (of the subgroup)
+  summarize(total_educ_pop = sum(population),
+            hs_grad_pop = sum(hs_grad),
+            some_college_pop = sum(some_college),
+            .groups = "drop") %>% 
+  select(CITY_NAME, b_ed,
+         total_educ_pop, hs_grad_pop, some_college_pop) 
+
 
 ## Income (INCWAGE) ----
 # TODO
 # Emiliano Harris JMP does something with 1940 wage income to make it more comparable 
 # with later years... could be worth doing that here
+# basically he just uses the indicator of whether person makes more than $50 in nonwage income
+# and excludes people who do, for whom their wage income doesn't reflect their actual income
+
+# Right now, I am just using their wage income variable as is
+
+# Calculate family wage income 
+
+cb_function_income_1940 <- function(x, pos) {
+
+    setDT(x)  # Ensure x is a data.table
+  
+  # x <- sample_1940
+  # Merge with grf_1930
+  x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
+  
+  x <- as_tibble(x)
+
+  # Create family (wage) income
+  x <- x %>%
+    # Drop income == 0 or missing ()
+    filter(INCWAGE != 999998, INCWAGE != 999999) %>% 
+    group_by(CITY, b_ed, SERIAL) %>% 
+    summarise(family_wage = sum(INCWAGE), .groups = "drop") %>%   # %>% 
+    # create wage income group
+    mutate(income_group = case_when(family_wage < 500 ~ 1, # 0-499
+                                    family_wage >= 500 & family_wage < 1000 ~ 2, # 500-999
+                                    family_wage >= 1000 & family_wage < 1500 ~ 3, # 1000-1499
+                                    family_wage >= 1500 & family_wage < 2000 ~ 4, # 1500-1999
+                                    family_wage >= 2000 & family_wage < 2500 ~ 5, # 2000-2499
+                                    family_wage >= 2500 & family_wage < 3000 ~ 6, # 2500-2999
+                                    family_wage >= 3000 & family_wage < 3500 ~ 7, # 3000-3499
+                                    family_wage >= 3500 & family_wage < 4000 ~ 8, # 3500-3999
+                                    family_wage >= 4000 & family_wage < 4500 ~ 9, # 4000-4999
+                                    family_wage >= 4500 & family_wage < 5000 ~ 10, # 4500-4999
+                                    family_wage >= 5000 & family_wage < 6000 ~ 11, # 5000-5999
+                                    family_wage >= 6000 & family_wage < 7000 ~ 12, # 6000-6999
+                                    family_wage >= 7000 & family_wage < 10000 ~ 13, # 7000-9999
+                                    family_wage >= 10000 ~ 14,
+                                    TRUE ~ NA_integer_))
 
 
-# cb_function_income_1940 <- function(x, pos) {
-#   # set as data.table
-#   setDT(x)
-#   
-#   # merge Geographic Reference File info (ED number) onto full count
-#   x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
-#   
-#   # Create income groups
-#   x <- x[, income_group := fifelse(
-#     INCWAGE == 0, 0,
-#     case_when(
-#       INCWAGE > 0 & INCWAGE <= 499 ~ 1,
-#       INCWAGE > 499 & INCWAGE <= 999 ~ 2,
-#       INCWAGE > 999 & INCWAGE <= 1499 ~ 3,
-#       INCWAGE > 1499 & INCWAGE <= 1999 ~ 4,
-#       INCWAGE > 1999 & INCWAGE <= 2999 ~ 5,
-#       INCWAGE > 2999 & INCWAGE <= 3999 ~ 6,
-#       INCWAGE > 3999 & INCWAGE <= 4999 ~ 7,
-#       INCWAGE > 4999 & INCWAGE <= 5999 ~ 8,
-#       INCWAGE > 5999 & INCWAGE <= 6999 ~ 9,
-#       INCWAGE > 6999 & INCWAGE <= 7999 ~ 10,
-#       INCWAGE > 7999 & INCWAGE <= 8999 ~ 11,
-#       INCWAGE > 8999 & INCWAGE <= 9999 ~ 12,
-#       INCWAGE > 9999 & INCWAGE <= 14999 ~ 13,
-#       INCWAGE > 14999 & INCWAGE <= 19999 ~ 14,
-#       INCWAGE > 19999 & INCWAGE <= 24999 ~ 15,
-#       INCWAGE > 24999 & INCWAGE <= 29999 ~ 16,
-#       INCWAGE > 29999 & INCWAGE <= 34999 ~ 17,
-#       INCWAGE > 34999 & INCWAGE <= 39999 ~ 18,
-#       INCWAGE > 39999 & INCWAGE <= 49999 ~ 19)]
-# 
-# }
+  
+  # Convert back to data.table
+  setDT(x)
+  
+  # Group by CITY, b_ed, and rent_group and calculate population
+  #result <- x[, .(population = .N), by = .(CITY, b_ed, SERIAL)]
+  # result <- x[, .(population = .N), by = .(CITY, b_ed, income_group)]
+  result <- x
+  
+  return(result)
+  
+}
+
+# Combine results automatically using a "callback object"
+cb_income_1940 <- IpumsDataFrameCallback$new(cb_function_income_1940)
+
+# Read data in chunks
+chunked_results_income_1940 <- 
+  read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_income_1940, chunk_size = chunk_size_param)
+
+income_group_by_city_ed_1940 <-
+  chunked_results_income_1940 %>% 
+  filter(CITY != 0, !is.na(b_ed)) %>% 
+  group_by(CITY, b_ed, SERIAL) %>%
+  summarise(family_wage = sum(family_wage), .groups = "drop") %>%
+  # create wage income group
+  mutate(income_group = case_when(family_wage < 500 ~ 1, # 0-499
+                                  family_wage >= 500 & family_wage < 1000 ~ 2, # 500-999
+                                  family_wage >= 1000 & family_wage < 1500 ~ 3, # 1000-1499
+                                  family_wage >= 1500 & family_wage < 2000 ~ 4, # 1500-1999
+                                  family_wage >= 2000 & family_wage < 2500 ~ 5, # 2000-2499
+                                  family_wage >= 2500 & family_wage < 3000 ~ 6, # 2500-2999
+                                  family_wage >= 3000 & family_wage < 3500 ~ 7, # 3000-3499
+                                  family_wage >= 3500 & family_wage < 4000 ~ 8, # 3500-3999
+                                  family_wage >= 4000 & family_wage < 4500 ~ 9, # 4000-4999
+                                  family_wage >= 4500 & family_wage < 5000 ~ 10, # 4500-4999
+                                  family_wage >= 5000 & family_wage < 6000 ~ 11, # 5000-5999
+                                  family_wage >= 6000 & family_wage < 7000 ~ 12, # 6000-6999
+                                  family_wage >= 7000 & family_wage < 10000 ~ 13, # 7000-9999
+                                  family_wage >= 10000 ~ 14,
+                                  TRUE ~ NA_integer_)) %>% 
+  # get population per income group
+  group_by(CITY, b_ed, income_group) %>%
+  summarise(population = n(), .groups = "drop") %>% 
+  mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
+  group_by(CITY_NAME, b_ed, income_group) %>%
+  summarize(population= sum(population), .groups = "drop") %>%
+  mutate(income_group = paste0("income_group_", income_group)) %>% 
+  pivot_wider(names_from = income_group, 
+              values_from = population,
+              values_fill =  0)
+
+
+
 
 ## Housing ----
 ### Rent (RENT) ----
@@ -588,7 +703,7 @@ cb_lf_1940 <- IpumsDataFrameCallback$new(cb_function_lf_1940)
 
 # Read data in chunks
 chunked_results_lf_1940 <-
-  read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_lf_1940, chunk_size = 10000)
+  read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_lf_1940, chunk_size = chunk_size_param)
 
 # Combine results
 lf_status_by_city_ed_1940 <-
@@ -615,7 +730,9 @@ lf_status_by_city_ed_1940 <-
 city_ed_data_1940 <- 
   left_join(pop_by_race_by_city_ed_1940, rent_group_by_city_ed_1940) %>% 
   left_join(valueh_group_by_city_ed_1940) %>%
-  left_join(lf_status_by_city_ed_1940)
+  left_join(lf_status_by_city_ed_1940) %>% 
+  left_join(pop_by_educ_by_city_ed_1940) %>% 
+  left_join(income_group_by_city_ed_1940)
 
 # output csv
 write_csv(city_ed_data_1940, here(output_dir, "city_ed_data_1940.csv"))

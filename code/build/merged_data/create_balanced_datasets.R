@@ -65,7 +65,6 @@ census_tract_sample_with_treatment_status <-
 
 ## Create balanced sample of tracts -----
 # Only keep tracts that are available from 1940-1990
-# 
 
 # counties in 1930
 counties_1930 <-
@@ -81,10 +80,9 @@ counties_1940 <-
   pull(state_county) %>% 
   unique()
 
-# tracts that exist in all years, 1930-1990
+# tracts that exist in all years, 1940-1990
 
-years_range <- seq(1930,1990, 10)
-#years_range
+years_range <- seq(1940,1990, 10)
 
 # get distinct tracts for each year, 1940-1990
 tracts_by_year <- 
@@ -117,17 +115,17 @@ census_tract_sample_with_treatment_status_balanced <-
 
 ## Treatments that happen before 1941 (to ensure I have enough pre-trends) -----
 # Tracts that are treated before treatment_year == 1960 (e.g. projects built 1951-1973)
-tracts_treated_before_1950 <- 
+tracts_treated_before_1960 <- 
   unique_treated_tracts %>% 
-  mutate(treated_before_1950 = treatment_year < 1950) %>% 
-  dplyr::select(COUNTY, STATE, TRACTA, treated_before_1950)
+  mutate(treated_before_1960 = treatment_year < 1960) %>% 
+  dplyr::select(COUNTY, STATE, TRACTA, treated_before_1960)
 
 # merge with census tract data
 census_tract_sample_with_treatment_status_balanced <- 
   census_tract_sample_with_treatment_status_balanced %>%
-  left_join(tracts_treated_before_1950) %>% 
+  left_join(tracts_treated_before_1960) %>% 
   # fill in missings
-  mutate(treated_before_1950 = ifelse(is.na(treated_before_1950), FALSE, treated_before_1950))
+  mutate(treated_before_1960 = ifelse(is.na(treated_before_1960), FALSE, treated_before_1960))
 
 ## Counties with too few tracts ----
 # number of tracts in 1940
@@ -153,16 +151,30 @@ num_of_tracts_1940 <-
 # merge with census tract data
 census_tract_sample_with_treatment_status_balanced <- 
   census_tract_sample_with_treatment_status_balanced %>%
-  left_join(num_of_tracts_1930) %>% 
+  left_join(num_of_tracts_1940) %>% 
   mutate(num_tracts_geq_50 = ifelse(num_tracts >= 50, TRUE, FALSE))
 
+## Identify urban renewal tracts -----
+urban_renewal_tracts <-
+  census_tract_sample_with_treatment_status %>% 
+  select(STATE, COUNTY, TRACTA, ur_binary_5pp, ur_binary_10pp) %>% 
+  st_drop_geometry() %>% 
+  distinct()
+
+census_tract_sample_with_treatment_status_balanced <-
+  census_tract_sample_with_treatment_status_balanced %>% 
+  left_join(urban_renewal_tracts)
 
 ## Apply filters ----
 balanced_sample <- 
   census_tract_sample_with_treatment_status_balanced %>% 
+  # number of tracts in 1940 greater than 50
   filter(num_tracts_geq_50 == TRUE)  %>% 
-  filter(treated_before_1950 == FALSE)
-
+  # Exclude previously treated tracts
+  filter(treated_before_1960 == FALSE) %>% 
+  filter(ur_binary_5pp == 0) %>% 
+  # keep only 1940 onward to avoid changes in the sample across cities and variables
+  filter(YEAR >= 1940)
 
 ## filter out cities with too high a share of treated tracts ----
 share_of_treated_tracts <- 
@@ -175,13 +187,12 @@ share_of_treated_tracts <-
   ungroup()
 
 # merge with balanced sample, filter out cities with too high a share of treated tracts 
-# NOTE (11/6): Now that I am using CBSAs there are no cities above 20% treated
+# NOTE (11/6): Now that I am using CBSAs, there are no cities above 20% treated
 balanced_sample <- 
   balanced_sample %>% 
   left_join(share_of_treated_tracts) %>% 
   # drop if more than 20% of tracts are treated
   filter(share_treated < .20)
-
 
 ## Create new treated tracts panel ----
 # filter out tracts that are not in balanced sample
@@ -199,7 +210,7 @@ table(unique_treated_tracts_balanced$treatment_year)
 table(unique_treated_tracts$treatment_year)
 
 
-# cities in balanced sample: 43
+# cities in balanced sample: 44
 cities_in_balanced_sample <- 
   balanced_sample %>% 
   filter(YEAR == 1990) %>% 
@@ -251,10 +262,13 @@ public_housing_in_sample <-
   public_housing_data %>%
   filter(project_code %in% treated_tracts_with_projects$project_code)
 
-# Incl 1930: 313278
-# Incl just 1940: 266900
-# For now, will do 1930: More observations and housing units
-# sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE)
+# 1940, excluding UR trats: 211,500 (1940)
+sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE)
+# Number of projects: 532
+nrow(public_housing_in_sample %>% filter(!is.na(total_public_housing_units)))
+
+# number of treated tracts
+
 
 # Output files ---- 
 # output files

@@ -7,7 +7,8 @@ library(sf)
 library(here)
 library(ipumsr)
 
-city_ed_dir <- here("data", "derived", "census", "full_count", "ed_by_city")
+census_data_dir <- here("data", "derived", "census")
+city_ed_dir <- here(census_data_dir, "full_count", "ed_by_city")
 ed_tract_crosswalk_dir <- here("data", "derived", "geographic_crosswalks", "ed_to_tract")
 
 tract_background_variables <-
@@ -15,7 +16,7 @@ tract_background_variables <-
     "geometry", "YEAR", "STATE", "STATEA", "COUNTY", "COUNTYA", "PRETRACTA",
     "TRACTA", "POSTTRCTA", "AREANAME")
 
-tract_output_dir <- here("data", "derived", "census", "full_count", "tract")
+tract_output_dir <- here(census_data_dir, "full_count", "tract")
   
 # Read and clean data before merge -----
 
@@ -50,7 +51,7 @@ tract_info_1990 <-
   select(any_of(tract_background_variables), -YEAR)
 
 # Central business district indicator
-cbd_tracts_1990 <- read_csv(here(output_dir, "cbd_tracts_1990_concorded.csv"))
+cbd_tracts_1990 <- read_csv(here(census_data_dir, "cbd_tracts_1990_concorded.csv"))
 
 # Clean data ----
 # split CITY_NAME into city and state, splitting on commas
@@ -88,12 +89,14 @@ for (year in years) {
                      by = c("state", "city", "b_ed")) %>%
            # weight populations
            mutate_at(vars(contains("pop"), contains("rent_group"), contains("home_value_"), 
+                          contains("income"),
                           contains("home_value"), contains("valueh_group"), contains("employed"),
                           contains("not_in_lf")), ~ . * weight) %>%
            st_drop_geometry()  %>% 
            # collapse to GISJOIN_1990
            group_by(GISJOIN_1990, YEAR) %>% 
            summarise_at(vars(contains("pop"), contains("rent_group"), contains("home_value_"), 
+                             contains("income"),
                              contains("home_value"), contains("valueh_group"), contains("employed"),
                              contains("not_in_lf")), sum, na.rm = TRUE) %>%
            ungroup()  %>%
@@ -102,7 +105,7 @@ for (year in years) {
   )
 }
 
-# Calculate medians for home values and rents ----
+# Calculate medians for home values, rents, and incomes ----
 
 calculate_median_from_census <- function(data, var_code, var_name) {
   data %>% 
@@ -181,11 +184,15 @@ median_rent_1940 <-
 median_home_value_1940 <-
   calculate_median_from_census(tract_data_1940_concorded, var_code = "valueh_group_", var_name = "median_home_value_group")
 
+median_income_1940 <-
+  calculate_median_from_census(tract_data_1940_concorded, var_code = "income_group_", var_name = "median_income_group")
+
 tract_data_1940_concorded <-
   tract_data_1940_concorded %>% 
-  select(-contains("rent_group_"), -contains("valueh_group_")) %>%
+  select(-contains("rent_group_"), -contains("valueh_group_"), -contains("income_group_")) %>%
   left_join(median_rent_1940, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
   left_join(median_home_value_1940, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_income_1940, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
   # replace the medians with the label of the variable it represents (midpoint values except last value)
   mutate(median_home_value_calculated = case_when(
     median_home_value_group == "valueh_group_1" ~ 250,      # 0 - 500
@@ -220,6 +227,22 @@ tract_data_1940_concorded <-
     median_rent_group == "rent_group_13" ~ 124,    # 99-149
     median_rent_group == "rent_group_14" ~ 174,    # 149-199
     median_rent_group == "rent_group_15" ~ 200     # 200+
+  ),
+  median_income = case_when(
+    median_income_group == "income_group_1" ~ 250,       # 0 - 499
+    median_income_group == "income_group_2" ~ 750,       # 500 - 999
+    median_income_group == "income_group_3" ~ 1250,      # 1000 - 1499
+    median_income_group == "income_group_4" ~ 1750,      # 1500 - 1999
+    median_income_group == "income_group_5" ~ 2250,      # 2000 - 2499
+    median_income_group == "income_group_6" ~ 2750,      # 2500 - 2999
+    median_income_group == "income_group_7" ~ 3250,      # 3000 - 3499
+    median_income_group == "income_group_8" ~ 3750,      # 3500 - 3999
+    median_income_group == "income_group_9" ~ 4250,      # 4000 - 4499
+    median_income_group == "income_group_10" ~ 4750,     # 4500 - 4999
+    median_income_group == "income_group_11" ~ 5500,     # 5000 - 5999
+    median_income_group == "income_group_12" ~ 6500,     # 6000 - 6999
+    median_income_group == "income_group_13" ~ 8500,     # 7000 - 9999
+    median_income_group == "income_group_14" ~ 15000     # 10000+
   ))
 
 
@@ -233,14 +256,17 @@ tract_data_concorded_1930_1940 <-
   mutate(area_m2 = st_area(geometry)) %>% 
   # calculate total pop
   mutate(total_pop = white_pop + black_pop + other_pop) %>% 
-  # calculate white, black and other share, as well as foreign white share
+  # calculate white, black and other share
   mutate(white_share = white_pop / total_pop,
          black_share = black_pop / total_pop,
          other_share = other_pop / total_pop,
+         # calculate share of (AGE >= 25) hs grads and share with some college
+         pct_hs_grad = hs_grad_pop / total_educ_pop, 
+         pct_some_college = some_college_pop / total_educ_pop,
          population_density = total_pop/area_m2) %>%
     # calculate unemployment and LFP rates
   mutate(unemp_rate = unemployed/(employed + unemployed),
-         lfp_rate = (employed + unemployed)/(employed + unemployed + not_in_lf)) 
+         lfp_rate = (employed + unemployed)/(employed + unemployed + not_in_lf))
 
 # Save data -----
 st_write(tract_data_concorded_1930_1940, here(tract_output_dir, "tract_data_concorded_from_ed_1930_1940.gpkg"),
