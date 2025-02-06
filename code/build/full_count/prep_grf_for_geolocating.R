@@ -43,6 +43,9 @@ for (y in years) {
     grf_file <- paste0(c, "_", y, ".csv")
     grf_path <- here(grf_dir, y, grf_file)
     
+    # Paste what its working on
+    message("Processing: ", grf_file)
+    
     # Check if file exists before trying to read
     if (!file.exists(grf_path)) {
       message("Skipping missing file: ", grf_path)
@@ -58,22 +61,17 @@ for (y in years) {
       mutate(
         state = str_sub(b_city, -2, -1),  # Extract last 2 characters as state
         city = str_sub(b_city, 1, -3),   # Extract everything before last 2 chars
-        street_address = paste0(b_hn, " ", b_stfull, ", ", city, ", ", state),
+        full_street_address = paste0(b_hn, " ", b_stfull, ", ", city, ", ", state),
+        street_address = paste0(b_hn, " ", b_stfull),
         missing_street_number = is.na(b_hn),
         missing_address = is.na(b_stfull)
       ) %>% 
-      select(histid, street_address, missing_street_number, missing_address) # Keep relevant columns
+      # filter if missing street number or address
+      filter(!is.na(b_hn) & !is.na(b_stfull)) %>%
+      # convert all to character
+      mutate_all(as.character) 
   })
   
   # Save full **histid-street address** dataset for this year
-  write_csv(combined_data, here(grf_output_dir, paste0("grf_", y, "_histid_street.csv")))
-  
-  # Extract **unique addresses only** for geocoding
-  unique_addresses <- combined_data %>%
-    filter(!missing_street_number) %>%
-    distinct(street_address)
-  
-  # Save unique street addresses separately
-  write_csv(unique_addresses, here(grf_output_dir, paste0("grf_", y, "_unique_addresses.csv")))
-  
+  write_csv(combined_data, here(grf_output_dir, paste0("grf_addresses_", y, ".csv")))
 }
