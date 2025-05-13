@@ -156,7 +156,8 @@ census_tract_sample_1990 <-
   filter(YEAR == 1990) %>% 
   st_drop_geometry() %>% 
   left_join(reshaped_census_data, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
-  mutate(neighborhood_id = paste0(STATEA, COUNTYA, TRACTA)) %>% 
+  mutate(neighborhood_id = paste0(STATEA, COUNTYA, TRACTA),
+         county_id = paste0(STATEA, COUNTYA)) %>% 
   mutate(asinh_distance_from_cbd = asinh(distance_from_cbd),
          distance_from_cbd = distance_from_cbd/1000)
 
@@ -225,33 +226,18 @@ reduced_varlist <-
   
 reduced_varlist_formula <- paste(reduced_varlist, collapse = " + ")
 
-## Probability of ever being treated -----
-redlined_model <- feols(treated ~ redlined_binary_80pp | cbsa_title, census_tract_sample_1990)
-share_needing_repair_model <- feols(treated ~ share_needing_repair_1940 | cbsa_title, census_tract_sample_1990)
-median_income_model <- feols(treated ~ asinh(median_income_1950) | cbsa_title, census_tract_sample_1990)
-median_home_value_calculated_model <- feols(treated ~ asinh(median_home_value_calculated_1950) | cbsa_title, census_tract_sample_1990)
-median_rent_calculated_model <- feols(treated ~ asinh(median_rent_calculated_1950) | cbsa_title, census_tract_sample_1990)
-median_housing_age_model <- feols(treated ~ median_housing_age_1950 | cbsa_title, census_tract_sample_1990)
-pop_density_model  <- feols(treated ~ population_density_1950 | cbsa_title, census_tract_sample_1990)
-hs_grad_model <- feols(treated ~ pct_hs_grad_1950 | cbsa_title, census_tract_sample_1990)
-low_skill_share_model <- feols(treated ~ low_skill_share_1950 | cbsa_title, census_tract_sample_1990)
-black_share_model <- feols(treated ~ black_share_1950 | cbsa_title, census_tract_sample_1990)
-
-
 ## 1950 characteristics -----
 ## Model 1. Demographics
 model_1_probit <- 
   feglm(treated ~
           black_share_1950 + 
           median_income_1950  + 
-          pct_hs_grad_1950 | cbsa_title, 
+          pct_hs_grad_1950 | county_id, 
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "county_id")
 
 model_1_probit_me <- avg_slopes(model_1_probit)
-summary(model_1_probit_me)
-
 
 ## Model 2: Add neighborhood characteristics
 model_2_probit <- 
@@ -263,12 +249,11 @@ model_2_probit <-
           redlined_binary_80pp + 
           population_density_1950 +
           cbd + 
-          asinh_distance_from_cbd | cbsa_title, 
+          asinh_distance_from_cbd | county_id, 
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "county_id")
 model_2_probit_me <- avg_slopes(model_2_probit)
-summary(model_2_probit_me)
 
 # Model 3: Add housing characteristics
 model_3_probit <- 
@@ -282,21 +267,23 @@ model_3_probit <-
           asinh_distance_from_cbd + 
           cbd + 
           share_needing_repair_1940 + 
-          median_home_value_calculated_1950 + 
-          median_rent_calculated_1950 + 
-          median_housing_age_1950 | cbsa_title, 
+          asinh_median_home_value_calculated_1950 + 
+          asinh_median_rent_calculated_1950 + 
+          median_housing_age_1950 | county_id, 
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
-model_3_probit_me <- avg_slopes(model_3_probit)
-summary(model_3_probit_me)
+        cluster = "county_id")
+
+# TODO: Figure out marginal effects
+# model_3_probit_me <- avg_slopes(model_3_probit)
+# model_3_probit_me
 
 
 # output 
 models <- list(
-    "(1)" = model_1_probit_me,
-    "(2)" = model_2_probit_me,
-    "(3)" = model_3_probit_me
+    "(1)" = model_1_probit,
+    "(2)" = model_2_probit,
+    "(3)" = model_3_probit
 )
 
 # Create a mapping from original variable names to custom labels
@@ -330,7 +317,7 @@ modelsummary(
   coef_map = variable_labels,              # Maps variable names to custom labels
   stars = TRUE,                            # Significance stars
   gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits unneeded goodness-of-fit statistics
-  title = "Predicting likelihood of ever receiving a public housing project (1951-1973)",
+  title = "Probit: Likelihood of ever receiving a public housing project (1951-1973)",
   add_rows = fe_row,
   # notes = c(
   #   "Standard errors in parentheses are clustered by neighborhood ID.",
@@ -339,15 +326,15 @@ modelsummary(
   output = here(site_selection_output_dir, "ever_treated_site_selection_models_probit.tex")
 )
 
-## Estimate linear probability models -----
+# Estimate linear probability models -----
 ## Model 1. Demographics
 model_1_lpm <- 
   feols(treated ~
           black_share_1950 + 
           median_income_1950  + 
-          pct_hs_grad_1950 | cbsa_title, 
+          pct_hs_grad_1950 | county_id, 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "county_id")
 model_1_lpm
 
 ## Model 2. Add neighborhood characteristics
@@ -360,9 +347,9 @@ model_2_lpm <-
           redlined_binary_80pp + 
           population_density_1950 +
           cbd + 
-          asinh_distance_from_cbd | cbsa_title, 
+          asinh_distance_from_cbd | county_id, 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "county_id")
 model_2_lpm
 
 ## Model 3. Add housing characteristics
@@ -379,9 +366,9 @@ model_3_lpm <-
           share_needing_repair_1940 + 
           median_home_value_calculated_1950 + 
           median_rent_calculated_1950 + 
-          median_housing_age_1950 | cbsa_title, 
+          median_housing_age_1950 | county_id, 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "county_id")
 model_3_lpm
 
 
@@ -400,7 +387,7 @@ modelsummary(
   coef_map = variable_labels,              # Maps variable names to custom labels
   stars = TRUE,                            # Significance stars
   gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits unneeded goodness-of-fit statistics
-  title = "Predicting likelihood of ever receiving a public housing project (1951-1973)",
+  title = "Linear probability model: Likelihood of receiving a public housing project (1951-1973)",
   add_rows = fe_row,
   # notes = c(
   #   "Standard errors in parentheses are clustered by neighborhood ID.",
@@ -410,89 +397,3 @@ modelsummary(
 )
 
 
-
-# 
-# ## Probability of being treated based on previous decades variables ----
-# 
-# ## Demographics only 
-# feols(treated ~  black_share_1970 | cbsa_title, census_tract_sample_first_treated_1940_to_1980)
-# 
-# 
-# 
-# # model 1: all data, logs of lagged variables
-# model1_formula <- as.formula(paste0("treated ~ ", full_varlist_formula,
-#                             "| city + COUNTYA + YEAR"))
-# 
-# # Run the regression
-# model1 <- feols(model1_formula, data = census_tract_sample_first_treated_1940_to_1980, cluster = "TRACTA")
-# 
-# summary(model1)
-# 
-# # figure out what years are in the sample that don't have missing data for any of the full_varlist variables
-# years_in_sample_model_1 <-
-#   census_tract_sample_first_treated_1940_to_1980 %>% 
-#   filter(across(all_of(full_varlist), ~ !is.na(.))) %>%
-#   pull(YEAR) %>% 
-#   unique()
-# 
-# years_in_sample_model_1
-# 
-# # model 1_1: Same as model 1, but exclude variables that seem potentially very related
-# model1_1_formula <- as.formula(paste0("treated ~ ", full_varlist_alt_formula, 
-#                             "| city + COUNTYA + YEAR"))
-# # Run the regression
-# model1_1 <- feols(model1_1_formula, data = census_tract_sample_first_treated_1940_to_1980, cluster = "TRACTA")
-# 
-# summary(model1_1)
-# 
-# # model 2: Exclude variables that are maybe noisy
-# model2_formula <- as.formula(paste0("treated ~", reduced_varlist_formula, 
-#                             "| city + COUNTYA + YEAR"))
-# 
-# # Run the regression
-# model2 <- feols(model2_formula,
-#                 data = census_tract_sample_first_treated_1940_to_1980, 
-#                 cluster = "TRACTA")
-# 
-# summary(model2)
-# 
-# years_in_sample_model_2 <-
-#   census_tract_sample_first_treated_1940_to_1980 %>% 
-#   filter(across(all_of(reduced_varlist), ~ !is.na(.))) %>%
-#   pull(YEAR) %>% 
-#   unique()
-# 
-# years_in_sample_model_2
-# ## model 3: include share of housing needing repairs
-# model3_formula <- as.formula(paste0("treated ~ asinh_lag_median_rent_calculated +",
-#                                     "lag_black_share + lag_pct_hs_grad + asinh_lag_median_income + ",
-#                                     "lag_population_density +  lag_vacancy_rate +
-#                                     lag_share_needing_repair", 
-#                             "| city + COUNTYA + YEAR"))
-# # Run the regression
-# model3 <- feols(model3_formula, data = census_tract_sample_first_treated_1940_to_1980, cluster = "TRACTA")
-# 
-# summary(model3)
-# 
-# ## model 4: include share of housing needing repairs, only 1950
-# # model4 <- feols(model3_formula,
-# #                 data = census_tract_sample_first_treated_1940_to_1980 %>% filter(YEAR == 1950),
-# #                 cluster = "TRACTA")
-# # 
-# # summary(model4)
-# 
-# # Export models into Latex tables ----
-# site_selection_models <- 
-#   list(model1, model2, model3)
-# 
-# 
-# # export models to latex
-# etable(site_selection_models, tex = TRUE, style.tex = style.tex("aer"),
-#        markdown = TRUE,
-#        title = "Determinants of Public Housing Site Selection",
-#        digits = 2, 
-#        dict = var_names, replace = TRUE,
-#        fitstat = ~ n + ar2 + awr2 + ivf,
-#        file = paste0(site_selection_output_dir, "site_selection_probit_models_", data_type, ".tex"))
-# 
-# 
