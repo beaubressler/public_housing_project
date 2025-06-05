@@ -32,6 +32,9 @@ library(fixest)
 library(marginaleffects)
 library(ggfixest)
 
+# conley standard errors
+library(conleyreg)
+
 # !! choose which data to use:
 # choices are "digitized", "cdd_large", or "cdd_small" or "combined"
 data_type <- "combined"
@@ -61,15 +64,21 @@ var_names <- c(lag_black_share = "Percent Black",
                )
 
 # Read in and prep data ----
-# read treated_tracts_panel.gpkg
-treated_tracts_panel <-
-  st_read(here(data_dir, "treated_tracts_panel_balanced.gpkg")) %>% 
-  st_drop_geometry()
+# # read treated_tracts_panel.gpkg
+# treated_tracts_panel <-
+#   st_read(here(data_dir, "treated_tracts_panel_balanced.gpkg")) %>% 
+#   st_drop_geometry()
 
 # read in Census tract sample with treatment status
 census_tract_sample <-
   st_read(here(data_dir, "census_tract_sample_with_treatment_status_balanced.gpkg")) %>% 
+  # get lat and long of the tract centroid
+  mutate(centroid = st_centroid(geom)) %>%
+  mutate(lon = st_coordinates(centroid)[,1],
+         lat = st_coordinates(centroid)[,2]) %>%
   st_drop_geometry()
+
+
 
 # create census tract sample where we keep the treated tract only up until it is first 
 # treated. 
@@ -78,8 +87,7 @@ treated_tracts_only <-
   filter(treated == 1) %>% 
   group_by(STATEA, COUNTYA, TRACTA) %>% 
   summarise(first_treated_year = min(YEAR)) %>% 
-  ungroup() %>% 
-  st_drop_geometry()
+  ungroup()
 
 census_tract_sample_first_treated <-
   census_tract_sample %>% 
@@ -235,9 +243,23 @@ model_1_probit <-
           pct_hs_grad_1950 | county_id, 
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
-        cluster = "county_id")
+        cluster = "neighborhood_id")
 
 model_1_probit_me <- avg_slopes(model_1_probit)
+
+# with conley SE
+model_1_probit_conley <- 
+  feglm(treated ~
+          black_share_1950 + 
+          median_income_1950  + 
+          pct_hs_grad_1950 | county_id, 
+        family = binomial(link = "probit"), 
+        data = census_tract_sample_1990,
+        vcov = vcov_conley(lat = "lat", lon = "lon", 
+                    cutoff = 1)) 
+model_1_probit_conley_me <- avg_slopes(model_1_probit_conley)
+model_1_probit_conley_me
+
 
 ## Model 2: Add neighborhood characteristics
 model_2_probit <- 
@@ -252,8 +274,26 @@ model_2_probit <-
           asinh_distance_from_cbd | county_id, 
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
-        cluster = "county_id")
+        cluster = "neighborhood_id")
 model_2_probit_me <- avg_slopes(model_2_probit)
+model_2_probit_me
+
+model_2_probit_conley <- 
+  feglm(treated ~
+          black_share_1950 + 
+          median_income_1950  + 
+          pct_hs_grad_1950 +
+          unemp_rate_1950 + 
+          redlined_binary_80pp + 
+          population_density_1950 +
+          cbd + 
+          asinh_distance_from_cbd | county_id, 
+        family = binomial(link = "probit"), 
+        data = census_tract_sample_1990,
+        vcov_conley(lat = "lat", lon = "lon", 
+                    cutoff = 1))
+model_2_probit_conley_me <- avg_slopes(model_2_probit_conley)
+model_2_probit_conley_me
 
 # Model 3: Add housing characteristics
 model_3_probit <- 
@@ -267,16 +307,35 @@ model_3_probit <-
           asinh_distance_from_cbd + 
           cbd + 
           share_needing_repair_1940 + 
-          asinh_median_home_value_calculated_1950 + 
-          asinh_median_rent_calculated_1950 + 
-          median_housing_age_1950 | county_id, 
+          median_home_value_calculated_1950 + 
+          median_rent_calculated_1950 | county_id, 
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
-        cluster = "county_id")
+        cluster = "neighborhood_id")
+model_3_probit_me <- avg_slopes(model_3_probit)
+model_3_probit_me
 
-# TODO: Figure out marginal effects
-# model_3_probit_me <- avg_slopes(model_3_probit)
-# model_3_probit_me
+model_3_probit_conley <- 
+  feglm(treated ~
+          black_share_1950 + 
+          median_income_1950  + 
+          pct_hs_grad_1950 +
+          unemp_rate_1950 + 
+          redlined_binary_80pp + 
+          population_density_1950 +
+          cbd + 
+          share_needing_repair_1940 + 
+          asinh_distance_from_cbd + 
+          median_rent_calculated_1950 + 
+          median_home_value_calculated_1950
+          | county_id, 
+        family = binomial(link = "probit"), 
+        data = census_tract_sample_1990,
+        vcov_conley(lat = "lat", lon = "lon", 
+                    cutoff = 1))
+
+model_3_probit_conley_me <- avg_slopes(model_3_probit_conley)
+model_3_probit_conley_me
 
 
 # output 
@@ -290,7 +349,7 @@ models <- list(
 variable_labels <- c(
   "black_share_1950" = "Black Share (1950)",
   "median_income_1950" = "Median Income (1950)",
-  "pct_hs_grad_1950" = "High School Graduation Rate (1950)",
+  "pct_hs_grad_1950" = "HS Grad Rate (1950)",
   "redlined_binary_80pp" = "Redlined Indicator",
   "population_density_1950" = "Population Density (1950)",
   "asinh_distance_from_cbd" = "(asinh) Distance from CBD",
@@ -298,7 +357,8 @@ variable_labels <- c(
   "unemp_rate_1950" = "Unemployment Rate (1950)",
   "share_needing_repair_1940" = "Share Needing Major Repairs (1940)",
   "median_home_value_calculated_1950" = "Median Home Value (1950)",
-  "median_rent_calculated_1950" = "Median Rent (1950)",
+  "asinh_median_home_value_calculated_1950" = "Median Home Value (1950)",
+  "asinh_median_rent_calculated_1950" = "Median Rent (1950)",
   "median_housing_age_1950" = "Median Housing Age (1950)")
   
 
@@ -326,6 +386,25 @@ modelsummary(
   output = here(site_selection_output_dir, "ever_treated_site_selection_models_probit.tex")
 )
 
+# output conley models
+modelsummary(
+  list(
+    "(1)" = model_1_probit_conley,
+    "(2)" = model_2_probit_conley,
+    "(3)" = model_3_probit_conley
+  ),
+  estimate = "{estimate} ({std.error}){stars}",   # Shows coefficient with standard error below in parentheses
+  statistic = NULL,                        # Removes additional statistics beside SEs
+  coef_omit = "(Intercept)",               # Omits the intercept if not needed
+  coef_map = variable_labels,              # Maps variable names to custom labels
+  stars = TRUE,                            # Significance stars
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits unneeded goodness-of-fit statistics
+  title = "Probit: Likelihood of ever receiving a public housing project (1951-1973) with Conley standard errors",
+  add_rows = fe_row,
+  output = here(site_selection_output_dir, "ever_treated_site_selection_models_probit_conley.tex")
+)
+
+
 # Estimate linear probability models -----
 ## Model 1. Demographics
 model_1_lpm <- 
@@ -334,8 +413,19 @@ model_1_lpm <-
           median_income_1950  + 
           pct_hs_grad_1950 | county_id, 
         data = census_tract_sample_1990,
-        cluster = "county_id")
+        cluster = "neighborhood_id")
 model_1_lpm
+
+# conley standard errors
+model_1_lpm_conley <- 
+  feols(treated ~
+          black_share_1950 + 
+          median_income_1950  + 
+          pct_hs_grad_1950 | county_id, 
+        data = census_tract_sample_1990,
+        vcov_conley(lat = "lat", lon = "lon", 
+                    cutoff = 1))
+model_1_lpm_conley
 
 ## Model 2. Add neighborhood characteristics
 model_2_lpm <- 
@@ -349,8 +439,24 @@ model_2_lpm <-
           cbd + 
           asinh_distance_from_cbd | county_id, 
         data = census_tract_sample_1990,
-        cluster = "county_id")
+        cluster = "neighborhood_id")
 model_2_lpm
+
+# conley 
+model_2_lpm_conley <- 
+  feols(treated ~
+          black_share_1950 + 
+          median_income_1950  + 
+          pct_hs_grad_1950 +
+          unemp_rate_1950 + 
+          redlined_binary_80pp + 
+          population_density_1950 +
+          cbd + 
+          asinh_distance_from_cbd | county_id, 
+        data = census_tract_sample_1990,
+        vcov_conley(lat = "lat", lon = "lon", 
+                    cutoff = 1))
+model_2_lpm_conley
 
 ## Model 3. Add housing characteristics
 model_3_lpm <- 
@@ -368,8 +474,29 @@ model_3_lpm <-
           median_rent_calculated_1950 + 
           median_housing_age_1950 | county_id, 
         data = census_tract_sample_1990,
-        cluster = "county_id")
+        cluster = "neighborhood_id")
 model_3_lpm
+
+# conley
+model_3_lpm_conley <- 
+  feols(treated ~
+          black_share_1950 + 
+          median_income_1950  + 
+          pct_hs_grad_1950 +
+          unemp_rate_1950 + 
+          redlined_binary_80pp + 
+          population_density_1950 +
+          asinh_distance_from_cbd + 
+          cbd + 
+          share_needing_repair_1940 + 
+          median_home_value_calculated_1950 + 
+          median_rent_calculated_1950 + 
+          median_housing_age_1950 | county_id, 
+        data = census_tract_sample_1990,
+        vcov_conley(lat = "lat", lon = "lon", 
+                    cutoff = 1))
+model_3_lpm_conley
+
 
 
 models_lpm <- list(
@@ -386,7 +513,7 @@ modelsummary(
   coef_omit = "(Intercept)",               # Omits the intercept if not needed
   coef_map = variable_labels,              # Maps variable names to custom labels
   stars = TRUE,                            # Significance stars
-  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits unneeded goodness-of-fit statistics
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits goodness-of-fit statistics
   title = "Linear probability model: Likelihood of receiving a public housing project (1951-1973)",
   add_rows = fe_row,
   # notes = c(
@@ -395,5 +522,30 @@ modelsummary(
   #   "Probit coefficients represent effects on a latent variable, not direct changes in probability."),
   output = here(site_selection_output_dir, "ever_treated_site_selection_models_lpm.tex")
 )
+
+# output with conley SE
+models_lpm_conley <- list(
+  "(1)" = model_1_lpm_conley,
+  "(2)" = model_2_lpm_conley,
+  "(3)" = model_3_lpm_conley
+)
+
+modelsummary(
+  models_lpm_conley,
+  estimate = "{estimate} ({std.error}){stars}",   # Shows coefficient with standard error below in parentheses
+  statistic = NULL,                        # Removes additional statistics beside SEs
+  coef_omit = "(Intercept)",               # Omits the intercept if not needed
+  coef_map = variable_labels,              # Maps variable names to custom labels
+  stars = TRUE,                            # Significance stars
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits goodness-of-fit statistics
+  title = "Linear probability model with Conley standard errors: Likelihood of receiving a public housing project (1951-1973)",
+  add_rows = fe_row,
+  # notes = c(
+  #   "Standard errors in parentheses are clustered by neighborhood ID.",
+  #   "Columns 1 and 3 show the results from linear probability models (LPM), while columns 2 and 4 show the marginal effects from probit models.",
+  #   "Probit coefficients represent effects on a latent variable, not direct changes in probability."),
+  output = here(site_selection_output_dir, "ever_treated_site_selection_models_lpm_conley.tex")
+)
+
 
 
