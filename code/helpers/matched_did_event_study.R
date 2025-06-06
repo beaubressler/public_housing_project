@@ -12,7 +12,7 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   # For testing, comment out otherwise
   # input_data <- tract_data_matched_2_year
   # outcome_var <- "black_share"
-  # treatment_group <- "treated"
+  # treatment_group <- "inner"
   # size = NULL
   # city_filter = NULL
   # initial_share = NULL
@@ -59,45 +59,45 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   # Create the formula for the event study
   # baseline model
   # Note: city-year does nothing in this model with matched FE
-  formula <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | cbsa_title^year + tract_id +  match_group^event_time"))
+  formula <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | tract_id +  match_group^event_time"))
   model <- feols(formula, data = data, weights = ~weights, cluster = ~tract_id)
   model_conley <- feols(formula, data = data, weights = ~weights,
                         vcov = vcov_conley(lat = "lat", lon = "lon", 
                                            cutoff = 1)) 
   
   # Model without matching
-  formula_no_match <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | year^cbsa_title + tract_id"))
+  formula_no_match <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | tract_id"))
   model_no_match <- feols(formula_no_match, data = data, weights = ~weights, cluster = ~tract_id)
   model_no_match_conley <- feols(formula_no_match, data = data, weights = ~weights,
                                  vcov = vcov_conley(lat = "lat", lon = "lon", 
                                                     cutoff = 1)) 
   
-  # Sun and Abraham model, with matching
-  sunab_data <- 
-    data %>% 
-    # set treatment_year = 100 if missing
-    mutate(treatment_year = ifelse(is.na(treatment_year), 100, treatment_year))
-  
-  formula_sunab <- as.formula(paste(outcome_var, "~ sunab(treatment_year, year, ref.p = -10) | cbsa_title^year + tract_id + match_group^year"))
-  model_sunab <- feols(formula_sunab, data = sunab_data, weights = ~weights, cluster = ~tract_id)
-  model_sunab_conley <- feols(formula_sunab, data = sunab_data, weights = ~weights,
-                              vcov = vcov_conley(lat = "lat", lon = "lon", 
-                                                 cutoff = 1)) 
-  
-  # sun and abraham model without matching
-  formula_sunab_no_match <- 
-    as.formula(paste(outcome_var, "~ sunab(treatment_year, year, ref.p = -10) | cbsa_title^year + tract_id"))
-  model_sunab_no_match <- feols(formula_sunab_no_match, data = sunab_data, weights = ~weights,
-                                cluster = ~tract_id)
-  model_sunab_no_match_conley <- feols(formula_sunab_no_match, data = sunab_data, weights = ~weights,
-                                                vcov = vcov_conley(lat = "lat", lon = "lon",
-                                                                   cutoff = 1)) 
+  # # Sun and Abraham model, with matching
+  # 5/2025: In current matched DiD set-up, Sun and Abraham is the same as TWFE
+  # sunab_data <- 
+  #   data %>% 
+  #   # set treatment_year = 100 if missing
+  #   mutate(treatment_year = ifelse(is.na(treatment_year), 100, treatment_year))
+  # 
+  # formula_sunab <- as.formula(paste(outcome_var, "~ sunab(treatment_year, year, ref.p = -10) | cbsa_title^year + tract_id + match_group^year"))
+  # model_sunab <- feols(formula_sunab, data = sunab_data, weights = ~weights, cluster = ~tract_id)
+  # model_sunab_conley <- feols(formula_sunab, data = sunab_data, weights = ~weights,
+  #                             vcov = vcov_conley(lat = "lat", lon = "lon", 
+  #                                                cutoff = 1)) 
+  # 
+  # # sun and abraham model without matching
+  # formula_sunab_no_match <- 
+  #   as.formula(paste(outcome_var, "~ sunab(treatment_year, year, ref.p = -10) | cbsa_title^year + tract_id"))
+  # model_sunab_no_match <- feols(formula_sunab_no_match, data = sunab_data, weights = ~weights,
+  #                               cluster = ~tract_id)
+  # model_sunab_no_match_conley <- feols(formula_sunab_no_match, data = sunab_data, weights = ~weights,
+  #                                               vcov = vcov_conley(lat = "lat", lon = "lon",
+  #                                                                  cutoff = 1)) 
   
   # ---
   # Return Results
   # ---
   
-  return(list(twfe = model, twfe_conley =  model_conley,
-                sunab = model_sunab, sunab_conley = model_sunab_conley,
-              sunab_no_match = model_sunab_no_match, sunab_no_match_conley = model_sunab_no_match_conley))
+  return(list(twfe = model, twfe_conley =  model_conley, 
+              twfe_nomatch_conley = model_no_match_conley))
 }

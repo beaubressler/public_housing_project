@@ -3,7 +3,7 @@
 # This script performs a matched difference-in-differences (DiD) analysis to estimate 
 # the effects of public housing construction on neighborhood outcomes. It includes:
 # - Data loading and preprocessing
-# - Matched event study regressions (TWFE and Sun & Abraham)
+# - Matched event study regressions
 # - Heterogeneity analyses by project size, minority share, income, and population density
 # - Visualization of event study results
 # - Automated saving of results
@@ -86,7 +86,7 @@ treated_tracts_panel_raw <-
 # touching the inner ring tracts
 tracts_and_rings <-
   read_csv(event_study_rings_filepath) %>% 
-   #try excluding outer
+  #try excluding outer
   filter(location_type != "outer")
 
 # get datasets for regressions
@@ -156,440 +156,12 @@ outcome_labels <- c(
 group_types <- c("treated", "inner")
 
 
-# Baseline analysis ----
 
-## Full sample -----
-# initialize lists
-did_results_event_study_twfe <- list() 
-did_results_event_study_sunab <- list() 
-did_results_event_study_sunab_no_match <- list()
-
-# with conley standard errors
-did_results_event_study_twfe_conley <- list()
-did_results_event_study_sunab_conley <- list()
-did_results_event_study_sunab_no_match_conley <- list()
-
-# save regression output to lists
-for (outcome in outcome_variables) {
-  for (group in  group_types) {
-  
-    # display which outcome and group is being worked on
-    print(paste("Outcome:", outcome, "Group:", group))
-    
-    results <- did_event_study(tract_data_matched_2_year,
-                               outcome, group)
-    did_results_event_study_twfe[[paste(outcome, group, sep = "_")]] <- results$twfe
-    did_results_event_study_sunab[[paste(outcome, group, sep = "_")]] <- results$sunab
-    did_results_event_study_sunab_no_match[[paste(outcome, group, sep = "_")]] <- results$sunab_no_match
-    
-    # with conley standard errors
-    did_results_event_study_twfe_conley[[paste(outcome, group, sep = "_")]] <- results$twfe_conley
-    did_results_event_study_sunab_conley[[paste(outcome, group, sep = "_")]] <- results$sunab_conley
-    did_results_event_study_sunab_no_match_conley[[paste(outcome, group, sep = "_")]] <- results$sunab_no_match_conley
-  }
-}
-
-# save results in df
-event_study_twfe_coefs <- save_estimates(did_results_event_study_twfe, "TWFE")
-event_study_sunab_coefs <- save_estimates(did_results_event_study_sunab, "Sun-Abraham")
-event_study_sunab_no_match_coefs <- save_estimates(did_results_event_study_sunab_no_match, "Sun-Abraham without matching")
-
-event_study_twfe_conley_coefs <- save_estimates(did_results_event_study_twfe_conley, "TWFE")
-event_study_sunab_conley_coefs <- save_estimates(did_results_event_study_sunab_conley, "Sun-Abraham")
-event_study_sunab_no_match_conley_coefs <- save_estimates(did_results_event_study_sunab_no_match_conley, "Sun-Abraham without matching")
-
-combined_results <- 
-  bind_rows(event_study_twfe_coefs, event_study_sunab_coefs,
-            event_study_sunab_no_match_coefs)
-
-combined_results_conley <- 
-  bind_rows(event_study_twfe_conley_coefs, event_study_sunab_conley_coefs,
-            event_study_sunab_no_match_conley_coefs)
-
-# look at significant pretrends
-#combined_results %>% filter(str_detect(term, "-20"), p.value < .05) %>% View()
-
-# look at significant post trends
-#combined_results %>% filter(p.value < .05) %>% View()
-
-## Plot results -----
-
-# Save baseline event study plots
-
-save_event_study_plots(
-  reg_results_df = event_study_sunab_coefs,
-  outcome_variables = outcome_variables,
-  results_dir = results_dir,
-  prefix = "event_study_plots_baseline_sunab_matching",
-  title_suffix = " Sun-Abraham estimator",
-  heterogeneity = NULL
-)
-
-save_event_study_plots(
-  reg_results_df = event_study_twfe_coefs,
-  outcome_variables = outcome_variables,
-  results_dir = results_dir,
-  prefix = "event_study_plots_baseline_twfe_matching",
-  title_suffix = "",
-  heterogeneity = NULL
-)
-
-save_event_study_plots(
-  reg_results_df = event_study_sunab_no_match_coefs,
-  outcome_variables = outcome_variables,
-  results_dir = results_dir,
-  prefix = "event_study_plots_baseline_sunab_no_match",
-  title_suffix = ", no match FE",
-  heterogeneity = NULL
-)
-
-# Save baseline results separately for treated and inner tracts
-
-save_event_study_plots(
-  reg_results_df = event_study_twfe_coefs,
-  outcome_variables = outcome_variables,
-  results_dir = results_dir,
-  prefix = "event_study_plots_baseline_twfe_matching_treated",
-  title_suffix = " (Treated)",
-  heterogeneity = NULL,
-  category_filter = "treated"
-)
-
-save_event_study_plots(
-  reg_results_df = event_study_twfe_coefs,
-  outcome_variables = outcome_variables,
-  results_dir = results_dir,
-  prefix = "event_study_plots_baseline_twfe_matching_inner",
-  title_suffix = " (Inner)",
-  heterogeneity = NULL,
-  category_filter = "inner"
-)
-
-### Plots with several outcomes on same plot -----
-outcomes_for_combined_plots_treated <- 
-  c("asinh_pop_total", "ln_total_units",
-    "black_share",
-    "asinh_median_income",
-    "asinh_median_rent_calculated")
-
-coefs_clean <- 
-  event_study_twfe_conley_coefs %>% 
-  mutate(
-    group = ifelse(str_ends(outcome, "_treated"), "treated",
-                   ifelse(str_ends(outcome, "_inner"), "inner", NA)),
-    outcome_clean = str_remove(outcome, "_treated|_inner")
-  )
-  
-#### Treated-----
-
-combined_treated_results <- 
-  coefs_clean %>%
-  filter(group == "treated", outcome_clean %in% outcomes_for_combined_plots_treated) %>%
-  mutate(
-    clean_label = outcome_labels[outcome_clean],
-    clean_label = factor(clean_label, levels = outcome_labels[outcomes_for_combined_plots_treated]),
-    event_time = as.numeric(term)
-  )
-
-# Add reference points at event_time = -10 if needed
-ref_rows <- combined_treated_results %>%
-  distinct(outcome_clean, clean_label) %>%
-  mutate(event_time = -10, estimate = 0, std.error = 0)
-
-combined_treated_results <- bind_rows(combined_treated_results, ref_rows)
-
-ggplot(combined_treated_results, aes(x = event_time, y = estimate, color = clean_label)) +
-  geom_errorbar(aes(ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error),
-                width = 0.3, size = 1.1, alpha = 0.5, position = position_dodge(width = 2)) +
-  geom_point(size = 2, alpha = 0.9, position = position_dodge(width = 2)) +
-  geom_line(alpha = 0.7, position = position_dodge(width = 2)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(
-    title = "Effect of public housing projects, treated neighborhoods",
-    x = "Years Relative to Construction",
-    y = "Difference-in-Difference Estimate",
-    color = "Outcome"
-  ) +
-  scale_x_continuous(breaks = seq(-40, 40, 10)) +
-  theme_minimal() +
-  theme(
-    legend.position = "bottom",
-    plot.background = element_rect(fill = "white"),
-    legend.title = element_blank(),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor.x = element_blank()
-  ) +
-  scale_color_brewer(type = "qual", palette = "Dark2")
-
-# Save
-ggsave(
-  filename = file.path(results_dir, "event_study_plots_combined_treated.png"),
-  width = 14, height = 8
-)
-
-#### Inner ----
- outcomes_for_combined_plots_inner_1 <- 
-  c("asinh_pop_total", "ln_total_units",
-    "asinh_median_rent_calculated", "asinh_median_home_value_calculated"
-  )
-
-outcomes_for_combined_plots_inner_2 <- 
-  c("asinh_median_income", "black_share", "pct_hs_grad", "unemp_rate", "lfp_rate")
-
-combined_inner_results_1 <- 
-  coefs_clean %>%
-  filter(group == "inner", outcome_clean %in% outcomes_for_combined_plots_inner_1) %>%
-  mutate(
-    clean_label = outcome_labels[outcome_clean],
-    clean_label = factor(clean_label, levels = outcome_labels[outcomes_for_combined_plots_inner_1]),
-    event_time = as.numeric(term)
-  )
-
-ref_rows_inner <- combined_inner_results_1 %>%
-  distinct(outcome_clean, clean_label) %>%
-  mutate(event_time = -10, estimate = 0, std.error = 0)
-
-combined_inner_results_1 <- bind_rows(combined_inner_results_1, ref_rows_inner)
-
-ggplot(combined_inner_results_1, aes(x = event_time, y = estimate, color = clean_label)) +
-  geom_errorbar(aes(ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error),
-                width = 0.3, size = 1.1, alpha = 0.5, position = position_dodge(width = 2)) +
-  geom_point(size = 2, alpha = 0.9, position = position_dodge(width = 2)) +
-  geom_line(alpha = 0.7, position = position_dodge(width = 2)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(
-    title = "Effect of public housing projects,  nearby neighborhoods",
-    x = "Years Relative to Treatment",
-    y = "Difference-in-Difference Estimate",
-    color = "Outcome"
-  ) +
-  scale_x_continuous(breaks = seq(-40, 40, 10)) +
-  theme_minimal() +
-  theme(
-    legend.position = "bottom",
-    plot.background = element_rect(fill = "white"),
-    legend.title = element_blank(),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor.x = element_blank())
-
-ggsave(
-  filename = file.path(results_dir, "event_study_plots_combined_inner_1.png"),
-  width = 14, height = 8
-)
-
-
-
-# inner 2
-combined_inner_results_2 <- 
-  coefs_clean %>%
-  filter(group == "inner", outcome_clean %in% outcomes_for_combined_plots_inner_2) %>%
-  mutate(
-    clean_label = outcome_labels[outcome_clean],
-    clean_label = factor(clean_label, levels = outcome_labels[outcomes_for_combined_plots_inner_2]),
-    event_time = as.numeric(term)
-  )
-
-ref_rows_inner_2 <- combined_inner_results_2 %>%
-  distinct(outcome_clean, clean_label) %>%
-  mutate(event_time = -10, estimate = 0, std.error = 0)
-
-combined_inner_results_2 <- bind_rows(combined_inner_results_2, ref_rows_inner_2)
-
-ggplot(combined_inner_results_2, aes(x = event_time, y = estimate, color = clean_label)) +
-  geom_errorbar(aes(ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error),
-                width = 0.3, size = 1.1, alpha = 0.5, position = position_dodge(width = 2)) +
-  geom_point(size = 2, alpha = 0.9, position = position_dodge(width = 2)) +
-  geom_line(alpha = 0.7, position = position_dodge(width = 2)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(
-    title = "Effect of public housing projects, neighborhood comp, nearby neighborhoods",
-    x = "Years Relative to Treatment",
-    y = "Difference-in-Difference Estimate",
-    color = "Outcome"
-  ) +
-  scale_x_continuous(breaks = seq(-40, 40, 10)) +
-  theme_minimal() +
-  theme(
-    legend.position = "bottom",
-    plot.background = element_rect(fill = "white"),
-    legend.title = element_blank(),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor.x = element_blank())
-
-ggsave(
-  filename = file.path(results_dir, "event_study_plots_combined_inner_2.png"),
-  width = 14, height = 8
-)
-
-
-### Plot each separately, TWFE ----
-
-save_individual_event_study_plots <- function(reg_results_df, 
-                                              outcome_variables, 
-                                              results_dir, prefix,
-                                              heterogeneity = FALSE) {
-  
-  # Define group types (used in category_filter)
-   group_types <- c("treated", "inner")
-  
-  # Loop over outcome variables
-  walk(outcome_variables, function(outcome) {
-    
-    # Get cleaned name (fallback to original if not found)
-    clean_label <- outcome_labels[[outcome]]
-    if (is.null(clean_label)) clean_label <- outcome  # Fallback to original name
-    
-    if (!heterogeneity) {
-    # Loop over group types (treated & inner)
-    walk(group_types, function(group) {
-      
-        print(paste("Saving plot for:", clean_label, "Group:", group))
-        
-        save_event_study_plots(
-          reg_results_df = reg_results_df,  # Full dataset
-          outcome_variables = outcome,  # Single outcome
-          results_dir = results_dir,
-          prefix = paste0(prefix, "_", group, "_", outcome),
-          title_suffix = paste0(" (", group, ")"),  # Just add group name, no variable name
-          category_filter = group, # Pass the group as the category filter
-          heterogeneity = heterogeneity
-        )
-      })
-    } else {
-        save_event_study_plots(
-          reg_results_df = reg_results_df,  # Full dataset
-          outcome_variables = outcome,  # Single outcome
-          results_dir = results_dir,
-          prefix = paste0(prefix, "_", outcome),
-          title_suffix =  "",  # Just add group name, no variable name
-          category_filter = NULL, # Pass the group as the category filter
-          heterogeneity = heterogeneity
-        )
-      }
-  })
-  
-  return("Individual event study plots saved successfully!")
-}
-
-# Generate individual plots for TWFE estimates for both "treated" and "inner"
-save_individual_event_study_plots(
-  reg_results_df = event_study_twfe_conley_coefs, 
-  outcome_variables = outcome_variables, 
-  results_dir = here(results_dir, "individual_plots"), 
-  prefix = "event_study_plots_twfe"
-)
-
-## Create tables of results  -----
-# Filter combined_results
-results_with_se <- combined_results_conley %>%
-  dplyr::rename(event_time = term) %>% 
-  filter(estimator == "TWFE") %>% 
-  mutate(
-    significance = case_when(
-      p.value < 0.001 ~ "***",
-      p.value < 0.01  ~ "**",
-      p.value < 0.05  ~ "*",
-      TRUE            ~ ""
-    ), 
-    # combine coef and SE and stars
-    coef_with_se = paste0(
-      round(estimate, 2), " (", round(std.error, 2), ") ", significance
-    )
-  ) %>%
-  select(event_time, outcome, coef_with_se)
-
-
-
-### Treated tracts -----
-
-# "first stage"
-first_stage_models <- list(
-  "Log Total Population" = did_results_event_study_twfe_conley[["asinh_pop_total_treated"]],
-  "Log Private Population" = did_results_event_study_twfe_conley[["asinh_private_population_estimate_treated"]],
-  "Log Housing Units" = did_results_event_study_twfe_conley[["ln_total_units_treated"]],
-  "Log Median Rent" = did_results_event_study_twfe_conley[["asinh_median_rent_calculated_treated"]]
-)
-
-modelsummary(
-  first_stage_models,
-  stars = TRUE,
-  fmt = 2, # Round to 2 decimal places
-  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits unneeded goodness-of-fit statistics
-  title = "",
-  output = here(results_dir, "tables", "first_stage_models_twfe.tex")
-) 
-
-# Neighborhood composition in treated tracts
-neighborhood_comp_treated_models <- list(
-  "Log Black Pop." = did_results_event_study_twfe_conley[["asinh_pop_black_treated"]],
-  "Log White Pop." = did_results_event_study_twfe_conley[["asinh_pop_white_treated"]],
-  "Black Share" = did_results_event_study_twfe_conley[["black_share_treated"]],
-  "Log Median Income" = did_results_event_study_twfe_conley[["asinh_median_income_treated"]],
-  "HS Grad Rate" = did_results_event_study_twfe_conley[["pct_hs_grad_treated"]],
-  "LFP Rate" = did_results_event_study_twfe_conley[["lfp_rate_treated"]],
-  "Unemp. Rate" = did_results_event_study_twfe_conley[["unemp_rate_treated"]]
-)
-
-modelsummary(
-  neighborhood_comp_treated_models,
-  stars = TRUE,
-  fmt = 2, # Round to 2 decimal places
-  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits unneeded goodness-of-fit statistics
-  title = "",
-  output = here(results_dir, "tables", "neighborhood_comp_treated_models_twfe.tex")
-)
-
-### Neighboring tracts -----
-# housing, pop and units
-
-housing_and_pop_inner_models <-
-  list(
-    "Log Total Pop." = did_results_event_study_twfe_conley[["asinh_pop_total_inner"]],
-    "Log Housing Units" = did_results_event_study_twfe_conley[["ln_total_units_inner"]],
-    "Log Median Rent" = did_results_event_study_twfe_conley[["asinh_median_rent_calculated_inner"]],
-    "Median Rent" = did_results_event_study_twfe_conley[["median_rent_calculated_inner"]],
-    "Log Median Home Value" = did_results_event_study_twfe_conley[["asinh_median_home_value_calculated_inner"]],
-    "Median Home Value" = did_results_event_study_twfe_conley[["median_home_value_calculated_inner"]]
-  )
-
-modelsummary(
-  housing_and_pop_inner_models,
-  stars = TRUE,
-  fmt = 2, # Round to 2 decimal places
-  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits unneeded goodness-of-fit statistics
-  title = "",
-  output = here(results_dir, "tables", "housing_and_pop_inner_models_twfe.tex")
-)
-
-
-# Neighborhood composition
-neighborhood_comp_inner_models <-
-  list(
-    "Log Black Population" = did_results_event_study_twfe_conley[["asinh_pop_black_inner"]],
-    "Log White Population" = did_results_event_study_twfe_conley[["asinh_pop_white_inner"]],
-    "Black Share" = did_results_event_study_twfe_conley[["black_share_inner"]],
-    "Log Median Income" = did_results_event_study_twfe_conley[["asinh_median_income_inner"]],
-    "HS Grad. Rate" = did_results_event_study_twfe_conley[["pct_hs_grad_inner"]],
-    "LFP Rate" = did_results_event_study_twfe_conley[["lfp_rate_inner"]],
-    "Unemp. Rate" = did_results_event_study_twfe_conley[["unemp_rate_inner"]]
-  )
-
-modelsummary(
-  neighborhood_comp_inner_models,
-  stars = TRUE,
-  fmt = 2, # Round to 2 decimal places
-  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",     # Omits unneeded goodness-of-fit statistics
-  title = "",
-  output = here(results_dir, "tables", "neighborhood_comp_inner_models_twfe.tex")
-)
-
-
-
-# Heterogeneity analysis ----
-# TODO: Move this to another program...
-## By Project size -----
+# Project size -----
 
 number_of_size_groups <- 2
+
+## Run regressions----
 
 ### Treated  -----
 
@@ -610,7 +182,7 @@ size_groups <- tract_data_matched_2_year_treated %>%
   #   total_public_housing_units < 500 ~ 2,
   #   TRUE ~ 3
   # )) %>% 
-select(-total_public_housing_units)
+  select(-total_public_housing_units)
 
 
 # Merge onto the treated units
@@ -628,12 +200,12 @@ size_group_cutoffs_treated <-
             max = max(total_public_housing_units))
 
 # Initialize lists
-did_results_event_study_twfe_size_treated <- list()
+did_results_event_study_size_treated <- list()
 did_results_event_study_sunab_size_treated <- list()
 did_results_event_study_sunab_no_match_size_treated <- list()
 
 # with conley standard errors
-did_results_event_study_twfe_conley <- list()
+did_results_event_study_conley <- list()
 did_results_event_study_sunab_conley <-  list()
 did_results_event_study_sunab_no_match_conley <- list()
 
@@ -642,19 +214,19 @@ did_results_event_study_sunab_no_match_conley <- list()
 # Loop over outcome variables and size categories
 for (outcome in outcome_variables) {
   for (s in 1:max(tract_data_matched_with_size_treated$size_group, na.rm = TRUE)) {
-
-
-      results <- did_event_study(input_data = tract_data_matched_with_size_treated,
-                                 outcome_var = outcome,
-                                treatment_group = "treated",
-                                size = s)
-      did_results_event_study_twfe_size_treated[[paste(outcome, s, sep = "_")]] <- results$twfe
-      did_results_event_study_sunab_size_treated[[paste(outcome, s,  sep = "_")]] <- results$sunab
-      did_results_event_study_sunab_no_match_size_treated[[paste(outcome, s, sep = "_")]] <- results$sunab_no_match
-      
-      did_results_event_study_twfe_conley[[paste(outcome, s, sep = "_")]] <- results$twfe_conley
-      did_results_event_study_sunab_conley[[paste(outcome, s, sep = "_")]] <- results$sunab_conley
-      did_results_event_study_sunab_no_match_conley[[paste(outcome, s, sep = "_")]] <- results$sunab_no_match_conley
+    
+    
+    results <- did_event_study(input_data = tract_data_matched_with_size_treated,
+                               outcome_var = outcome,
+                               treatment_group = "treated",
+                               size = s)
+    did_results_event_study_size_treated[[paste(outcome, s, sep = "_")]] <- results$twfe
+    did_results_event_study_sunab_size_treated[[paste(outcome, s,  sep = "_")]] <- results$sunab
+    did_results_event_study_sunab_no_match_size_treated[[paste(outcome, s, sep = "_")]] <- results$sunab_no_match
+    
+    did_results_event_study_conley[[paste(outcome, s, sep = "_")]] <- results$twfe_conley
+    did_results_event_study_sunab_conley[[paste(outcome, s, sep = "_")]] <- results$sunab_conley
+    did_results_event_study_sunab_no_match_conley[[paste(outcome, s, sep = "_")]] <- results$sunab_no_match_conley
   }
 }
 
@@ -665,7 +237,7 @@ event_study_sunab_size_coefs_treated <-
   save_estimates(did_results_event_study_sunab_size_treated, "Sun-Abraham")
 event_study_sunab_no_match_size_coefs_treated <-
   save_estimates(did_results_event_study_sunab_no_match_size_treated,
-                                                                "Sun-Abraham without matching")
+                 "Sun-Abraham without matching")
 
 # conley 
 event_study_twfe_size_conley_coefs_treated <- 
@@ -716,7 +288,7 @@ size_groups_inner <-
   filter(!is.na(total_public_housing_units_built_nearby)) %>% 
   distinct() %>% 
   # assign quartiles
-   mutate(size_group = ntile(total_public_housing_units_built_nearby, number_of_size_groups)) %>% 
+  mutate(size_group = ntile(total_public_housing_units_built_nearby, number_of_size_groups)) %>% 
   # mutate(size_group = case_when(
   #   total_public_housing_units_built_nearby < 100 ~ 1,
   #   total_public_housing_units_built_nearby < 500 ~ 2,
@@ -761,7 +333,7 @@ for (outcome in outcome_variables) {
 event_study_twfe_size_coefs_inner <- save_estimates(did_results_event_study_twfe_size_inner, "TWFE")
 event_study_sunab_size_coefs_inner <- save_estimates(did_results_event_study_sunab_size_inner, "Sun-Abraham")
 event_study_sunab_no_match_size_coefs_inner <- save_estimates(did_results_event_study_sunab_no_match_size_inner,
-                                                                "Sun-Abraham without matching")
+                                                              "Sun-Abraham without matching")
 
 # combine all results
 combined_size_results_inner <- 
@@ -771,7 +343,7 @@ combined_size_results_inner <-
 # check pretrends
 #combined_size_results_inner %>% filter(str_detect(term, "-20"),  p.value < .05) %>% View()
 
-### Plot results  ----
+## Plot results  ----
 
 # treated 
 save_event_study_plots(
@@ -818,7 +390,7 @@ save_individual_event_study_plots(
 )
 
 
-### Tables ----
+##  Output Tables ----
 
 results_with_se_size_treated <- combined_size_results_treated %>%
   dplyr::rename(event_time = term) %>% 
@@ -900,6 +472,8 @@ modelsummary(
   title = "",
   output = here(results_dir, "tables", "neighborhood_comp_inner_models_size.tex")
 )
+
+
 
 # 
 # ## By minority share ----
@@ -1253,3 +827,4 @@ modelsummary(
 # 
 # 
 # 
+
