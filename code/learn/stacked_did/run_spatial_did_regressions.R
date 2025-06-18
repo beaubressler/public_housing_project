@@ -104,13 +104,11 @@ run_event_study_regression <- function(data, dep_var) {
     
   
   formula <- as.formula(paste(dep_var, "~ i(event_time, ring, ref = -10, ref2 = 'outer')",
-                              "| treated_id^event_time + treated_id^ring^cluster + city^cluster^year + tract_id"))
+                              "| treated_id^event_time + treated_id^ring + COUNTY^year + tract_id"))
   
   # Project (treated_id)-census year
   # Project (treated_id)-ring (location_type_factor)-neighborhood
   
-  #TODO  I think this is right now 
-  # model 
   model <- 
     feols(formula, data = data, cluster = c("treated_id", "tract_id"))
   
@@ -119,7 +117,8 @@ run_event_study_regression <- function(data, dep_var) {
   model_inner <-
     feols(formula, data %>% filter(location_type != "treated"), cluster = c("treated_id", "tract_id"))
   
-  
+  model_treated
+  model_inner
   
   # Tidy the model output and process it
   tidy_output <- 
