@@ -36,15 +36,15 @@ calculate_median_ed_from_census <- function(data, rank_df, var_code, var_name) {
     mutate_at(vars(contains(var_code)), as.numeric) %>%
     pivot_longer(cols = starts_with(var_code), names_to = "range", values_to = "num_in_sample") %>%
     left_join(rank_df, by = c("range" = "name")) %>%
-    group_by(YEAR, STATEA, COUNTYA, TRACTA) %>%
-    arrange(YEAR, STATEA, COUNTYA, TRACTA, rank) %>% 
+    group_by(YEAR, GISJOIN_1950) %>%
+    arrange(YEAR, GISJOIN_1950, rank) %>% 
     mutate(
       cumulative_freq = cumsum(num_in_sample),
       total = sum(num_in_sample),
       median_position = total / 2) %>% 
     filter(cumulative_freq >= median_position) %>%
     slice(1) %>% 
-    select(YEAR, STATEA, COUNTYA, TRACTA, range) %>% 
+    select(YEAR, GISJOIN_1950, range) %>% 
     dplyr::rename(!!var_name := range) %>% 
     # drop geometry
     st_drop_geometry()
@@ -53,18 +53,18 @@ calculate_median_ed_from_census <- function(data, rank_df, var_code, var_name) {
 
 # Read in geographic tract crosswalks ----
 # crosswalks, 1930 to 1990
-tract_crosswalk_1930 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1990.csv"))
-tract_crosswalk_1940 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1990.csv"))
-tract_crosswalk_1950 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1950_to_1990.csv"))
-tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1990.csv"))
-tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1990.csv"))
-tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1990.csv"))
+tract_crosswalk_1930 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1950.csv"))
+tract_crosswalk_1940 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1950.csv"))
+tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1950.csv"))
+tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1950.csv"))
+tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
+tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
 
 # Compile tract-level Census education data ----
 
 # shared variables we want to keep
 tract_background_variables <-
-  c("NHGISST","NHGISCTY", "GISJOIN", "GISJOIN2", "SHAPE_AREA", "SHAPE_LEN",
+  c("GISJOIN_1950", "NHGISST","NHGISCTY", "GISJOIN", "GISJOIN2", "SHAPE_AREA", "SHAPE_LEN",
     "geometry", "YEAR", "STATE", "STATEA", "COUNTY", "COUNTYA",
     "TRACTA", "POSTTRCTA", "AREANAME")
 
@@ -310,6 +310,14 @@ tract_education_data_1950 <-
   mutate(pct_hs_grad = (pop_hs_4 + pop_college_1_to_3 + pop_college_4plus) / total_pop,
          pct_some_college = (pop_college_1_to_3 + pop_college_4plus) / total_pop)
 
+#### save 1950 Census tract information ----
+
+# GISJOIN + tract IDs
+tract_info_1950_gisjoin <-
+  tract_education_data_1950 %>% 
+  select(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, TRACTA) 
+
+
 ### 1960 -----
 
 full_tract_data_1960 <-
@@ -483,18 +491,14 @@ tract_education_data_1990 <-
                              pop_college_bachelors + pop_college_post_bachelors) / total_pop)
 
 
-#### save 1990 Census tract information ----
-tract_info_1990 <-
-  tract_education_data_1990 %>% 
-  select(any_of(tract_background_variables), -YEAR)
 
-# Concord datasets to 1990 Census tracts ----
+# Concord datasets to 1950 Census tracts ----
 # 1. Join on crosswalk to get GISJOIN_1990 and weights
 # 2. Weight populations by "weight" and collapse to GISJOIN_1990
 # 3. Merge geography information from 1990 NHGIS file
 
 ## Loop for 1930-1990 -----
-years <- c(1930, 1940, 1950, 1960, 1970, 1980)
+years <- c(1930, 1940, 1960, 1970, 1980, 1990)
 
 for (year in years) {
   # Construct variable names and file names dynamically based on the year
@@ -510,15 +514,22 @@ for (year in years) {
            # weight populations
            mutate_at(vars(contains("pop")), ~ . * weight) %>%
            st_drop_geometry() %>% 
-           # collapse to GISJOIN_1990
-           group_by(GISJOIN_1990, YEAR) %>% 
-           # sum population variables by 1990 Census tract
-           summarise_at(vars(starts_with("pop"), contains("total_pop")), sum, na.rm = TRUE) %>%
-           ungroup()  %>%
-           # merge geography information from 1990 NHGIS file
-           left_join(tract_info_1990, by = c("GISJOIN_1990" = "GISJOIN"))
+           # collapse to GISJOIN_1950
+           group_by(GISJOIN_1950, YEAR) %>% 
+           summarise_at(vars(contains("pop")), sum, na.rm = TRUE) %>%
+           ungroup() %>% 
+           # merge on 1950 tract IDs for each GISJOIN 
+           left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN"))
   )
 }
+
+## Clean 1950 data to same format as concorded data  ----
+tract_education_data_1950_concorded <-
+  tract_education_data_1950 %>% 
+  dplyr::rename(GISJOIN_1950 = GISJOIN) %>% 
+  select(GISJOIN_1950, YEAR, contains("pop"))
+
+
 
 # Calculate median education in each year ----
 
@@ -611,10 +622,10 @@ rank_1990 <-
   )
 
 
-tract_education_data_1990 <-
-  tract_education_data_1990 %>% 
+tract_education_data_1990_concorded <-
+  tract_education_data_1990_concorded %>% 
   left_join(
-    calculate_median_ed_from_census(tract_education_data_1990, rank_1990,
+    calculate_median_ed_from_census(tract_education_data_1990_concorded, rank_1990,
                                     var_code = "pop_", var_name = "median_educ_attainment_25plus")
   )
 
@@ -636,7 +647,7 @@ tract_education_data_concorded <-
   bind_rows(tract_education_data_1930_concorded, tract_education_data_1940_concorded,
             tract_education_data_1950_concorded, tract_education_data_1960_concorded,
             tract_education_data_1970_concorded, tract_education_data_1980_concorded,
-            tract_education_data_1990) %>% 
+            tract_education_data_1990_concorded) %>% 
   # calculate share that finished HS and share with at least some college  (based on earlier calculations)
   mutate(
     pct_hs_grad = case_when(
@@ -657,7 +668,7 @@ tract_education_data_concorded <-
       YEAR == 1990 ~ (pop_college_no_degree + pop_college_associates +
                         pop_college_bachelors + pop_college_post_bachelors) / total_pop,
       TRUE ~ NA_real_)) %>%
-  select(any_of(tract_background_variables), median_educ_attainment_25plus, pct_hs_grad, pct_some_college) %>% 
+  select(GISJOIN_1950, YEAR, geometry, median_educ_attainment_25plus, pct_hs_grad, pct_some_college) %>% 
   # drop rows with missing geometry
   filter(!st_is_empty(geometry))
 

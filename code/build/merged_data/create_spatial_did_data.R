@@ -69,7 +69,7 @@ census_tract_sample <-
 # Create a dataframe with the total number of public housing units per tract
 total_ph_units_per_tract <-
   treated_tracts_panel %>%
-  dplyr::select(TRACTA, COUNTY, STATE, total_public_housing_units) %>% 
+  dplyr::select(GISJOIN_1950, total_public_housing_units) %>% 
   distinct()
 
 
@@ -79,7 +79,7 @@ total_ph_units_per_tract <-
 # 0. Get all unique tracts in the sample
 census_tract_sample_indexed_unique <-
   census_tract_sample %>%
-  group_by(TRACTA, COUNTYA, STATEA) %>%
+  group_by(GISJOIN_1950) %>%
   filter(row_number() == 1) %>% 
   mutate(tract_id = row_number())
 
@@ -87,7 +87,7 @@ census_tract_sample_indexed_unique <-
 census_tract_unique_crosswalk <-
   census_tract_sample_indexed_unique %>% 
   mutate(row_number = row_number()) %>%
-  dplyr::select(row_number,tract_id, TRACTA, COUNTY, STATE) %>% 
+  dplyr::select(row_number,tract_id, GISJOIN_1950) %>% 
   st_drop_geometry()
 
 # Ensure geometries are valid
@@ -153,7 +153,7 @@ ggplot(clustered_tracts %>% filter(city == "New York City")) +
 # create dataset with cluster FE
 clustered_tracts_panel <- 
   clustered_tracts %>% 
-  dplyr::select(STATE, COUNTY, TRACTA, city, cluster) %>% 
+  dplyr::select(GISJOIN_1950, city, cluster) %>% 
   distinct() 
 
 
@@ -167,14 +167,14 @@ ever_treated_tracts <-
   census_tract_sample %>%
   filter(treated == 1 ) %>% 
   st_drop_geometry() %>% 
-  dplyr::select(TRACTA, COUNTY, STATE) %>%
+  dplyr::select(GISJOIN_1950) %>%
   distinct() %>% 
   mutate(ever_treated = 1)
 
 # merge to census tract sample
 census_tract_sample_indexed_unique <-
   census_tract_sample_indexed_unique %>%
-  left_join(ever_treated_tracts, by = c("TRACTA", "COUNTY", "STATE")) %>%
+  left_join(ever_treated_tracts, by = c("GISJOIN_1950")) %>%
   mutate(ever_treated = ifelse(is.na(ever_treated), 0, 1))
 
 
@@ -188,25 +188,23 @@ nblags <- nblag(nb, maxlag = 2)
 
 tracts_dt <- data.table(
   tract_index = 1:nrow(census_tract_sample_indexed_unique),
-  STATE = census_tract_sample_indexed_unique$STATE,
-  COUNTY = census_tract_sample_indexed_unique$COUNTY,
-  TRACTA = census_tract_sample_indexed_unique$TRACTA
+  GISJOIN_1950 = census_tract_sample_indexed_unique$GISJOIN_1950
 )
 
 # Convert treated_tracts_panel to data.table if not already
 setDT(treated_tracts_panel)
 
 # Get unique treated tracts with treatment_year
-treated_years <- unique(treated_tracts_panel[, .(STATE, COUNTY, TRACTA, treatment_year)])
+treated_years <- unique(treated_tracts_panel[, .(GISJOIN_1950, treatment_year)])
 
 # Merge to get tract indices for treated tracts
 treated_indices <- merge(
   tracts_dt,
   treated_years,
-  by = c("STATE", "COUNTY", "TRACTA"),
+  by = c("GISJOIN_1950"),
   all.x = FALSE,
   all.y = TRUE
-)[, .(tract_index, STATE, COUNTY, TRACTA, treatment_year)]
+)[, .(tract_index, GISJOIN_1950, treatment_year)]
 
 # Initialize results data.table
 results <- data.table()
@@ -244,9 +242,7 @@ results <- unique(results)
 # Merge to get neighbor tract information
 neighbor_info <- tracts_dt[, .(
   neighbor_id = tract_index,
-  STATE = STATE,
-  COUNTY = COUNTY,
-  TRACTA = TRACTA
+  GISJOIN_1950 = GISJOIN_1950
 )]
 
 results <- merge(
@@ -259,9 +255,7 @@ results <- merge(
 # Get treated tract information
 treated_info <- tracts_dt[, .(
   treated_id = tract_index,
-  STATE_treated = STATE,
-  COUNTY_treated = COUNTY,
-  TRACTA_treated = TRACTA
+  GISJOIN_1950_treated = GISJOIN_1950
 )]
 # Merge treated tract information
 event_study_data <- merge(
@@ -287,14 +281,14 @@ event_study_data <- as_tibble(event_study_data)
 # Create treated tracts dataset
 treated_tracts <- 
   event_study_data %>%
-  dplyr::select(treated_id, TRACTA_treated, COUNTY_treated, STATE_treated) %>%
+  dplyr::select(treated_id, GISJOIN_1950_treated) %>%
   distinct() %>%
   mutate(location_type = "treated")
 
 # Create inner ring dataset
 inner_ring_tracts <- event_study_data %>%
   filter(ring == 1) %>%
-  dplyr::select(treated_id, neighbor_id, TRACTA, COUNTY, STATE) %>%
+  dplyr::select(treated_id, neighbor_id, GISJOIN_1950) %>%
   distinct() %>%
   rename(ring_id = neighbor_id) %>%
   mutate(location_type = "inner")
@@ -302,7 +296,7 @@ inner_ring_tracts <- event_study_data %>%
 # Create outer ring dataset
 outer_ring_tracts <- event_study_data %>%
   filter(ring == 2) %>%
-  dplyr::select(treated_id, neighbor_id, TRACTA, COUNTY, STATE) %>%
+  dplyr::select(treated_id, neighbor_id, GISJOIN_1950) %>%
   distinct() %>%
   rename(ring_id = neighbor_id) %>%
   mutate(location_type = "outer")
@@ -310,8 +304,7 @@ outer_ring_tracts <- event_study_data %>%
 # Combine datasets
 combined_ring_data <- bind_rows(
   treated_tracts %>%
-    mutate(ring_id = treated_id, TRACTA = TRACTA_treated, 
-           COUNTY = COUNTY_treated, STATE = STATE_treated) %>%
+    mutate(ring_id = treated_id, GISJOIN_1950 = GISJOIN_1950_treated) %>%
     dplyr::select(-ends_with("_treated")),
   inner_ring_tracts,
   outer_ring_tracts
@@ -319,15 +312,15 @@ combined_ring_data <- bind_rows(
 
 # Identify ever-treated tracts
 ever_treated_tracts <- treated_tracts %>%
-  dplyr::select(STATE_treated, COUNTY_treated, TRACTA_treated) %>%
+  dplyr::select(GISJOIN_1950_treated) %>%
   distinct() %>%
-  rename(STATE = STATE_treated, COUNTY = COUNTY_treated, TRACTA = TRACTA_treated) %>%
+  rename(GISJOIN_1950 = GISJOIN_1950_treated) %>%
   mutate(ever_treated = 1)
 
 # Clean the data
 event_study_data_long <-
   combined_ring_data %>%
-  left_join(ever_treated_tracts, by = c("STATE", "COUNTY", "TRACTA")) %>% 
+  left_join(ever_treated_tracts, by = c("GISJOIN_1950")) %>% 
   # Filter ever-treated tracts from inner and outer rings
   filter(is.na(ever_treated) | location_type == "treated")
 
@@ -335,14 +328,14 @@ event_study_data_long <-
 ever_inner_ring_tracts <- 
   event_study_data_long %>%
   filter(location_type == "inner") %>%
-  dplyr::select(STATE, COUNTY, TRACTA) %>%
+  dplyr::select(GISJOIN_1950) %>%
   distinct() %>%
   mutate(ever_inner_ring = 1)
 
 # Filter ever inner ring tracts from outer rings
 event_study_data_long <-
   event_study_data_long %>%
-  left_join(ever_inner_ring_tracts, by = c("STATE", "COUNTY", "TRACTA")) %>%
+  left_join(ever_inner_ring_tracts, by = c("GISJOIN_1950")) %>%
   filter(is.na(ever_inner_ring) | location_type %in% c("treated", "inner")) %>% 
   # Drop ever_treated and ever_inner_ring columns
   dplyr::select(-ever_treated, -ever_inner_ring)
@@ -350,7 +343,7 @@ event_study_data_long <-
 # Prepare tracts and rings
 tracts_and_rings <-
   event_study_data_long %>%
-  dplyr::select(TRACTA, COUNTY, STATE, treated_id, location_type) %>%
+  dplyr::select(GISJOIN_1950, treated_id, location_type) %>%
   distinct()
 
 years <- seq(1930, 1990, by = 10)
@@ -369,7 +362,7 @@ event_study_data_full<-
 
 # Prepare census data
 census_data_for_event_study <- census_tract_sample %>% 
-  dplyr::select(STATE, COUNTY, TRACTA, YEAR, city,
+  dplyr::select(GISJOIN_1950, STATE, COUNTY, TRACTA, YEAR, city,
          black_share, white_share, white_pop, black_pop, total_pop, 
          median_income, median_rent_calculated, median_home_value_calculated, median_educ_years_25plus,
          pct_hs_grad, pct_some_college,
@@ -386,12 +379,12 @@ census_data_for_event_study <- census_tract_sample %>%
     asinh_median_home_value_calculated = asinh(median_home_value_calculated)
   ) %>% 
   # Join on clusters if applicable
-  left_join(clustered_tracts_panel, by = c("STATE", "COUNTY", "TRACTA", "city"))
+  left_join(clustered_tracts_panel, by = c("GISJOIN_1950", "city"))
 
 # Merge on census variables
 event_study_final <-
   left_join(event_study_data_full, census_data_for_event_study, 
-            by = c("TRACTA", "COUNTY", "STATE", "YEAR")) %>% 
+            by = c("GISJOIN_1950", "YEAR")) %>% 
   # Define treated variable equal to 1 if YEAR >= treatment_year and location_type == treated
   mutate(
     treated = ifelse(YEAR >= treatment_year & location_type == "treated", TRUE, FALSE),
@@ -399,8 +392,6 @@ event_study_final <-
     cohort = as.factor(treatment_year), 
     relative_period = (YEAR - treatment_year) / 10
   ) %>% 
-  # Drop any tracts with zero population
-  filter(total_pop > 0) %>%
   # Keep distinct observations: One observation per treated_id-tract-year
   distinct()
 
@@ -417,7 +408,7 @@ event_study_data_rings <-
     location_type_factor = factor(location_type, levels = c("outer", "inner", "treated")),
     location_type_dummy = as.numeric(location_type_factor),
     # Create a unique tract ID
-    tract_id = paste(STATE, COUNTY, TRACTA, sep = "_")
+    tract_id = paste(GISJOIN_1950, sep = "_")
   ) %>% 
   dplyr::rename(year = YEAR)
 
@@ -425,14 +416,14 @@ event_study_data_rings <-
 baseline_black_share <-
   event_study_data_rings %>%
   filter(event_time == "-10") %>% 
-  dplyr::select(treated_id, STATE, COUNTY, TRACTA, black_share) %>% 
+  dplyr::select(treated_id, GISJOIN_1950, black_share) %>% 
   rename(black_share_baseline = black_share) %>% 
   distinct()
 
 # Merge on by treated project
 event_study_data_rings <-
   event_study_data_rings %>%
-  left_join(baseline_black_share, by = c("treated_id", "STATE", "COUNTY", "TRACTA"))
+  left_join(baseline_black_share, by = c("treated_id", "GISJOIN_1950"))
 
 # Output event study data with rings
 write_csv(event_study_data_rings, event_study_rings_output_path)
@@ -440,10 +431,10 @@ write_csv(event_study_data_rings, event_study_rings_output_path)
 # Output unique tracts and ring status, and their associated treated tract ----
 unique_tracts_and_rings <-
   event_study_data_rings %>%
-  dplyr::select(STATE, COUNTY, TRACTA, location_type, treatment_year) %>%
+  dplyr::select(GISJOIN_1950, location_type, treatment_year) %>%
   distinct() %>%
   # Keep first year of treatment for each tract
-  group_by(STATE, COUNTY, TRACTA, location_type) %>%
+  group_by(GISJOIN_1950, location_type) %>%
   filter(treatment_year == min(treatment_year)) %>%
   ungroup()
 
@@ -457,17 +448,17 @@ write_csv(unique_tracts_and_rings, unique_tracts_and_rings_output_path)
 
 treatment_size_event_time_0 <-
   total_ph_units_per_tract %>% 
-  mutate(treated_tract_id = paste(STATE, COUNTY, TRACTA, sep = "_")) %>% 
+  mutate(treated_tract_id = paste(GISJOIN_1950, sep = "_")) %>% 
   dplyr::select(treated_tract_id, total_public_housing_units) 
 
 # inner ring tracts (first treated) and their associated treated tract
 inner_ring_tracts_first_treated <- 
   event_study_data_rings %>% 
   #filter(location_type == "inner") %>%
-  dplyr::select(STATE, COUNTY, TRACTA, treated_id, tract_id, location_type, treatment_year) %>% 
+  dplyr::select(GISJOIN_1950, treated_id, tract_id, location_type, treatment_year) %>% 
   distinct() %>% 
   # Keep first year of treatment for each tract
-  group_by(STATE, COUNTY, TRACTA, location_type) %>%
+  group_by(GISJOIN_1950, location_type) %>%
   filter(treatment_year == min(treatment_year)) %>%
   ungroup()
 
@@ -480,178 +471,178 @@ unique_treated_tracts <-
 inner_ring_tracts_first_treated <- inner_ring_tracts_first_treated %>% 
   left_join(unique_treated_tracts, by = "treated_id") %>% 
   filter(location_type == "inner") %>% 
-  dplyr::select(STATE, COUNTY, TRACTA, treatment_year, associated_treated_tract_id) %>% 
+  dplyr::select(GISJOIN_1950, treatment_year, associated_treated_tract_id) %>% 
   distinct() 
 
 # merge on the total public housing units in event time 0 and collapse 
 inner_ring_tracts_first_treated_collapsed <- inner_ring_tracts_first_treated %>% 
   left_join(treatment_size_event_time_0, by = c("associated_treated_tract_id" = "treated_tract_id"))  %>% 
   # Collapse: sum 
-  group_by(STATE, COUNTY, TRACTA, treatment_year) %>%
+  group_by(GISJOIN_1950, treatment_year) %>%
   summarise(total_public_housing_units_built_nearby = sum(total_public_housing_units))
 
 # output 
 write_csv(inner_ring_tracts_first_treated_collapsed, inner_ring_tracts_first_treated_output_path)
 
-
-# Create, in each year, 800, 1600, 2400, and 3200m rings based on centroid distance ----
-
-# unique treated tracts, centroids
-treated_tracts_centroids <-
-  census_tract_sample %>% 
-  filter(treated == 1) %>% 
-  dplyr::select(STATE, COUNTY, TRACTA) %>% 
-  distinct() %>% 
-  st_centroid()
-
-# all non-treated tracts
-never_treated_tracts <- 
-  census_tract_sample %>% 
-  st_drop_geometry() %>% 
-  dplyr::select(STATE, COUNTY, TRACTA) %>% 
-  distinct() %>% 
-  anti_join(treated_tracts_centroids, by = c("STATE", "COUNTY", "TRACTA"))
-
-never_treated_tract_centroids <- 
-  census_tract_sample_indexed_unique %>% 
-  dplyr::select(STATE, COUNTY, TRACTA) %>% 
-  semi_join(never_treated_tracts, by = c("STATE", "COUNTY", "TRACTA")) %>%
-  st_centroid()
-
-# Now, you can use `within_distance_1600m` and `within_distance_3200m` for your analysis.
-# For example, you could filter tracts within the 1600m or 3200m rings:
-
-## Create stacked dataset ----
-
-# 1. Create an empty list to store results
-stacked_rings_data <- list()
-
-# Step 2: Loop over each treated tract and find which tracts fall into its rings
-for (i in seq_len(nrow(treated_tracts_centroids))) {
-  
-  # Get the current treated tract centroid
-  treated_tract <- treated_tracts_centroids[i, ]
-  
-  # Calculate distance between the current treated tract and all non-treated tracts
-  distances <- st_distance(never_treated_tract_centroids, treated_tract)
-  
-  # Convert thresholds (800m, 1600m, etc.) to units of meters
-  threshold_800m <- set_units(800, "m")
-  threshold_1600m <- set_units(1600, "m")
-  threshold_2400m <- set_units(2400, "m")
-  threshold_3200m <- set_units(3200, "m")
-  
-  
-  # Identify tracts within the specified distance rings
-  tracts_in_800m <- never_treated_tract_centroids[distances <= threshold_800m, ]
-  tracts_in_1600m <- never_treated_tract_centroids[distances > threshold_800m & distances <= threshold_1600m, ]
-  tracts_in_2400m <- never_treated_tract_centroids[distances > threshold_1600m & distances <= threshold_2400m, ]
-  tracts_in_3200m <- never_treated_tract_centroids[distances > threshold_2400m & distances <= threshold_3200m, ]
-  
-  # Label the rings for each group of tracts
-  tracts_in_800m$ring <- "800m"
-  tracts_in_1600m$ring <- "1600m"
-  tracts_in_2400m$ring <- "2400m"
-  tracts_in_3200m$ring <- "3200m"
-  
-  # Combine all tracts for this treated tract
-  tracts_for_treated <- bind_rows(tracts_in_800m, tracts_in_1600m, tracts_in_2400m, tracts_in_3200m)
-  
-  # Add treated tract information (i.e., identifier for the treated tract)
-  tracts_for_treated$treated_tract_id <- treated_tract$TRACTA
-  
-  # Add to the list of results
-  stacked_rings_data[[i]] <- tracts_for_treated
-}
-
-# Step 3: Combine the results into a single stacked dataset
-stacked_rings_dataset <- bind_rows(stacked_rings_data)
-
-# Clean up the dataset, keeping relevant columns
-stacked_rings_dataset <-
-  stacked_rings_dataset %>%
-  dplyr::select(STATE, COUNTY, TRACTA, treated_tract_id, ring) %>%
-  st_drop_geometry() %>% 
-  distinct()  # Ensure there are no duplicates
-
-# output the stacked dataset
-write_csv(stacked_rings_dataset, here(merged_data_dir, "stacked_distance_rings_dataset.csv"))
-
-
-## Create a map for fun -----
-# merge on geographies
-x <-
-  stacked_rings_dataset %>% 
-  left_join(census_tract_sample_indexed_unique %>% dplyr::select(city, STATE, COUNTY, TRACTA, geom),  by = c("STATE", "COUNTY", "TRACTA"))
-
-chicago_rings <-
-  x %>% 
-  filter(city == "Chicago") 
-
-# Step 1: Filter data for Chicago
-chicago_tracts <- census_tract_sample %>%
-  filter(city == "Chicago") %>%   # Ensure there is a 'city' or similar variable indicating Chicago
-  # keep unique
-  group_by(STATE, COUNTY, TRACTA) %>%
-  distinct() %>% 
-  ungroup()
-
-# Step 2: Define layers for treated tracts, 1600m rings, and 3200m rings
-treated_tracts_chicago <- census_tract_sample %>%
-  filter(city == "Chicago", treated == 1) %>% 
-  group_by(STATE, COUNTY, TRACTA) %>%
-  filter(row_number() == 1)
-
-tracts_within_800m <- 
-  chicago_rings %>%
-  filter(ring == "800m")  %>% # Tracts within 800 meters of treated tracts
-  group_by(STATE, COUNTY, TRACTA) %>%
-  filter(row_number() == 1)
-
-tracts_within_1600m_chicago <-
-  chicago_rings %>%
-  filter(ring == "1600m") %>%  # Tracts within 1600 meters of treated tracts
-  group_by(STATE, COUNTY, TRACTA) %>%
-  filter(row_number() == 1)
-
-tracts_within_2400m_chicago <-
-  chicago_rings %>%
-  filter(ring == "2400m")  %>% # Tracts within 2400 meters of treated tracts
-  group_by(STATE, COUNTY, TRACTA) %>%
-  filter(row_number() == 1)
-
-tracts_within_3200m_chicago <-
-  chicago_rings %>%
-  filter(ring == "3200m") %>%  # Tracts within 3200 meters of treated tracts
-  group_by(STATE, COUNTY, TRACTA) %>%
-  filter(row_number() == 1)
-
-# Step 3: Create the map using ggplot2
-# Create the map using ggplot2
-ggplot() +
-  # Plot all Chicago tracts as the base layer (very light grey)
-  geom_sf(data = chicago_tracts, aes(geometry = geom), fill = "lightgray", color = "darkgrey", size = 0.2) +
-  # Plot 3200m rings first (lightest blue)
-  geom_sf(data = tracts_within_3200m_chicago, aes(geometry = geom),
-          fill = "#3895d3", color = NA, alpha = 0.7) +
-  # Plot 2400m rings (light-medium blue)
-  geom_sf(data = tracts_within_2400m_chicago, aes(geometry = geom),
-          fill = "#1261a0", color = NA, alpha = 0.7) +
-  # Plot 1600m rings (medium-dark blue)
-  geom_sf(data = tracts_within_1600m_chicago, aes(geometry = geom),
-          fill = "#072f5f", color = NA, alpha = 0.7) +
-  # Plot 800m rings (darkest blue)
-  geom_sf(data = tracts_within_800m, aes(geometry = geom),
-          fill = "#05204a", color = NA, alpha = 0.7) +
-  # Plot treated tracts on top of the rings (dark red)
-  geom_sf(data = treated_tracts_chicago, aes(geometry = geom),
-          fill = "#990000", color = "black", size = 0.2, alpha = 0.9) +
-  # Customize the appearance
-  theme_minimal() +
-  labs(
-    title = "Chicago: Treated Tracts and Surrounding Rings",
-    subtitle = "Dark Red = Treated Tracts, Shades of Blue = Distance Rings (Lighter = Further)",
-    caption = "Source: Census Tract Data"
-  ) +
-  theme(legend.position = "none")
-
+#  TODO: Move this elsewhere
+# # Create, in each year, 800, 1600, 2400, and 3200m rings based on centroid distance ----
+# 
+# # unique treated tracts, centroids
+# treated_tracts_centroids <-
+#   census_tract_sample %>% 
+#   filter(treated == 1) %>% 
+#   dplyr::select(STATE, COUNTY, TRACTA) %>% 
+#   distinct() %>% 
+#   st_centroid()
+# 
+# # all non-treated tracts
+# never_treated_tracts <- 
+#   census_tract_sample %>% 
+#   st_drop_geometry() %>% 
+#   dplyr::select(STATE, COUNTY, TRACTA) %>% 
+#   distinct() %>% 
+#   anti_join(treated_tracts_centroids, by = c("STATE", "COUNTY", "TRACTA"))
+# 
+# never_treated_tract_centroids <- 
+#   census_tract_sample_indexed_unique %>% 
+#   dplyr::select(STATE, COUNTY, TRACTA) %>% 
+#   semi_join(never_treated_tracts, by = c("STATE", "COUNTY", "TRACTA")) %>%
+#   st_centroid()
+# 
+# # Now, you can use `within_distance_1600m` and `within_distance_3200m` for your analysis.
+# # For example, you could filter tracts within the 1600m or 3200m rings:
+# 
+# ## Create stacked dataset ----
+# 
+# # 1. Create an empty list to store results
+# stacked_rings_data <- list()
+# 
+# # Step 2: Loop over each treated tract and find which tracts fall into its rings
+# for (i in seq_len(nrow(treated_tracts_centroids))) {
+#   
+#   # Get the current treated tract centroid
+#   treated_tract <- treated_tracts_centroids[i, ]
+#   
+#   # Calculate distance between the current treated tract and all non-treated tracts
+#   distances <- st_distance(never_treated_tract_centroids, treated_tract)
+#   
+#   # Convert thresholds (800m, 1600m, etc.) to units of meters
+#   threshold_800m <- set_units(800, "m")
+#   threshold_1600m <- set_units(1600, "m")
+#   threshold_2400m <- set_units(2400, "m")
+#   threshold_3200m <- set_units(3200, "m")
+#   
+#   
+#   # Identify tracts within the specified distance rings
+#   tracts_in_800m <- never_treated_tract_centroids[distances <= threshold_800m, ]
+#   tracts_in_1600m <- never_treated_tract_centroids[distances > threshold_800m & distances <= threshold_1600m, ]
+#   tracts_in_2400m <- never_treated_tract_centroids[distances > threshold_1600m & distances <= threshold_2400m, ]
+#   tracts_in_3200m <- never_treated_tract_centroids[distances > threshold_2400m & distances <= threshold_3200m, ]
+#   
+#   # Label the rings for each group of tracts
+#   tracts_in_800m$ring <- "800m"
+#   tracts_in_1600m$ring <- "1600m"
+#   tracts_in_2400m$ring <- "2400m"
+#   tracts_in_3200m$ring <- "3200m"
+#   
+#   # Combine all tracts for this treated tract
+#   tracts_for_treated <- bind_rows(tracts_in_800m, tracts_in_1600m, tracts_in_2400m, tracts_in_3200m)
+#   
+#   # Add treated tract information (i.e., identifier for the treated tract)
+#   tracts_for_treated$treated_tract_id <- treated_tract$TRACTA
+#   
+#   # Add to the list of results
+#   stacked_rings_data[[i]] <- tracts_for_treated
+# }
+# 
+# # Step 3: Combine the results into a single stacked dataset
+# stacked_rings_dataset <- bind_rows(stacked_rings_data)
+# 
+# # Clean up the dataset, keeping relevant columns
+# stacked_rings_dataset <-
+#   stacked_rings_dataset %>%
+#   dplyr::select(STATE, COUNTY, TRACTA, treated_tract_id, ring) %>%
+#   st_drop_geometry() %>% 
+#   distinct()  # Ensure there are no duplicates
+# 
+# # output the stacked dataset
+# write_csv(stacked_rings_dataset, here(merged_data_dir, "stacked_distance_rings_dataset.csv"))
+# 
+# 
+# ## Create a map for fun -----
+# # merge on geographies
+# x <-
+#   stacked_rings_dataset %>% 
+#   left_join(census_tract_sample_indexed_unique %>% dplyr::select(city, STATE, COUNTY, TRACTA, geom),  by = c("STATE", "COUNTY", "TRACTA"))
+# 
+# chicago_rings <-
+#   x %>% 
+#   filter(city == "Chicago") 
+# 
+# # Step 1: Filter data for Chicago
+# chicago_tracts <- census_tract_sample %>%
+#   filter(city == "Chicago") %>%   # Ensure there is a 'city' or similar variable indicating Chicago
+#   # keep unique
+#   group_by(STATE, COUNTY, TRACTA) %>%
+#   distinct() %>% 
+#   ungroup()
+# 
+# # Step 2: Define layers for treated tracts, 1600m rings, and 3200m rings
+# treated_tracts_chicago <- census_tract_sample %>%
+#   filter(city == "Chicago", treated == 1) %>% 
+#   group_by(STATE, COUNTY, TRACTA) %>%
+#   filter(row_number() == 1)
+# 
+# tracts_within_800m <- 
+#   chicago_rings %>%
+#   filter(ring == "800m")  %>% # Tracts within 800 meters of treated tracts
+#   group_by(STATE, COUNTY, TRACTA) %>%
+#   filter(row_number() == 1)
+# 
+# tracts_within_1600m_chicago <-
+#   chicago_rings %>%
+#   filter(ring == "1600m") %>%  # Tracts within 1600 meters of treated tracts
+#   group_by(STATE, COUNTY, TRACTA) %>%
+#   filter(row_number() == 1)
+# 
+# tracts_within_2400m_chicago <-
+#   chicago_rings %>%
+#   filter(ring == "2400m")  %>% # Tracts within 2400 meters of treated tracts
+#   group_by(STATE, COUNTY, TRACTA) %>%
+#   filter(row_number() == 1)
+# 
+# tracts_within_3200m_chicago <-
+#   chicago_rings %>%
+#   filter(ring == "3200m") %>%  # Tracts within 3200 meters of treated tracts
+#   group_by(STATE, COUNTY, TRACTA) %>%
+#   filter(row_number() == 1)
+# 
+# # Step 3: Create the map using ggplot2
+# # Create the map using ggplot2
+# ggplot() +
+#   # Plot all Chicago tracts as the base layer (very light grey)
+#   geom_sf(data = chicago_tracts, aes(geometry = geom), fill = "lightgray", color = "darkgrey", size = 0.2) +
+#   # Plot 3200m rings first (lightest blue)
+#   geom_sf(data = tracts_within_3200m_chicago, aes(geometry = geom),
+#           fill = "#3895d3", color = NA, alpha = 0.7) +
+#   # Plot 2400m rings (light-medium blue)
+#   geom_sf(data = tracts_within_2400m_chicago, aes(geometry = geom),
+#           fill = "#1261a0", color = NA, alpha = 0.7) +
+#   # Plot 1600m rings (medium-dark blue)
+#   geom_sf(data = tracts_within_1600m_chicago, aes(geometry = geom),
+#           fill = "#072f5f", color = NA, alpha = 0.7) +
+#   # Plot 800m rings (darkest blue)
+#   geom_sf(data = tracts_within_800m, aes(geometry = geom),
+#           fill = "#05204a", color = NA, alpha = 0.7) +
+#   # Plot treated tracts on top of the rings (dark red)
+#   geom_sf(data = treated_tracts_chicago, aes(geometry = geom),
+#           fill = "#990000", color = "black", size = 0.2, alpha = 0.9) +
+#   # Customize the appearance
+#   theme_minimal() +
+#   labs(
+#     title = "Chicago: Treated Tracts and Surrounding Rings",
+#     subtitle = "Dark Red = Treated Tracts, Shades of Blue = Distance Rings (Lighter = Further)",
+#     caption = "Source: Census Tract Data"
+#   ) +
+#   theme(legend.position = "none")
+# 

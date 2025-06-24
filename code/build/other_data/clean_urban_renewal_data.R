@@ -15,7 +15,7 @@ output_dir <- here("data", "derived", "urban_renewal")
 
 ur_data_raw <- read_sf(here(ur_directory_raw, "ur_projects.shp"))
 
-# read 1990 Census tract data
+# read 1950 Census tract data
 census_tracts_raw <- st_read(here(census_directory, "tract_population_data.gpkg"))
 
 
@@ -35,16 +35,16 @@ ur_data_union <-
   # union overlapping urban renwal polygons into 1
   st_union()
 
-# Keep only one of each unique 1990 census tract ----
+# Keep only one of each unique 1950 census tract ----
 census_tracts <- 
   census_tracts_raw %>% 
-  group_by(STATEA, COUNTYA, TRACTA) %>% 
+  group_by(GISJOIN_1950) %>% 
   filter(row_number() == 1) %>% 
   ungroup() %>% 
   # correct invalid geometries
   st_make_valid() %>% 
   # keep only the columns we need
-  select(STATEA, COUNTYA, TRACTA) %>% 
+  select(GISJOIN_1950) %>% 
   mutate(original_tract_area = st_area(geom))
 
 
@@ -59,14 +59,14 @@ tract_ur_intersections <-
   mutate(intersection_area = as.numeric(st_area(geom))) %>%  # Area of the intersection
   st_drop_geometry() %>%
   # sum up total intersection area by tract
-  group_by(STATEA, COUNTYA, TRACTA) %>%
+  group_by(GISJOIN_1950) %>%
   summarize(
     total_intersection_area = sum(intersection_area, na.rm = TRUE)
   )
 
 # Calculate urban renewal share
 tract_ur_summary <-
-  left_join(census_tracts, tract_ur_intersections, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
+  left_join(census_tracts, tract_ur_intersections, by = c("GISJOIN_1950")) %>% 
   st_drop_geometry() %>% 
   # calculate share of the tract in urban renewal areas
   mutate(
@@ -81,7 +81,7 @@ tract_ur_summary <-
          ur_binary_5pp = ifelse(as.numeric(total_ur_share) >= 0.05, 1, 0),
          ur_binary_any = ifelse(as.numeric(total_ur_share) > 0, 1, 0)
          ) %>% 
-  select(STATEA, COUNTYA, TRACTA, contains("ur_binary"), total_ur_share)
+  select(GISJOIN_1950, contains("ur_binary"), total_ur_share)
   
 # output
 tract_ur_summary %>% 

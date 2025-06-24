@@ -1,5 +1,4 @@
 # Harmonized Occupational Categories for SES Measurement
-# ------------------------------------------------------
 # This code classifies occupations into high-skill, mid-skill, and low-skill categories 
 # across different Census years (1940, 1950, 1960, 1970, 1980, 1990) to create a consistent 
 # measure of socioeconomic status (SES) for neighborhoods over time.
@@ -41,13 +40,14 @@ gis_data_dir <- here("data", "raw", "nhgis", "gis")
 output_dir <- here("data", "derived", "census")
 
 # Read in geographic tract crosswalks ----
-# crosswalks, 1930 to 1990
-tract_crosswalk_1930 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1990.csv"))
-tract_crosswalk_1940 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1990.csv"))
-tract_crosswalk_1950 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1950_to_1990.csv"))
-tract_crosswalk_1960 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1990.csv"))
-tract_crosswalk_1970 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1990.csv"))
-tract_crosswalk_1980 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1990.csv"))
+# crosswalks, 1930 to 1950
+tract_crosswalk_1930 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1950.csv"))
+tract_crosswalk_1940 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1950.csv"))
+tract_crosswalk_1960 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1950.csv"))
+tract_crosswalk_1970 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1950.csv"))
+tract_crosswalk_1980 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
+tract_crosswalk_1990 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
+
 
 # shared variables we want to keep
 tract_background_variables <-
@@ -101,7 +101,13 @@ full_tract_data_1950 <-
   # keep relevant columns
   select(any_of(tract_background_variables), contains("occupations"))
 
-  
+
+### save 1950 Census tract information ----
+
+# GISJOIN + tract IDs
+tract_info_1950_gisjoin <-
+  full_tract_data_1950 %>% 
+  select(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, TRACTA) 
 
 
 ## 1960  -------
@@ -193,18 +199,14 @@ full_tract_data_1990 <-
   # keep relevant columns
   select(any_of(tract_background_variables), contains("occupations"))
 
-#### save 1990 Census tract information ----
-tract_info_1990 <-
-  full_tract_data_1990 %>% 
-  select(any_of(tract_background_variables), -YEAR)
 
-# Concord datasets to 1990 Census tracts ----
-# 1. Join on crosswalk to get GISJOIN_1990 and weights
-# 2. Weight occupations by "weight" and collapse to GISJOIN_1990
-# 3. Merge geography information from 1990 NHGIS file
+# Concord datasets to 1950 Census tracts ----
+# 1. Join on crosswalk to get GISJOIN_1950 and weights
+# 2. Weight occupations by "weight" and collapse to GISJOIN_1950
+# 3. Merge geography information from 1950 NHGIS file
 
 ## Loop for 1940-1980 -----
-years <- c(1940, 1950, 1960, 1970, 1980)
+years <- c(1940, 1960, 1970, 1980, 1990)
 
 for (year in years) {
   print(year)
@@ -221,14 +223,20 @@ for (year in years) {
            # weight occupations
            mutate_at(vars(contains("occupations")), ~ . * weight) %>%
            st_drop_geometry() %>% 
-           # collapse to GISJOIN_1990
-           group_by(GISJOIN_1990, YEAR) %>% 
+           # collapse to GISJOIN_1950
+           group_by(GISJOIN_1950, YEAR) %>% 
            summarise_at(vars(contains("occupations")), sum, na.rm = TRUE) %>%
-           ungroup()  %>%
-           # merge geography information from 1990 NHGIS file
-           left_join(tract_info_1990, by = c("GISJOIN_1990" = "GISJOIN")) 
+           # merge on 1950 tract IDs for each GISJOIN 
+           left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN")) 
   )
 }
+
+## Clean 1950 data to same format as concorded data  ----
+tract_occupation_data_1950_concorded <-
+  full_tract_data_1950 %>% 
+  ungroup() %>% 
+  dplyr::rename(GISJOIN_1950 = GISJOIN) %>% 
+  select(GISJOIN_1950, YEAR, contains("occupations"))
 
 # population data with the original tracts
 # might use this to compare at some point
@@ -247,7 +255,7 @@ tract_occupation_data_original_tracts <-
 tract_occupation_data_concorded <-
   bind_rows(tract_occupation_data_1940_concorded, tract_occupation_data_1950_concorded,
             tract_occupation_data_1960_concorded, tract_occupation_data_1970_concorded,
-            tract_occupation_data_1980_concorded, full_tract_data_1990) %>%
+            tract_occupation_data_1980_concorded, tract_occupation_data_1990_concorded) %>%
   # calculate shares
   mutate(high_skill_share = high_skill_occupations/(low_skill_occupations + mid_skill_occupations + high_skill_occupations),
          mid_skill_share = mid_skill_occupations/(low_skill_occupations + mid_skill_occupations + high_skill_occupations),

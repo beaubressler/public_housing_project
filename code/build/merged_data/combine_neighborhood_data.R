@@ -31,7 +31,7 @@ cbsa_data_path <- here(data_path, "raw", "cbsa_crosswalk")
 merged_data_path <- here(data_path, "derived", "merged")
 
 # Common functions and variables
-tract_id_variables <- c("YEAR", "STATEA", "COUNTYA", "TRACTA")
+tract_id_variables <- c("YEAR", "GISJOIN_1950")
 
 # Function to read and process census data ----
 read_census_data <- function() {
@@ -60,11 +60,11 @@ read_census_data <- function() {
     dplyr::select(any_of(tract_id_variables), contains("occupation"), contains("share"))
   
   census_tract_data_full <- census_pop_data %>%
-    left_join(census_housing_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
-    left_join(census_income_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
-    left_join(census_education_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
-    left_join(census_employment_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
-    left_join(census_occupation_data, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+    left_join(census_housing_data, by = c("YEAR", "GISJOIN_1950")) %>%
+    left_join(census_income_data, by = c("YEAR", "GISJOIN_1950")) %>%
+    left_join(census_education_data, by = c("YEAR", "GISJOIN_1950")) %>%
+    left_join(census_employment_data, by = c("YEAR", "GISJOIN_1950")) %>%
+    left_join(census_occupation_data, by = c("YEAR", "GISJOIN_1950")) %>%
     mutate(employment_pop_ratio = employed_pop / total_pop)
   
   return(census_tract_data_full)
@@ -100,13 +100,13 @@ census_tract_data_full_1930_and_1940 <-
 additional_tracts_from_full_count_1930_1940 <- 
   census_tract_data_from_full_count %>% 
   anti_join(census_tract_data_full_1930_and_1940 %>% st_drop_geometry(),
-            by = c("STATEA", "COUNTYA", "TRACTA", "YEAR"))
+            by = c("GISJOIN_1950", "YEAR"))
 
 
 # Census tract data constructed from full count, 1940, only Income
 census_tract_data_from_full_count_income <- 
   census_tract_data_from_full_count %>%
-  select(STATE, COUNTY, TRACTA, YEAR, median_income) %>% 
+  select(GISJOIN_1950, YEAR, median_income) %>% 
   filter(YEAR == 1940) %>% 
   dplyr::rename(median_income_fc = median_income)  %>% 
   st_drop_geometry()
@@ -130,7 +130,7 @@ setdiff(x, y)
 merged_fc_and_fc_tracts <- 
   census_tract_data_from_full_count %>% st_drop_geometry() %>% 
   left_join(census_tract_data_full_1930_and_1940 %>% st_drop_geometry(),
-            by = c("STATE", "COUNTY", "TRACTA", "YEAR"),
+            by = c("GISJOIN_1950", "YEAR"),
             suffix = c("_fc", "_orig")) %>% 
   mutate(diff = total_pop_fc - total_pop_orig,
          total_pop_fc = round(total_pop_fc,2))
@@ -211,19 +211,16 @@ cbsa_data <-
 # Combine datasets -----
 combined_data <- 
   census_tract_data_full %>%
-  left_join(zillow_neighborhoods, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
+  left_join(zillow_neighborhoods, by = c("GISJOIN_1950")) %>% 
   left_join(holc_classifications) %>% 
-  left_join(urban_renewal_classifications, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
+  left_join(urban_renewal_classifications, by = c("GISJOIN_1950")) %>% 
   # if tract is not in HOLC data, assume it was not redlined
   mutate_at(vars(contains('redlined_binary')), ~ifelse(is.na(.), 0, .)) %>% 
   left_join(cbsa_data, by = c("STATEA", "COUNTYA")) %>% 
   # manually fix Dade county CBSA
   mutate(cbsa_title = ifelse(COUNTYA == "025" & STATEA == "12",
                              "Miami-Fort Lauderdale-Miami Beach, FL",
-                             cbsa_title)) %>% 
-  # create unique tract identifier
-  mutate(unique_tract_id = paste0(STATEA, COUNTYA, TRACTA))
-
+                             cbsa_title))
 
 # Calculate segregation indices --------
 # TODO

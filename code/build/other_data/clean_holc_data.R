@@ -12,12 +12,11 @@
 library(tidyverse)
 library(sf)
 
-
 # Read and Clean data -----
 # read HOLC data from mapping inequality
 holc_data_raw <- st_read("data/raw/mapping_inequality/mappinginequality.gpkg")
 
-# # read 1990 Census tract data
+# # read 1950 Census tract data
 census_tracts_raw <- st_read("data/derived/census/tract_population_data.gpkg")
 
 # census_tracts_raw <-
@@ -42,16 +41,16 @@ holc_data <-
   st_make_valid() 
 
 
-# Keep only one of each unique 1990 census tract ----
+# Keep only one of each unique 1950 census tract ----
 census_tracts <- 
   census_tracts_raw %>% 
-  group_by(STATEA, COUNTYA, TRACTA) %>% 
+  group_by(GISJOIN_1950) %>% 
   filter(row_number() == 1) %>% 
   ungroup() %>% 
   # correct invalid geometries
   st_make_valid() %>% 
   # keep only the columns we need
-  select(STATEA, COUNTYA, TRACTA)
+  select(GISJOIN_1950)
 
 ## Intersect holc ratings with Census tracts, and pick rating with largest share of tract -----
 # A single tracts can have multiple ratings (since the HOLC maps do not track with 1990 census tracts)
@@ -70,7 +69,7 @@ tract_holc_max_intersections <-
   tract_holc_intersections %>% 
   # calculate the area of the intersection
   mutate(intersection_area = st_area(geom)) %>% 
-  group_by(STATEA, COUNTYA, TRACTA) %>% 
+  group_by(GISJOIN_1950) %>% 
   # keep only the row with the largest intersection area
   filter(intersection_area == max(intersection_area)) %>% 
   ungroup() %>% 
@@ -94,11 +93,11 @@ tract_holc_scores <-
       TRUE ~ NA_real_
     )
   ) %>%
-  group_by(STATEA, COUNTYA, TRACTA) %>%
+  group_by(GISJOIN_1950) %>%
   mutate(tract_total_area = sum(intersection_area)) %>%
   ungroup() %>%
   mutate(area_proportion = intersection_area / tract_total_area) %>%
-  group_by(STATEA, COUNTYA, TRACTA) %>%
+  group_by(GISJOIN_1950) %>%
   summarize(
     redlining_score = sum(holc_score * area_proportion, na.rm = TRUE),
     coverage = sum(area_proportion, na.rm = TRUE),
@@ -123,13 +122,13 @@ tract_holc_scores <-
 redlined_binary <- 
   tract_holc_intersections %>%
   mutate(intersection_area = st_area(geom)) %>%
-  group_by(STATEA, COUNTYA, TRACTA) %>%
+  group_by(GISJOIN_1950) %>%
   mutate(tract_total_area = sum(intersection_area)) %>%
   ungroup() %>%
   # keep only grade D
   filter(grade == "D") %>%
   mutate(redlined_share = intersection_area / tract_total_area) %>%
-  group_by(STATEA, COUNTYA, TRACTA) %>%
+  group_by(GISJOIN_1950) %>%
   summarize(
     total_grade_d_share = sum(redlined_share, na.rm = TRUE)  # Sum share of Grade D coverage
   ) %>%
@@ -144,9 +143,9 @@ redlined_binary <-
 # Combine and output final dataset ----
 holc_data_final_geom <-
   tract_holc_max_intersections %>% 
-  left_join(tract_holc_scores, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
+  left_join(tract_holc_scores, by = c("GISJOIN_1950")) %>% 
   left_join(redlined_binary) %>% 
-  select(STATEA, COUNTYA, TRACTA, redlining_score, grade, category, fill, contains('redlined_binary'), city) %>% 
+  select(GISJOIN_1950, redlining_score, grade, category, fill, contains('redlined_binary'), city) %>% 
   # replace grade = NA if ""
   mutate(grade = ifelse(grade == "", NA, grade)) %>%
   # rename grade and category
@@ -159,9 +158,9 @@ holc_data_final_geom <-
 
 holc_data_final_no_geom <-
   tract_holc_max_intersections_no_geom %>% 
-  left_join(tract_holc_scores, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
+  left_join(tract_holc_scores, by = c("GISJOIN_1950")) %>% 
   left_join(redlined_binary) %>% 
-  select(STATEA, COUNTYA, TRACTA, redlining_score, grade, category, fill,
+  select(GISJOIN_1950, redlining_score, grade, category, fill,
          contains('redlined_binary'), city) %>%
   # replace grade = NA if ""
   mutate(grade = ifelse(grade == "", NA, grade)) %>%

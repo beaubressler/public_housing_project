@@ -85,7 +85,7 @@ tracts_and_rings <-
 # get treated tracts, unique, and merge onto census tract sample
 treated_tracts_panel <-
   treated_tracts_panel_raw %>% 
-  distinct(STATE, COUNTY, TRACTA, total_public_housing_units)
+  distinct(GISJOIN_1950, total_public_housing_units)
 
 census_tract_data <-
   census_tract_sample_raw %>% 
@@ -100,8 +100,6 @@ census_tract_data <-
   left_join(tracts_and_rings) %>% 
   # set location_type = "donor_pool" if it's NA
   mutate(location_type = if_else(is.na(location_type), "donor_pool", location_type)) %>%
-  # create unique id for each tract
-  mutate(tract_id = paste0(STATEA, COUNTYA, TRACTA)) %>% 
   # # select relevant columns
   mutate(asinh_pop_total = asinh(total_pop),
          asinh_pop_white = asinh(white_pop),
@@ -117,7 +115,7 @@ census_tract_data <-
   dplyr::rename(year = YEAR) %>% 
   st_drop_geometry() %>% 
   # Ensure data is sorted by tract_id and year
-  arrange(tract_id, year)  %>% 
+  arrange(GISJOIN_1950, year)  %>% 
   # for HOLC variables (grade and category) if category is missing ,set to "missing"
   mutate(category_most_overlap = ifelse(is.na(category_most_overlap), "missing", category_most_overlap),
          grade_most_overlap = ifelse(is.na(grade_most_overlap), "missing", grade_most_overlap))
@@ -152,7 +150,7 @@ matching_vars <- c(
                    # population by race
                    "asinh_pop_total",
                    "asinh_pop_black",
-                   "asinh_pop_white",
+                   # "asinh_pop_white",
                    # "total_pop",
                    # "black_pop",
                    # "white_pop",
@@ -163,7 +161,7 @@ matching_vars <- c(
                    # "asinh_median_income",
                    # housing
                    "asinh_median_home_value_calculated",
-                   "median_rent_calculated"
+                   "asinh_median_rent_calculated"
                    )
 
 
@@ -218,7 +216,7 @@ perform_matching_for_year <- function(data, treatment_year, match_vars, nearest_
   
   # Reshape the data to wide format with corrected variable names
   matching_data_wide <- matching_data %>%
-    dplyr::select(STATE, COUNTY, TRACTA, city, cbd, cbsa_title,
+    dplyr::select(GISJOIN_1950, city, cbd, cbsa_title,
                   redlined_binary_80pp,
                   category_most_overlap, location_type, 
            year, all_of(c(time_varying_vars, time_invariant_vars))) %>%
@@ -404,9 +402,9 @@ all_matched_data_2_year <-
 tract_data_matched_1_year <- census_tract_data %>%
   # note: there can be multiple matches, because a control tract can be a control for multiple tracts
   left_join(all_matched_data_1_year %>% 
-              dplyr::select(STATE, COUNTY, TRACTA, weights, matched_treatment_year, subclass, group_type) %>% 
+              dplyr::select(GISJOIN_1950, weights, matched_treatment_year, subclass, group_type) %>% 
               distinct(),
-            by = c("STATE", "COUNTY", "TRACTA")) %>% 
+            by = c("GISJOIN_1950")) %>% 
   # Replace NA weights with 0 (for unmatched observations)
   mutate(weights = ifelse(is.na(weights), 0, weights)) %>% 
   #  create a match_group, which is a unique identifier for each match
@@ -423,9 +421,9 @@ tract_data_matched_1_year <- census_tract_data %>%
 tract_data_matched_2_year <- census_tract_data %>%
   # note: there can be multiple matches, because a control tract can be a control for multiple tracts
   left_join(all_matched_data_2_year %>% 
-              dplyr::select(STATE, COUNTY, TRACTA, weights, matched_treatment_year, subclass, group_type) %>% 
+              dplyr::select(GISJOIN_1950, weights, matched_treatment_year, subclass, group_type) %>% 
               distinct(),
-            by = c("STATE", "COUNTY", "TRACTA")) %>% 
+            by = c("GISJOIN_1950")) %>% 
   # Replace NA weights with 0 (for unmatched observations)
   mutate(weights = ifelse(is.na(weights), 0, weights)) %>% 
   #  create a match_group, which is a unique identifer for each match
@@ -581,9 +579,9 @@ all_matched_data_2_year_replacement <-
 tract_data_matched_1_year_replacement <- census_tract_data %>%
   # note: there can be multiple matches, because a control tract can be a control for multiple tracts
   left_join(all_matched_data_1_year_replacement %>% 
-              dplyr::select(STATE, COUNTY, TRACTA, weights, matched_treatment_year, group_type) %>% 
+              dplyr::select(GISJOIN_1950, weights, matched_treatment_year, group_type) %>% 
               distinct(),
-            by = c("STATE", "COUNTY", "TRACTA")) %>% 
+            by = c("GISJOIN_1950")) %>% 
   # drop unmatched observations (i.e. those with NA in weights)
   filter(!is.na(weights))
 
@@ -591,9 +589,9 @@ tract_data_matched_1_year_replacement <- census_tract_data %>%
 tract_data_matched_2_year_replacement <- census_tract_data %>%
   # note: there can be multiple matches, because a control tract can be a control for multiple tracts
   left_join(all_matched_data_2_year_replacement %>% 
-              dplyr::select(STATE, COUNTY, TRACTA, weights, distance, matched_treatment_year, group_type) %>% 
+              dplyr::select(GISJOIN_1950, weights, distance, matched_treatment_year, group_type) %>% 
               distinct(),
-            by = c("STATE", "COUNTY", "TRACTA")) %>% 
+            by = c("GISJOIN_1950")) %>% 
   # drop unmatched observations (i.e. those with NA in weights)
   filter(!is.na(weights))
 

@@ -85,13 +85,13 @@ census_tract_sample <-
 treated_tracts_only <- 
   census_tract_sample %>% 
   filter(treated == 1) %>% 
-  group_by(STATEA, COUNTYA, TRACTA) %>% 
+  group_by(GISJOIN_1950) %>% 
   summarise(first_treated_year = min(YEAR)) %>% 
   ungroup()
 
 census_tract_sample_first_treated <-
   census_tract_sample %>% 
-  left_join(treated_tracts_only, by = c("TRACTA", "COUNTYA", "STATEA")) %>%
+  left_join(treated_tracts_only, by = c("GISJOIN_1950")) %>%
   filter(treated == 0 | (treated == 1 & YEAR <= first_treated_year))
 
 # create lag of covariates, since that's what I want to estimate:
@@ -105,7 +105,7 @@ census_tract_sample_first_treated <-
  
 census_tract_sample_first_treated <- 
   census_tract_sample_first_treated %>% 
-  group_by(cbsa_title, STATEA, COUNTYA, TRACTA) %>% 
+  group_by(cbsa_title, GISJOIN_1950) %>% 
   arrange(YEAR) %>% 
   mutate(lag_median_income = lag(median_income),
          lag_median_rent_calculated = lag(median_rent_calculated),
@@ -140,7 +140,7 @@ census_tract_sample_first_treated_1940_to_1980 <-
 reshaped_census_data <-
   census_tract_sample %>%
   filter(YEAR %in% c(1930, 1940, 1950, 1960)) %>%
-  select(STATEA, COUNTYA, TRACTA, YEAR, share_no_water, share_needing_repair, black_share, population_density,
+  select(GISJOIN_1950, YEAR, share_no_water, share_needing_repair, black_share, population_density,
          housing_density, pct_hs_grad, median_income, median_home_value_calculated, median_rent_calculated, median_housing_age,
          black_pop, total_pop, total_units, low_skill_share, lfp_rate, unemp_rate) %>%
   mutate(asinh_total_pop = asinh(total_pop),
@@ -163,9 +163,8 @@ census_tract_sample_1990 <-
   census_tract_sample %>% 
   filter(YEAR == 1990) %>% 
   st_drop_geometry() %>% 
-  left_join(reshaped_census_data, by = c("STATEA", "COUNTYA", "TRACTA")) %>% 
-  mutate(neighborhood_id = paste0(STATEA, COUNTYA, TRACTA),
-         county_id = paste0(STATEA, COUNTYA)) %>% 
+  left_join(reshaped_census_data, by = c("GISJOIN_1950")) %>% 
+  mutate(county_id = paste0(STATEA, COUNTYA)) %>% 
   mutate(asinh_distance_from_cbd = asinh(distance_from_cbd),
          distance_from_cbd = distance_from_cbd/1000)
 
@@ -243,7 +242,7 @@ model_1_probit <-
           pct_hs_grad_1950 | county_id, 
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "GISJOIN_1950")
 
 model_1_probit_me <- avg_slopes(model_1_probit)
 
@@ -274,7 +273,7 @@ model_2_probit <-
           asinh_distance_from_cbd | county_id, 
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "GISJOIN_1950")
 model_2_probit_me <- avg_slopes(model_2_probit)
 model_2_probit_me
 
@@ -311,7 +310,7 @@ model_3_probit <-
           median_rent_calculated_1950 | county_id, 
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "GISJOIN_1950")
 model_3_probit_me <- avg_slopes(model_3_probit)
 model_3_probit_me
 
@@ -413,7 +412,7 @@ model_1_lpm <-
           median_income_1950  + 
           pct_hs_grad_1950 | county_id, 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "GISJOIN_1950")
 model_1_lpm
 
 # conley standard errors
@@ -439,7 +438,7 @@ model_2_lpm <-
           cbd + 
           asinh_distance_from_cbd | county_id, 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "GISJOIN_1950")
 model_2_lpm
 
 # conley 
@@ -471,10 +470,9 @@ model_3_lpm <-
           cbd + 
           share_needing_repair_1940 + 
           median_home_value_calculated_1950 + 
-          median_rent_calculated_1950 + 
-          median_housing_age_1950 | county_id, 
+          median_rent_calculated_1950 | county_id, 
         data = census_tract_sample_1990,
-        cluster = "neighborhood_id")
+        cluster = "GISJOIN_1950")
 model_3_lpm
 
 # conley
@@ -487,11 +485,10 @@ model_3_lpm_conley <-
           redlined_binary_80pp + 
           population_density_1950 +
           asinh_distance_from_cbd + 
-          cbd + 
+          cbd +
           share_needing_repair_1940 + 
-          median_home_value_calculated_1950 + 
-          median_rent_calculated_1950 + 
-          median_housing_age_1950 | county_id, 
+          median_home_value_calculated_1950 +
+          median_rent_calculated_1950  | county_id, 
         data = census_tract_sample_1990,
         vcov_conley(lat = "lat", lon = "lon", 
                     cutoff = 1))

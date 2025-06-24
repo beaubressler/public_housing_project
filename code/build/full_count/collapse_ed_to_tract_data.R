@@ -11,11 +11,6 @@ census_data_dir <- here("data", "derived", "census")
 city_ed_dir <- here(census_data_dir, "full_count", "ed_by_city")
 ed_tract_crosswalk_dir <- here("data", "derived", "geographic_crosswalks", "ed_to_tract")
 
-tract_background_variables <-
-  c("NHGISST","NHGISCTY", "GISJOIN", "GISJOIN2", "SHAPE_AREA", "SHAPE_LEN",
-    "geometry", "YEAR", "STATE", "STATEA", "COUNTY", "COUNTYA", "PRETRACTA",
-    "TRACTA", "POSTTRCTA", "AREANAME")
-
 tract_output_dir <- here(census_data_dir, "full_count", "tract")
   
 # Read and clean data before merge -----
@@ -26,32 +21,40 @@ city_ed_data_1940_raw <- read_csv(here(city_ed_dir, "city_ed_data_1940.csv"))
 
 # ED-Tract crosswalks
 ed_tract_crosswalk_1930 <- 
-  read_csv(here(ed_tract_crosswalk_dir, "ed_1930_to_1990_tracts.csv")) %>% 
+  read_csv(here(ed_tract_crosswalk_dir, "ed_1930_to_1950_tracts.csv")) %>% 
   dplyr::rename(b_ed = ed_1930) %>% 
   mutate(b_ed = tolower(b_ed))
 
 ed_tract_crosswalk_1940 <-
-  read_csv(here(ed_tract_crosswalk_dir, "ed_1940_to_1990_tracts.csv")) %>% 
+  read_csv(here(ed_tract_crosswalk_dir, "ed_1940_to_1950_tracts.csv")) %>% 
   dplyr::rename(b_ed = ed_1940) %>% 
   mutate(b_ed = tolower(b_ed))
 
-# 1990 Tract information
+# 1950 Tract information
 tract_background_variables <-
   c("NHGISST","NHGISCTY", "GISJOIN", "GISJOIN2", "SHAPE_AREA", "SHAPE_LEN",
     "geometry", "YEAR", "STATE", "STATEA", "COUNTY", "COUNTYA", "PRETRACTA",
     "TRACTA", "POSTTRCTA", "AREANAME")
 
-tract_info_1990 <-
+tract_info_1950 <-
   ipums_shape_full_join(
-    read_nhgis("data/raw/nhgis/tables/1990/nhgis0027_ds120_1990_tract.csv"),
-    read_ipums_sf("data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1990/US_tract_1990.shp",
-                  file_select = starts_with("US_tract_1990")), by = "GISJOIN"
+    read_nhgis("data/raw/nhgis/tables/1950/nhgis0027_ds82_1950_tract.csv"),
+    read_ipums_sf("data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1950/US_tract_1950.shp",
+                  file_select = starts_with("US_tract_1950")), by = "GISJOIN"
   ) %>% 
   filter(!is.na(YEAR)) %>% 
   select(any_of(tract_background_variables), -YEAR)
 
+# Get 1950 info at GISJOIN level and tract level separately
+# GISJOIN + tract IDs
+tract_info_1950_gisjoin <-
+  tract_info_1950 %>% 
+  select(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, TRACTA) %>% 
+  mutate(area_m2 = st_area(geometry))
+
+
 # Central business district indicator
-cbd_tracts_1990 <- read_csv(here(census_data_dir, "cbd_tracts_1990_concorded.csv"))
+cbd_tracts_1950 <- read_csv(here(census_data_dir, "cbd_tracts_1950_concorded.csv"))
 
 # Clean data ----
 # split CITY_NAME into city and state, splitting on commas
@@ -93,16 +96,16 @@ for (year in years) {
                           contains("home_value"), contains("valueh_group"), contains("employed"),
                           contains("not_in_lf")), ~ . * weight) %>%
            st_drop_geometry()  %>% 
-           # collapse to GISJOIN_1990
-           group_by(GISJOIN_1990, YEAR) %>% 
+           # collapse to GISJOIN_1950
+           group_by(GISJOIN_1950, YEAR) %>% 
            summarise_at(vars(contains("pop"), contains("rent_group"), contains("home_value_"), 
                              contains("income"),
                              contains("home_value"), contains("valueh_group"), contains("employed"),
                              contains("not_in_lf")), sum, na.rm = TRUE) %>%
-           ungroup()  %>%
-           # merge geography information from 1990 NHGIS file
-           left_join(tract_info_1990, by = c("GISJOIN_1990" = "GISJOIN"))
-  )
+           ungroup() %>%
+            # merge on 1950 tract IDs for each GISJOIN 
+            left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN"))
+      )
 }
 
 # Calculate medians for home values, rents, and incomes ----
@@ -113,7 +116,7 @@ calculate_median_from_census <- function(data, var_code, var_name) {
     mutate(
       range = gsub(var_code, "", range),
       range = as.numeric(range)) %>%
-    group_by(YEAR, STATEA, COUNTYA, TRACTA) %>%
+    group_by(YEAR, GISJOIN_1950) %>%
     mutate(
       cumulative_freq = cumsum(num_in_sample),
       total = sum(num_in_sample),
@@ -121,7 +124,7 @@ calculate_median_from_census <- function(data, var_code, var_name) {
     filter(cumulative_freq >= median_position) %>%
     slice(1) %>%
     mutate(median = paste0(var_code, range)) %>% 
-    select(YEAR, STATEA, COUNTYA, TRACTA, median) %>% 
+    select(YEAR, GISJOIN_1950, median) %>% 
     # drop geometry
     st_drop_geometry() %>% 
     dplyr::rename(!!var_name := median)
@@ -138,8 +141,8 @@ tract_data_1930_concorded <-
   tract_data_1930_concorded %>% 
   # keep only variables of interest
   select(-contains("rent_group_"), -contains("home_value_")) %>%
-  left_join(median_rent_1930, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
-  left_join(median_home_value_1930, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_rent_1930, by = c("YEAR", "GISJOIN_1950")) %>% 
+  left_join(median_home_value_1930, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (midpoint values except last value)
   mutate(median_home_value_calculated = case_when(
           median_home_value_group == "home_value_1" ~ 250,      # 0 - 500
@@ -190,9 +193,9 @@ median_income_1940 <-
 tract_data_1940_concorded <-
   tract_data_1940_concorded %>% 
   select(-contains("rent_group_"), -contains("valueh_group_"), -contains("income_group_")) %>%
-  left_join(median_rent_1940, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
-  left_join(median_home_value_1940, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
-  left_join(median_income_1940, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_rent_1940, by = c("YEAR", "GISJOIN_1950")) %>% 
+  left_join(median_home_value_1940, by = c("YEAR", "GISJOIN_1950")) %>%
+  left_join(median_income_1940, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (midpoint values except last value)
   mutate(median_home_value_calculated = case_when(
     median_home_value_group == "valueh_group_1" ~ 250,      # 0 - 500
@@ -250,7 +253,7 @@ tract_data_1940_concorded <-
 tract_data_concorded_1930_1940 <- 
   bind_rows(tract_data_1930_concorded, tract_data_1940_concorded) %>% 
   # merge on CBD indicator
-  left_join(cbd_tracts_1990)  %>% 
+  left_join(cbd_tracts_1950)  %>% 
   mutate(cbd = ifelse(is.na(cbd), 0, cbd)) %>% 
   # calculate area in square meters
   mutate(area_m2 = st_area(geometry)) %>% 

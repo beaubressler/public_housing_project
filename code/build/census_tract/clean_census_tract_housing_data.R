@@ -27,7 +27,7 @@ calculate_median_from_census <- function(data, var_code, var_name) {
   mutate(
     range = gsub(var_code, "", range),
     range = as.numeric(range)) %>%
-  group_by(YEAR, STATEA, COUNTYA, TRACTA) %>%
+  group_by(YEAR, GISJOIN_1950) %>%
   mutate(
     cumulative_freq = cumsum(num_in_sample),
     total = sum(num_in_sample),
@@ -35,7 +35,7 @@ calculate_median_from_census <- function(data, var_code, var_name) {
   filter(cumulative_freq >= median_position) %>%
   slice(1) %>% 
   mutate(median = paste0(var_code, str_pad(range, 3, pad = "0"))) %>% 
-  select(YEAR, STATEA, COUNTYA, TRACTA, median) %>% 
+  select(YEAR, GISJOIN_1950, median) %>% 
   # drop geometry
   st_drop_geometry() %>% 
   dplyr::rename(!!var_name := median)
@@ -43,19 +43,18 @@ calculate_median_from_census <- function(data, var_code, var_name) {
 
 
 # Read in geographic tract crosswalks ----
-# crosswalks, 1930 to 1990
-tract_crosswalk_1930 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1990.csv"))
-tract_crosswalk_1940 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1990.csv"))
-tract_crosswalk_1950 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1950_to_1990.csv"))
-tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1990.csv"))
-tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1990.csv"))
-tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1990.csv"))
-
+# crosswalks, 1930 to 1950
+tract_crosswalk_1930 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1950.csv"))
+tract_crosswalk_1940 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1950.csv"))
+tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1950.csv"))
+tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1950.csv"))
+tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
+tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
 # Compile tract-level Census housing data ----
 
 # shared variables we want to keep
 tract_background_variables <-
-  c("NHGISST","NHGISCTY", "GISJOIN", "GISJOIN2", "SHAPE_AREA", "SHAPE_LEN",
+  c("GISJOIN_1950", "NHGISST","NHGISCTY", "GISJOIN", "GISJOIN2", "SHAPE_AREA", "SHAPE_LEN",
     "geometry", "YEAR", "STATE", "STATEA", "COUNTY", "COUNTYA",
     "TRACTA", "POSTTRCTA", "AREANAME")
 
@@ -170,11 +169,11 @@ var_names[startsWith(var_names, "BKZ")] <- sub("^BKZ", "home_value_group", var_n
 names(cleveland_1930_tract) <- var_names
 
 ##### St Louis 1930
-median_rent_stl_1930 <- 
-  calculate_median_from_census(stl_1930_tract_raw, var_code = "BPZ", var_name = "median_rent_group")
-
-median_home_value_stl_1930 <-
-  calculate_median_from_census(stl_1930_tract_raw, var_code = "BPY", var_name = "median_home_value_group")
+# median_rent_stl_1930 <- 
+#   calculate_median_from_census(stl_1930_tract_raw, var_code = "BPZ", var_name = "median_rent_group")
+# 
+# median_home_value_stl_1930 <-
+#   calculate_median_from_census(stl_1930_tract_raw, var_code = "BPY", var_name = "median_home_value_group")
 
 stl_1930_tract <-
   stl_1930_tract_raw %>% 
@@ -188,8 +187,8 @@ names(stl_1930_tract) <- var_names
          
 
 ##### Misc 1930
-median_home_value_misc_1930 <-
-  calculate_median_from_census(misc_1930_tract_raw, var_code = "BMZ", var_name = "median_home_value_group")
+# median_home_value_misc_1930 <-
+#   calculate_median_from_census(misc_1930_tract_raw, var_code = "BMZ", var_name = "median_home_value_group")
 
 misc_1930_tract <-
   misc_1930_tract_raw %>% 
@@ -352,6 +351,17 @@ var_names <- names(tract_housing_data_1950)
 var_names[startsWith(var_names, "B04")] <- sub("^B04", "rent_group", var_names[startsWith(var_names, "B04")])
 var_names[startsWith(var_names, "B08")] <- sub("^B08", "home_value_group", var_names[startsWith(var_names, "B08")])
 names(tract_housing_data_1950) <- var_names
+
+#### save 1950 Census tract information ----
+
+
+# GISJOIN + tract IDs
+tract_info_1950_gisjoin <-
+  tract_housing_data_1950 %>% 
+  select(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, TRACTA) %>% 
+  mutate(area_m2 = st_area(geometry))
+
+
 
 
 ### 1960 -----
@@ -657,12 +667,8 @@ tract_housing_data_1990 <-
   tract_housing_data_1990 %>% 
   left_join(tract_housing_data_1990_add1)
 
-#### save 1990 Census tract information ----
-tract_info_1990 <-
-  tract_housing_data_1990 %>% 
-  select(any_of(tract_background_variables), -YEAR)
 
-# Concord datasets to 1990 Census tracts ----
+# Concord datasets to 1950 Census tracts ----
 # Have to do this separately for years for which we are given medians for rents and housing values (1940, 1950, 1980) 
 # and for which we have to calculate medians (1930, 1960, 1970)
 # for the latter, we should reweight populations in each group
@@ -671,11 +677,11 @@ tract_info_1990 <-
 
 # 04/30/2024: Actually... maybe I can just do this for all years at once... trying now
 
-# 1. Join on crosswalk to get GISJOIN_1990 and weights
+# 1. Join on crosswalk to get GISJOIN_1950 and weights
 # 2. Weight medians (or group values) by "weight" and collapse to GISJOIN_2000
-# 3. Merge geography information from 1990 NHGIS file
+# 3. Merge geography information from 1950 NHGIS file
 
-years <- c(1930, 1940, 1950, 1960, 1970, 1980)
+years <- c(1930, 1940, 1960, 1970, 1980, 1990)
 
 for (year in years) {
   # Construct variable names and file names dynamically based on the year
@@ -691,16 +697,21 @@ for (year in years) {
            # weight populations
            mutate_at(vars(contains(c("rent", "home_value", "units", "age_group"))), ~ . * weight) %>%
            st_drop_geometry() %>% 
-           # collapse to GISJOIN_1990
-           group_by(GISJOIN_1990, YEAR) %>% 
+           # collapse to GISJOIN_1950
+           group_by(GISJOIN_1950, YEAR) %>% 
            summarise_at(vars(contains(c("rent", "home_value", "units", "age_group"))), sum, na.rm = TRUE) %>%
            ungroup()  %>%
-           # merge geography information from 1990 NHGIS file
-           left_join(tract_info_1990, by = c("GISJOIN_1990" = "GISJOIN")) %>% 
-           # calculate area in square meters 
-           mutate(area_m2 = st_area(geometry))
+           # merge on 1950 tract IDs for each GISJOIN 
+           left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN")) 
   )
 }
+
+## Clean 1950 data to same format as concorded data  ----
+tract_housing_data_1950_concorded <-
+  tract_housing_data_1950 %>% 
+  ungroup() %>% # not sure why I needed this
+  dplyr::rename(GISJOIN_1950 = GISJOIN) %>% 
+  select(GISJOIN_1950, YEAR, contains(c("rent", "home_value", "units", "age_group")))
 
 
 # Calculate median house value and rents in each year, for years for which I just have populations ----
@@ -718,8 +729,8 @@ tract_housing_data_1930_concorded <-
   tract_housing_data_1930_concorded %>% 
   # keep only variables of interest
   select(-contains("rent_group"), -contains("home_value_group")) %>%
-  left_join(median_rent_1930, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
-  left_join(median_home_value_1930, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_rent_1930, by = c("YEAR", "GISJOIN_1950")) %>% 
+  left_join(median_home_value_1930, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (midpoint values except last value)
   mutate(median_home_value_calculated =
            case_when(median_home_value_group == "home_value_group001" ~ 500, # 0 - 1000
@@ -764,8 +775,8 @@ tract_housing_data_1940_concorded <-
   tract_housing_data_1940_concorded %>% 
   # keep only variables of interest
   select(-contains("rent_group"), -contains("home_value_group")) %>%
-  left_join(median_rent_1940, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
-  left_join(median_home_value_1940, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_rent_1940, by = c("YEAR", "GISJOIN_1950")) %>% 
+  left_join(median_home_value_1940, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (midpoint values except last value)
   mutate(median_home_value_calculated =
            case_when(median_home_value_group == "home_value_group001" ~ 250, # 0 - 500
@@ -816,8 +827,8 @@ tract_housing_data_1950_concorded <-
   tract_housing_data_1950_concorded %>% 
   # keep only variables of interest
   select(-contains("rent_group"), -contains("home_value_group")) %>%
-  left_join(median_rent_1950, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
-  left_join(median_home_value_1950, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_rent_1950, by = c("YEAR", "GISJOIN_1950")) %>% 
+  left_join(median_home_value_1950, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (midpoint values except last value)
   mutate(median_home_value_calculated =
            case_when(median_home_value_group == "home_value_group001" ~ 1500, # 0 - 3000
@@ -849,8 +860,8 @@ tract_housing_data_1960_concorded <-
   tract_housing_data_1960_concorded %>% 
   # keep only variables of interest
   select(-contains("rent_group"), -contains("home_value_group")) %>%
-  left_join(median_rent_1960, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
-  left_join(median_home_value_1960, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_rent_1960, by = c("YEAR", "GISJOIN_1950")) %>% 
+  left_join(median_home_value_1960, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (midpoint values, except the last point)
   mutate(median_home_value_calculated =
            case_when(median_home_value_group == "home_value_group001" ~ 2500, # 0 - 5000
@@ -889,8 +900,8 @@ tract_housing_data_1970_concorded <-
   tract_housing_data_1970_concorded %>% 
   # keep only variables of interest
   select(-contains("rent_group"), -contains("home_value_group")) %>%
-  left_join(median_rent_1970, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
-  left_join(median_home_value_1970, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_rent_1970, by = c("YEAR", "GISJOIN_1950")) %>% 
+  left_join(median_home_value_1970, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (mid point values, except the last)
   mutate(median_home_value_calculated =
            case_when(median_home_value_group == "home_value_group001" ~ 2500, # 0-5000
@@ -932,8 +943,8 @@ tract_housing_data_1980_concorded <-
   tract_housing_data_1980_concorded %>% 
   # keep only variables of interest
   select(-contains("rent_group"), -contains("home_value_group")) %>%
-  left_join(median_rent_1980, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
-  left_join(median_home_value_1980, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_rent_1980, by = c("YEAR", "GISJOIN_1950")) %>% 
+  left_join(median_home_value_1980, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (mid point values, except the last)
   mutate(median_home_value_calculated =
            case_when(median_home_value_group == "home_value_group001" ~ 10000, # 0-10000
@@ -969,17 +980,17 @@ tract_housing_data_1980_concorded <-
 
 ## 1990 -----
 median_rent_1990 <- 
-  calculate_median_from_census(tract_housing_data_1990, var_code = "rent_group", var_name = "median_rent_group")
+  calculate_median_from_census(tract_housing_data_1990_concorded, var_code = "rent_group", var_name = "median_rent_group")
 
 median_home_value_1990 <-
-  calculate_median_from_census(tract_housing_data_1990, var_code = "home_value_group", var_name = "median_home_value_group")
+  calculate_median_from_census(tract_housing_data_1990_concorded, var_code = "home_value_group", var_name = "median_home_value_group")
 
-tract_housing_data_1990 <-
-  tract_housing_data_1990 %>% 
+tract_housing_data_1990_concorded <-
+  tract_housing_data_1990_concorded %>% 
   # keep only variables of interest
   select(-contains("rent_group"), -contains("home_value_group")) %>%
-  left_join(median_rent_1990, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
-  left_join(median_home_value_1990, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_rent_1990, by = c("YEAR", "GISJOIN_1950")) %>% 
+  left_join(median_home_value_1990, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (mid point values, except the last)
   mutate(median_home_value_calculated =
            case_when(median_home_value_group == "home_value_group001" ~ 7499.5, # 0-14999
@@ -1030,11 +1041,11 @@ tract_housing_data_1990 <-
 median_house_age_1950 <-
   calculate_median_from_census(tract_housing_data_1950_concorded, var_code = "age_group", var_name = "median_housing_age_group")
 
-tract_housing_data_1950_concorded <-
+tract_housing_data_1950 <-
   tract_housing_data_1950_concorded %>% 
   # keep only variables of interest
   select(-contains("age_group")) %>%
-  left_join(median_house_age_1950, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_house_age_1950, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (mid point values, except the last)
   mutate(median_housing_age =
            case_when(median_housing_age_group == "age_group001" ~ 5.5, # 0-10
@@ -1050,7 +1061,7 @@ tract_housing_data_1960_concorded <-
   tract_housing_data_1960_concorded %>% 
   # keep only variables of interest
   select(-contains("age_group")) %>%
-  left_join(median_house_age_1960, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_house_age_1960, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (mid point values, except the last)
   mutate(median_housing_age =
            case_when(median_housing_age_group == "age_group001" ~ 5.5,  # 0 to 10
@@ -1065,7 +1076,7 @@ tract_housing_data_1970_concorded <-
   tract_housing_data_1970_concorded %>% 
   # keep only variables of interest
   select(-contains("age_group")) %>%
-  left_join(median_house_age_1970, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_house_age_1970, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (mid point values, except the last)
   mutate(median_housing_age =
            case_when(median_housing_age_group == "age_group001" ~ 0.5,  # 0 to 1
@@ -1083,7 +1094,7 @@ tract_housing_data_1980_concorded <-
   tract_housing_data_1980_concorded %>% 
   # keep only variables of interest
   select(-contains("age_group")) %>%
-  left_join(median_house_age_1980, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>%
+  left_join(median_house_age_1980, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (mid point values, except the last)
   mutate(median_housing_age =
            case_when(median_housing_age_group == "age_group001" ~ 0.5,  # 0 to 1
@@ -1110,7 +1121,10 @@ tract_housing_data_1940_concorded <-
 ## 1950 ----
 tract_housing_data_1950_concorded <-
   tract_housing_data_1950_concorded %>% 
-  mutate(vacancy_rate = vacant_units/total_units,
+  mutate(
+    # calculate area
+    area_m2 = st_area(geometry),
+    vacancy_rate = vacant_units/total_units,
          # share no running water
          share_no_water = units_no_running_water/units_reporting_condition,
          # housing density: Units per square meter
@@ -1148,10 +1162,9 @@ tract_housing_data_1980_concorded <-
 
 ## 1990 ----
 
-tract_housing_data_1990 <-
-  tract_housing_data_1990 %>% 
-  # calculate area
-  mutate(area_m2 = st_area(geometry),
+tract_housing_data_1990_concorded <-
+  tract_housing_data_1990_concorded %>% 
+  mutate(
     # vacancy rate is vacancy rate of year-round units
     vacancy_rate = vacant_units/total_units,
     # housing density
@@ -1174,9 +1187,9 @@ tract_housing_data_concorded <-
   bind_rows(tract_housing_data_1930_concorded, tract_housing_data_1940_concorded,
             tract_housing_data_1950_concorded, tract_housing_data_1960_concorded,
             tract_housing_data_1970_concorded, tract_housing_data_1980_concorded,
-            tract_housing_data_1990) %>%
-  select(any_of(tract_background_variables), contains("median"), total_units, total_units, vacancy_rate,
-         share_needing_repair, share_no_water, housing_density) %>% 
+            tract_housing_data_1990_concorded) %>%
+  select(GISJOIN_1950, YEAR, contains("median"), total_units, total_units, vacancy_rate,
+         share_needing_repair, share_no_water, housing_density, geometry) %>% 
   # create median_rent and median_home_value composite variables
   mutate(median_rent_calculated = ifelse(is.na(median_rent_calculated),
                                          median_rent_reported,
@@ -1324,3 +1337,4 @@ tract_housing_data_concorded %>%
        x = "Median Home Value",
        fill = "Home Value Type") +
   theme_minimal()
+

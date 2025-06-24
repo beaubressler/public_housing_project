@@ -22,23 +22,24 @@ geographic_crosswalk_dir <- here("data", "derived", "geographic_crosswalks")
 
 # Read in geographic tract crosswalks ----
 # crosswalks, 1930 to 1990
-tract_crosswalk_1930 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1990.csv"))
-tract_crosswalk_1940 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1990.csv"))
-tract_crosswalk_1950 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1950_to_1990.csv"))
-tract_crosswalk_1960 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1990.csv"))
-tract_crosswalk_1970 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1990.csv"))
-tract_crosswalk_1980 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1990.csv"))
+tract_crosswalk_1930 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1950.csv"))
+tract_crosswalk_1940 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1950.csv"))
+tract_crosswalk_1960 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1950.csv"))
+tract_crosswalk_1970 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1950.csv"))
+tract_crosswalk_1980 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
+tract_crosswalk_1990 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
 
 # Read CBD crosswalk ----
-cbd_tracts_1990 <- read_csv(here(output_dir, "cbd_tracts_1990_concorded.csv"))
+cbd_tracts_1950 <- read_csv(here(output_dir, "cbd_tracts_1950_concorded.csv"))
 
 # Compile tract-level Census population data ----
 
 # shared variables we want to keep
 tract_background_variables <-
   c("NHGISST","NHGISCTY", "GISJOIN", "GISJOIN2", "SHAPE_AREA", "SHAPE_LEN",
-    "geometry", "YEAR", "STATE", "STATEA", "COUNTY", "COUNTYA", "PRETRACTA",
-    "TRACTA", "POSTTRCTA", "AREANAME")
+    "geometry", "YEAR", "STATE", "STATEA", "COUNTY", "COUNTYA", 
+    # "PRETRACTA", "POSTTRCTA", # excluding these for now
+    "TRACTA",  "AREANAME")
 
 
 ### 1920 ----
@@ -436,7 +437,15 @@ tract_population_data_1950 <-
          other_pop = B0J003) %>%
   select(any_of(tract_background_variables), contains("pop"))
 
+#### save 1950 Census tract information ----
 
+# GISJOIN + tract IDs
+tract_info_1950_gisjoin <-
+  tract_population_data_1950 %>% 
+  select(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, TRACTA) %>% 
+  # calculate area in square meters
+  mutate(area_m2 = st_area(geometry))
+  
 
 ### 1960 ----
 full_tract_data_1960 <-
@@ -586,18 +595,14 @@ tract_population_data_1990 <-
   select(any_of(tract_background_variables), contains("pop"))
 
 
-#### save 1990 Census tract information ----
-tract_info_1990 <-
-  tract_population_data_1990 %>% 
-  select(any_of(tract_background_variables), -YEAR)
 
-# Concord datasets to 1990 Census tracts ----
-# 1. Join on crosswalk to get GISJOIN_1990 and weights
-# 2. Weight populations by "weight" and collapse to GISJOIN_1990
+# Concord datasets to 1950 Census tracts ----
+# 1. Join on crosswalk to get GISJOIN_1950 and weights
+# 2. Weight populations by "weight" and collapse to GISJOIN_1950
 # 3. Merge geography information from 1990 NHGIS file
 
 ## Loop for 1930-1980 -----
-years <- c(1930, 1940, 1950, 1960, 1970, 1980)
+years <- c(1930, 1940, 1960, 1970, 1980, 1990)
 
 for (year in years) {
   print(year)
@@ -614,33 +619,25 @@ for (year in years) {
            # weight populations
            mutate_at(vars(contains("pop")), ~ . * weight) %>%
            st_drop_geometry() %>% 
-           # collapse to GISJOIN_1990
-           group_by(GISJOIN_1990, YEAR) %>% 
+           # collapse to GISJOIN_1950
+           group_by(GISJOIN_1950, YEAR) %>% 
            summarise_at(vars(contains("pop")), sum, na.rm = TRUE) %>%
-           ungroup()  %>%
-           # merge geography information from 1990 NHGIS file
-           left_join(tract_info_1990, by = c("GISJOIN_1990" = "GISJOIN")) 
+           # merge on 1950 tract IDs for each GISJOIN 
+           left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN")) 
+         
   )
 }
 
-# # Get central business district indicator ---- 
-# # This appears only in 1980
-# cbd_tracts <- 
-#   tract_data_1980_1 %>% 
-#   filter(!is.na(CBD))
-# 
-# # link to 1990 
-# cbd_tracts_1990 <- 
-#   cbd_tracts %>% 
-#   left_join(tract_crosswalk_1980, by = c("GISJOIN" = "GISJOIN_1980")) %>% 
-#   # select STATE, COUNTY, TRACT
-#   select(STATE, COUNTY, TRACTA) %>%
-#   mutate(cbd = 1) %>% 
-#   st_drop_geometry() %>% 
-#   distinct()
 
-
-
+## Clean 1950 data to same format as concorded data  ----
+tract_population_data_1950_concorded <-
+  tract_population_data_1950 %>% 
+  st_drop_geometry() %>% 
+  select(GISJOIN, YEAR, contains("pop")) %>% 
+  left_join(tract_info_1950_gisjoin) %>% 
+  dplyr::rename(GISJOIN_1950 = GISJOIN)
+  
+  
 # Combine tract-level datasets ----
 
 # population data with the original tracts
@@ -668,12 +665,10 @@ tract_population_data_concorded <-
   bind_rows(tract_population_data_1930_concorded, tract_population_data_1940_concorded,
             tract_population_data_1950_concorded, tract_population_data_1960_concorded,
             tract_population_data_1970_concorded, tract_population_data_1980_concorded,
-            tract_population_data_1990) %>%
+            tract_population_data_1990_concorded) %>%
   # merge on CBD indicator
-  left_join(cbd_tracts_1990)  %>% 
+  left_join(cbd_tracts_1950)  %>% 
   mutate(cbd = ifelse(is.na(cbd), 0, cbd)) %>% 
-  # calculate area in square meters
-  mutate(area_m2 = st_area(geometry)) %>% 
   # fix total population data if sum of components are bigger than total population (adjust total pop)
   mutate(total_pop = pmax(total_pop, white_pop + black_pop + other_pop)) %>% 
   # calculate white, black and other share, as well as foreign white share

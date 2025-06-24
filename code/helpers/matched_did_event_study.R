@@ -59,15 +59,15 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   # Create the formula for the event study
   # baseline model
   # Note: city-year does nothing in this model with matched FE
-  formula <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | tract_id +  match_group^event_time"))
-  model <- feols(formula, data = data, weights = ~weights, cluster = ~tract_id)
+  formula <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | GISJOIN_1950 +  match_group^event_time"))
+  model <- feols(formula, data = data, weights = ~weights, cluster = ~GISJOIN_1950)
   model_conley <- feols(formula, data = data, weights = ~weights,
                         vcov = vcov_conley(lat = "lat", lon = "lon", 
                                            cutoff = 1)) 
   
   # Model without matching
-  formula_no_match <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | tract_id"))
-  model_no_match <- feols(formula_no_match, data = data, weights = ~weights, cluster = ~tract_id)
+  formula_no_match <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | GISJOIN_1950"))
+  model_no_match <- feols(formula_no_match, data = data, weights = ~weights, cluster = ~GISJOIN_1950)
   model_no_match_conley <- feols(formula_no_match, data = data, weights = ~weights,
                                  vcov = vcov_conley(lat = "lat", lon = "lon", 
                                                     cutoff = 1)) 
@@ -79,17 +79,17 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   #   # set treatment_year = 100 if missing
   #   mutate(treatment_year = ifelse(is.na(treatment_year), 100, treatment_year))
   # 
-  # formula_sunab <- as.formula(paste(outcome_var, "~ sunab(treatment_year, year, ref.p = -10) | cbsa_title^year + tract_id + match_group^year"))
-  # model_sunab <- feols(formula_sunab, data = sunab_data, weights = ~weights, cluster = ~tract_id)
+  # formula_sunab <- as.formula(paste(outcome_var, "~ sunab(treatment_year, year, ref.p = -10) | cbsa_title^year + GISJOIN_1950 + match_group^year"))
+  # model_sunab <- feols(formula_sunab, data = sunab_data, weights = ~weights, cluster = ~GISJOIN_1950)
   # model_sunab_conley <- feols(formula_sunab, data = sunab_data, weights = ~weights,
   #                             vcov = vcov_conley(lat = "lat", lon = "lon", 
   #                                                cutoff = 1)) 
   # 
   # # sun and abraham model without matching
   # formula_sunab_no_match <- 
-  #   as.formula(paste(outcome_var, "~ sunab(treatment_year, year, ref.p = -10) | cbsa_title^year + tract_id"))
+  #   as.formula(paste(outcome_var, "~ sunab(treatment_year, year, ref.p = -10) | cbsa_title^year + GISJOIN_1950"))
   # model_sunab_no_match <- feols(formula_sunab_no_match, data = sunab_data, weights = ~weights,
-  #                               cluster = ~tract_id)
+  #                               cluster = ~GISJOIN_1950)
   # model_sunab_no_match_conley <- feols(formula_sunab_no_match, data = sunab_data, weights = ~weights,
   #                                               vcov = vcov_conley(lat = "lat", lon = "lon",
   #                                                                  cutoff = 1)) 

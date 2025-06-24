@@ -31,7 +31,7 @@ treated_tracts_panel_filepath <- here(merged_data_dir, dataset_choice, "treated_
 cleaned_projects_filepath <- here(ph_data_dir, "cleaned_housing_projects.gpkg")
 
 # Common functions and variables
-tract_id_variables <- c("YEAR", "STATEA", "COUNTYA", "TRACTA")
+tract_id_variables <- c("YEAR", "GISJOIN_1950")
 
 # Function to filter census data for specific cities -----
 filter_census_data <- function(census_data, dataset_choice) {
@@ -334,17 +334,17 @@ calculate_distance_to_cbd <- function(census_data) {
   cbd_tracts <- census_data %>%
     filter(cbd == 1) %>%
     # keep one of each tract
-    group_by(STATEA, COUNTYA, TRACTA) %>% 
+    group_by(GISJOIN_1950) %>% 
     filter(row_number() ==1) %>%
-    dplyr::select(STATEA, COUNTYA, TRACTA, geom) %>% 
+    dplyr::select(GISJOIN_1950, geom) %>% 
     ungroup()
   
   # get all tracts
   all_sample_tracts <- census_data %>%
     # keep one of each tract
-    group_by(STATEA, COUNTYA, TRACTA) %>% 
+    group_by(GISJOIN_1950) %>% 
     filter(row_number() ==1) %>%
-    dplyr::select(STATEA, COUNTYA, TRACTA, geom) %>% 
+    dplyr::select(GISJOIN_1950, geom) %>% 
     ungroup()
   
   # calculate nearest CBD
@@ -432,7 +432,7 @@ treated_tracts <-
 # 1. Get unique treated tracts and years, all of them
 unique_treated_tracts_panel <- 
   treated_tracts %>%
-  dplyr::select(STATE, COUNTY, TRACTA, YEAR) %>% 
+  dplyr::select(GISJOIN_1950, YEAR) %>% 
   st_drop_geometry() %>% 
   distinct()
 
@@ -442,16 +442,16 @@ public_housing_pop_estimates <-
   treated_tracts %>% 
   filter(!is.na(treatment_year)) %>% 
   st_drop_geometry() %>% 
-  group_by(STATE, COUNTY, TRACTA, YEAR, treatment_year) %>%
+  group_by(GISJOIN_1950, YEAR, treatment_year) %>%
   summarise(total_public_housing_pop_estimate = sum(proj_total_population_estimate)) %>%
   mutate(total_public_housing_pop_estimate = case_when(YEAR >= treatment_year ~ total_public_housing_pop_estimate,
                                                     TRUE ~ NA_real_)) %>%
-  dplyr::select(STATE, COUNTY, TRACTA, YEAR, treatment_year, total_public_housing_pop_estimate) %>% 
+  dplyr::select(GISJOIN_1950, YEAR, treatment_year, total_public_housing_pop_estimate) %>% 
   # collapse to each year
-  group_by(STATE, COUNTY, TRACTA, YEAR) %>%
+  group_by(GISJOIN_1950, YEAR) %>%
   summarise(total_public_housing_pop_estimate = sum(total_public_housing_pop_estimate, na.rm = TRUE)) %>% 
   # if a tract is 0 every year, replace with NA
-  group_by(STATE, COUNTY, TRACTA) %>%
+  group_by(GISJOIN_1950) %>%
   mutate(all_years_estimate = sum(total_public_housing_pop_estimate)) %>%
   mutate(total_public_housing_pop_estimate = ifelse(all_years_estimate == 0, NA, total_public_housing_pop_estimate)) %>% 
   dplyr::select(-all_years_estimate) %>% 
@@ -465,7 +465,7 @@ public_housing_pop_estimates <-
 # aggregate public housing units constructed in each tract by year
 treated_tracts_aggregated_by_year <- 
   treated_tracts %>%
-  group_by(STATE, COUNTY, TRACTA, YEAR, treatment_year) %>%
+  group_by(GISJOIN_1950, YEAR, treatment_year) %>%
   mutate(total_public_housing_units = sum(total_public_housing_units, na.rm = TRUE)) 
 
 
@@ -475,7 +475,7 @@ share_of_units_treated <-
   filter(YEAR == treatment_year) %>% 
   mutate(share_of_housing_units_that_are_public_in_treatment_year =
            total_public_housing_units /total_units) %>%
-  dplyr::select(STATE, COUNTY, TRACTA, treatment_year, share_of_housing_units_that_are_public_in_treatment_year) %>% 
+  dplyr::select(GISJOIN_1950, treatment_year, share_of_housing_units_that_are_public_in_treatment_year) %>% 
   st_drop_geometry() %>% 
   distinct()
 
@@ -490,9 +490,9 @@ treated_tracts_aggregated_by_year <-
 #  keep only one observation per year
 treated_tracts_aggregated_by_year <-
   treated_tracts_aggregated_by_year %>%
-  arrange(STATE, COUNTY, TRACTA, treatment_year) %>%
+  arrange(GISJOIN_1950, treatment_year) %>%
   # for each treated tract and year, keep only the one with the smallest treatment year (eg keep first year of treatment)
-  group_by(STATE, COUNTY, TRACTA, YEAR) %>%
+  group_by(GISJOIN_1950, YEAR) %>%
   filter(row_number() == 1) %>%
   ungroup()
 
@@ -500,16 +500,16 @@ treated_tracts_aggregated_by_year <-
 treated_tracts_panel <- 
   treated_tracts_aggregated_by_year %>%
   filter(YEAR >= treatment_year) %>%
-  dplyr::select(TRACTA, COUNTY, STATE, YEAR, city, cbsa_title, treatment_year, total_public_housing_units) %>%
+  dplyr::select(GISJOIN_1950, YEAR, city, cbsa_title, treatment_year, total_public_housing_units) %>%
   mutate(treated = 1)
 
 # Merge on treatment status of each tract to the Census data
 census_tract_sample_with_treatment_status <- left_join(
   census_tract_sample, 
-  treated_tracts_panel %>% dplyr::select(TRACTA, COUNTY, STATE, YEAR, treated) %>% st_drop_geometry()) %>%
+  treated_tracts_panel %>% dplyr::select(GISJOIN_1950, YEAR, treated) %>% st_drop_geometry()) %>%
   mutate(treated = ifelse(is.na(treated), 0, 1)) %>% 
   # merge on public housing population
-  left_join(public_housing_pop_estimates, by = c("STATE", "COUNTY", "TRACTA", "YEAR")) %>% 
+  left_join(public_housing_pop_estimates, by = c("GISJOIN_1950", "YEAR")) %>% 
   # set total public housing population equal to 0 if treated == 0
   mutate(total_public_housing_pop_estimate = ifelse(treated == 0, 0, total_public_housing_pop_estimate)) %>%
   # calculate private population

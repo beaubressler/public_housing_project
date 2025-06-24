@@ -1,6 +1,9 @@
 ###
 # Create crosswalk for central business districts, which come from 1980 Census
 ###
+library(tidyverse)
+library(here)
+library(ipumsr)
 
 # Preliminaries -----
 geographic_crosswalk_dir <- here("data", "derived", "geographic_crosswalks")
@@ -17,8 +20,8 @@ tract_data_1980_1 <-
   ) %>% 
   filter(!is.na(YEAR))
 
-# Tract crosswalk to 1990
-tract_crosswalk_1980 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1990.csv"))
+# Tract crosswalk to 1950
+tract_crosswalk_1980 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
 
 
 # Get central business district indicator ---- 
@@ -27,16 +30,17 @@ cbd_tracts <-
   tract_data_1980_1 %>% 
   filter(!is.na(CBD))
 
-# link to 1990 
-cbd_tracts_1990 <- 
+# link to 1950 
+cbd_tracts_1950 <- 
   cbd_tracts %>% 
   left_join(tract_crosswalk_1980, by = c("GISJOIN" = "GISJOIN_1980")) %>% 
-  # select STATE, COUNTY, TRACT
-  select(STATE, COUNTY, TRACTA) %>%
+  filter(!is.na(GISJOIN_1950)) %>% 
+  # select GISJOIN_1950
+  select(GISJOIN_1950) %>%
   mutate(cbd = 1) %>% 
   st_drop_geometry() %>% 
   distinct()
 
 
 # Save ----
-write_csv(cbd_tracts_1990, here(census_data_dir, "cbd_tracts_1990_concorded.csv"))
+write_csv(cbd_tracts_1950, here(census_data_dir, "cbd_tracts_1950_concorded.csv"))

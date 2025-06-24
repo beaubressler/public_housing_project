@@ -27,7 +27,7 @@ calculate_median_from_census <- function(data, var_code, var_name) {
     mutate(
       range = gsub(var_code, "", range),
       range = as.numeric(range)) %>%
-    group_by(YEAR, STATEA, COUNTYA, TRACTA) %>%
+    group_by(YEAR, GISJOIN_1950) %>%
     mutate(
       cumulative_freq = cumsum(num_in_sample),
       total = sum(num_in_sample),
@@ -35,7 +35,7 @@ calculate_median_from_census <- function(data, var_code, var_name) {
     filter(cumulative_freq >= median_position) %>%
     slice(1) %>% 
     mutate(median = paste0(var_code, str_pad(range, 3, pad = "0"))) %>% 
-    select(YEAR, STATEA, COUNTYA, TRACTA, median) %>% 
+    select(YEAR, GISJOIN_1950, median) %>% 
     # drop geometry
     st_drop_geometry() %>% 
     dplyr::rename(!!var_name := median)
@@ -43,13 +43,13 @@ calculate_median_from_census <- function(data, var_code, var_name) {
 
 
 # Read in geographic tract crosswalks ----
-# crosswalks, 1930 to 1990
-tract_crosswalk_1930 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1990.csv"))
-tract_crosswalk_1940 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1990.csv"))
-tract_crosswalk_1950 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1950_to_1990.csv"))
-tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1990.csv"))
-tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1990.csv"))
-tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1990.csv"))
+# crosswalks, 1930 to 1950
+tract_crosswalk_1930 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1950.csv"))
+tract_crosswalk_1940 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1950.csv"))
+tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1950.csv"))
+tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1950.csv"))
+tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
+tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
 
 # Compile tract-level Census income data ----
 
@@ -88,6 +88,11 @@ var_names <- names(tract_income_data_1950)
 var_names[startsWith(var_names, "B0E")] <- sub("^B0E", "income_group", var_names[startsWith(var_names, "B0E")])
 names(tract_income_data_1950) <- var_names
 
+#### save 1950 Census tract information ----
+# GISJOIN + tract IDs
+tract_info_1950_gisjoin <-
+  tract_income_data_1950 %>% 
+  select(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, TRACTA) 
 
 ### 1960 -----
 
@@ -200,23 +205,19 @@ tract_income_data_1990 <-
   select(any_of(tract_background_variables), median_income)
 
 
-#### save 1990 Census tract information ----
-tract_info_1990 <-
-  tract_income_data_1990 %>% 
-  select(any_of(tract_background_variables), -YEAR)
 
-# Concord datasets to 1990 Census tracts ----
+# Concord datasets to 1950 Census tracts ----
 # Have to do this separately for years for which we are given medians (1950, 1980) 
 # and for which we have to calculate medians (1960, 1970)
 # for the latter, we should reweight populations in each group
 
 # 11/2024 Actually, I can do this all at the same time
 
-# 1. Join on crosswalk to get GISJOIN_1990 and weights
-# 2. Weight medians (or group values) by "weight" and collapse to GISJOIN_1990
-# 3. Merge geography information from 1990 NHGIS file
+# 1. Join on crosswalk to get GISJOIN_1950 and weights
+# 2. Weight medians (or group values) by "weight" and collapse to GISJOIN_1950
+# 3. Merge geography information from 1950 NHGIS file
 
-years <- c(1950, 1960, 1970, 1980)
+years <- c(1960, 1970, 1980, 1990)
 
 for (year in years) {
   # Construct variable names and file names dynamically based on the year
@@ -232,15 +233,20 @@ for (year in years) {
            # weight median incomes
            mutate_at(vars(contains(c("median_income","income_group"))), ~ . * weight) %>%
            st_drop_geometry() %>% 
-           # collapse to GISJOIN_1990
-           group_by(GISJOIN_1990, YEAR) %>% 
-           summarise_at(vars(contains(c("median_income", "income_group"))), sum, na.rm = TRUE) %>%
-           ungroup()  %>%
-           # merge geography information from 2000 NHGIS file
-           left_join(tract_info_1990, by = c("GISJOIN_1990" = "GISJOIN"))
+           # collapse to GISJOIN_1950
+           group_by(GISJOIN_1950, YEAR) %>% 
+           summarise_at(vars(contains(c("median_income", "income_group"))), sum, na.rm = TRUE)  %>%
+           # merge on 1950 tract IDs for each GISJOIN 
+           left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN")) 
   )
 }
 
+## Clean 1950 data to same format as concorded data  ----
+tract_income_data_1950_concorded <-
+  tract_income_data_1950 %>% 
+  ungroup() %>% 
+  dplyr::rename(GISJOIN_1950 = GISJOIN) %>% 
+  select(GISJOIN_1950, YEAR, contains(c("median_income", "income_group")))
 
 
 # years <- c(1960, 1970)
@@ -280,9 +286,7 @@ median_income_1950 <-
 
 tract_income_data_1950_concorded <-
   tract_income_data_1950_concorded %>% 
-  # keep only variables of interest
-  select(any_of(tract_background_variables)) %>% 
-  left_join(median_income_1950, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
+  left_join(median_income_1950, by = c("YEAR", "GISJOIN_1950")) %>% 
   # replace the medians with the label of the variable it represents (minimum values)
   mutate(median_income = 
            case_when(median_income_group == "income_group001" ~ 249.5, # 0-499
@@ -307,9 +311,7 @@ median_income_1960 <-
 
 tract_income_data_1960_concorded <-
   tract_income_data_1960_concorded %>% 
-  # keep only variables of interest
-  select(any_of(tract_background_variables)) %>% 
-  left_join(median_income_1960, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
+  left_join(median_income_1960, by = c("YEAR", "GISJOIN_1950")) %>% 
   # replace the medians with the label of the variable it represents (minimum values)
   mutate(median_income = 
            case_when(median_income_group == "income_group001" ~ 500, # 0-1000
@@ -332,9 +334,7 @@ median_income_1970 <-
 
 tract_income_data_1970_concorded <-
   tract_income_data_1970_concorded %>% 
-  # keep only variables of interest
-  select(any_of(tract_background_variables)) %>% 
-  left_join(median_income_1970, by = c("YEAR", "STATEA", "COUNTYA", "TRACTA")) %>% 
+  left_join(median_income_1970, by = c("YEAR", "GISJOIN_1950")) %>% 
   # replace the medians with the label of the variable it represents (midpoint values, except for last value)
   mutate(median_income = 
            case_when(median_income_group == "income_group001" ~ 500, # 0-1000
@@ -354,8 +354,6 @@ tract_income_data_1970_concorded <-
                      median_income_group == "income_group015" ~ 50000)) # 50000+
 
 
-
-
 # Combine tract-level datasets ----
 
 # population data with the original tracts
@@ -371,8 +369,7 @@ tract_income_data_original_tracts <-
 tract_income_data_concorded <-
   bind_rows(tract_income_data_1950_concorded, tract_income_data_1960_concorded,
             tract_income_data_1970_concorded, tract_income_data_1980_concorded,
-            tract_income_data_1990) %>%
-  select(any_of(tract_background_variables), contains("median_income")) %>% 
+            tract_income_data_1990_concorded) %>%
   # drop rows with missing geometry
   filter(!st_is_empty(geometry))
 

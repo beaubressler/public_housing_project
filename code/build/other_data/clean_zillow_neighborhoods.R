@@ -16,7 +16,7 @@ tracts_with_neighborhoods <- st_intersection(census_tracts, zillow_neighborhoods
 tracts_with_neighborhoods <- tracts_with_neighborhoods %>%
   # calculate the area of the intersection
   mutate(intersection_area = st_area(geom)) %>% 
-  group_by(STATEA, COUNTYA, TRACTA) %>% 
+  group_by(GISJOIN_1950) %>% 
   # keep only the row with the largest intersection area
   filter(intersection_area == max(intersection_area)) %>% 
   ungroup() %>%
@@ -27,17 +27,9 @@ tracts_with_neighborhoods <- tracts_with_neighborhoods %>%
 tracts_with_neighborhoods_output <- 
   tracts_with_neighborhoods %>% 
   st_drop_geometry() %>% 
-  select(STATEA, COUNTYA, TRACTA, Name) %>% 
+  select(GISJOIN_1950, Name) %>% 
   dplyr::rename(neighborhood = Name) %>%
   distinct() %>%
   write_csv("data/derived/zillow/tracts_with_zillow_neighborhoods.csv")
-
-# neighborhoods_per_city <-
-#   tracts_with_neighborhoods %>%
-#   st_drop_geometry() %>% 
-#   group_by(COUNTY, STATE) %>%
-#   select(City, Name) %>% 
-#   distinct() %>% 
-#   summarise(n_neighborhoods = n()) 
 
 

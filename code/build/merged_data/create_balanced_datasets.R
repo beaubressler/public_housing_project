@@ -51,7 +51,7 @@ public_housing_data <-
 # unique treated tracts and years
 unique_treated_tracts <- 
   treated_tracts_panel %>% 
-  distinct(COUNTY, STATE, TRACTA, treatment_year)
+  distinct(GISJOIN_1950, treatment_year)
 
 table(unique_treated_tracts$treatment_year)
 
@@ -63,7 +63,7 @@ census_tract_sample_with_treatment_status <-
 # Checking:
 # > View(tracts_in_original_not_balanced %>% filter(city == "Richmond", TRACTA  == "0411"))
 
-## Create balanced sample of tracts -----
+## Balance across years -----
 # Only keep tracts that are available from 1940-1990
 
 # counties in 1930
@@ -80,6 +80,13 @@ counties_1940 <-
   pull(state_county) %>% 
   unique()
 
+# counties in 1950 
+counties_1950 <- 
+  census_tract_sample_with_treatment_status %>% 
+  filter(YEAR == 1950) %>%
+  pull(state_county) %>% 
+  unique()
+
 # tracts that exist in all years, 1940-1990
 
 years_range <- seq(1940,1990, 10)
@@ -88,14 +95,14 @@ years_range <- seq(1940,1990, 10)
 tracts_by_year <- 
   census_tract_sample_with_treatment_status %>% 
   filter(YEAR %in% years_range) %>% 
-  dplyr::select(STATE, COUNTY, TRACTA, YEAR) %>% 
+  dplyr::select(GISJOIN_1950, YEAR) %>% 
   st_drop_geometry() %>% 
   distinct()
 
 # count number of tracts in each year
 tracts_all_years <- 
   tracts_by_year %>% 
-  group_by(STATE, COUNTY, TRACTA) %>% 
+  group_by(GISJOIN_1950) %>% 
   summarise(num_years = n()) %>% 
   ungroup() %>% 
   filter(num_years == length(years_range)) %>% 
@@ -113,12 +120,46 @@ census_tract_sample_with_treatment_status_balanced <-
   filter(exists_all_years == 1) %>% 
   dplyr::select(-exists_all_years)
 
+## Balance on availability of variables, 1940-1990 ----
+# Variables to balance on 
+balance_vars <- c("total_pop", "total_units", "black_share",
+                  "median_rent_calculated", "median_home_value_calculated",
+                  "lfp_rate", "unemp_rate",
+                  "population_density")  
+# NOTE: Median income is often missing, so I do not balance on that
+
+## Issue is mostly with median income
+# So, I won't require balance on median income
+tracts_with_complete_vars <- 
+  census_tract_sample_with_treatment_status_balanced %>%
+  filter(YEAR %in% years_range) %>%
+  st_drop_geometry() %>%
+  group_by(GISJOIN_1950) %>%
+  summarise(
+    across(all_of(balance_vars), ~ sum(!is.na(.)) == length(years_range))
+  ) %>%
+  # Step 2: Combine into single complete-data flag
+  mutate(has_complete_data = if_all(all_of(balance_vars), ~ . == TRUE)) %>%
+  ungroup() %>%
+  filter(has_complete_data) %>%
+  dplyr::select(GISJOIN_1950) %>%
+  mutate(has_complete_data = 1)
+
+
+census_tract_sample_with_treatment_status_balanced <- 
+  census_tract_sample_with_treatment_status_balanced %>%
+  left_join(tracts_with_complete_vars, by = c("GISJOIN_1950")) %>%
+  mutate(has_complete_data = ifelse(is.na(has_complete_data), 0, has_complete_data)) %>%
+  filter(has_complete_data == 1) %>%
+  dplyr::select(-has_complete_data)
+
+
 ## Treatments that happen before 1941 (to ensure I have enough pre-trends) -----
 # Tracts that are treated before treatment_year == 1960 (e.g. projects built 1951-1973)
 tracts_treated_before_1960 <- 
   unique_treated_tracts %>% 
   mutate(treated_before_1960 = treatment_year < 1960) %>% 
-  dplyr::select(COUNTY, STATE, TRACTA, treated_before_1960)
+  dplyr::select(GISJOIN_1950, treated_before_1960)
 
 # merge with census tract data
 census_tract_sample_with_treatment_status_balanced <- 
@@ -156,23 +197,50 @@ census_tract_sample_with_treatment_status_balanced <-
 
 ## Identify urban renewal tracts -----
 urban_renewal_tracts <-
-  census_tract_sample_with_treatment_status %>% 
-  select(STATE, COUNTY, TRACTA, ur_binary_5pp, ur_binary_10pp) %>% 
-  st_drop_geometry() %>% 
+  census_tract_sample_with_treatment_status %>%
+  select(GISJOIN_1950, ur_binary_5pp, ur_binary_10pp) %>%
+  st_drop_geometry() %>%
   distinct()
 
 census_tract_sample_with_treatment_status_balanced <-
   census_tract_sample_with_treatment_status_balanced %>% 
-  left_join(urban_renewal_tracts)
+  select(-contains("ur_binary")) %>% 
+  left_join(urban_renewal_tracts) %>%
+  mutate(ur_binary_5pp = ifelse(is.na(ur_binary_5pp), 0, ur_binary_5pp),
+         ur_binary_10pp = ifelse(is.na(ur_binary_10pp), 0, ur_binary_10pp))
+
+## Tracts with too few people in the pre-period -----
+# Keep tracts with at least 500 people in 1940: Avoid these tiny tracts
+# that could mess things up
+
+small_tracts_1940 <- 
+  census_tract_sample_with_treatment_status_balanced %>%
+  filter(YEAR == 1940) %>%
+  filter(total_pop < 100) %>%
+  st_drop_geometry() %>%
+  mutate(small_tract_1940 = TRUE) %>% 
+  dplyr::select(GISJOIN_1950, small_tract_1940)
+
+census_tract_sample_with_treatment_status_balanced <-
+  census_tract_sample_with_treatment_status_balanced %>% 
+  left_join(small_tracts_1940) %>% 
+  mutate(small_tract_1940 = ifelse(is.na(small_tract_1940), FALSE, small_tract_1940))
+
+
+
+# quantile(census_tract_sample_with_treatment_status_balanced$total_pop, probs = c(0.01,0.05, 0.1, 0.25, 0.75, 0.9, 0.99))
 
 ## Apply filters ----
 balanced_sample <- 
   census_tract_sample_with_treatment_status_balanced %>% 
   # number of tracts in 1940 greater than 50
-  filter(num_tracts_geq_50 == TRUE)  %>% 
+  filter(num_tracts_geq_50 == TRUE) %>% 
   # Exclude previously treated tracts
   filter(treated_before_1960 == FALSE) %>% 
+  # exclude urban renewal tracts
   filter(ur_binary_5pp == 0) %>% 
+  # filter out tracts with too few people in 1940
+  filter(small_tract_1940 == FALSE) %>%
   # keep only 1940 onward to avoid changes in the sample across cities and variables
   filter(YEAR >= 1940)
 
@@ -187,24 +255,24 @@ share_of_treated_tracts <-
   ungroup()
 
 # merge with balanced sample, filter out cities with too high a share of treated tracts 
-# NOTE (11/6): Now that I am using CBSAs, there are no cities above 20% treated
+# NOTE (11/6/24): Now that I am using CBSAs, there are no cities above 20% treated
 balanced_sample <- 
   balanced_sample %>% 
   left_join(share_of_treated_tracts) %>% 
   # drop if more than 20% of tracts are treated
-  filter(share_treated < .20)
+  filter(share_treated <= .20)
 
 ## Create new treated tracts panel ----
 # filter out tracts that are not in balanced sample
 treated_tracts_panel_balanced <- 
   treated_tracts_panel %>% 
-    semi_join(balanced_sample %>% st_drop_geometry(), by = c("COUNTY", "STATE", "TRACTA"))
+    semi_join(balanced_sample %>% st_drop_geometry(), by = c("GISJOIN_1950"))
 
 ## analysis ----
 # unique treated tracts original vs balanced
 unique_treated_tracts_balanced <- 
   treated_tracts_panel_balanced %>% 
-  distinct(COUNTY, STATE, TRACTA, treatment_year)
+  distinct(GISJOIN_1950, treatment_year)
 
 table(unique_treated_tracts_balanced$treatment_year)
 table(unique_treated_tracts$treatment_year)
@@ -234,7 +302,7 @@ length(cities_in_original_sample)
 cities_not_in_balanced <- 
   setdiff(cities_in_original_sample, cities_in_balanced_sample)
 
-# Get the particular projects that are included in my smaple -----
+# Get the particular projects that are included in my sample -----
 # 1. Ensure public housing data is in sf format
 public_housing_data <-
   public_housing_data %>%
@@ -262,16 +330,17 @@ public_housing_in_sample <-
   public_housing_data %>%
   filter(project_code %in% treated_tracts_with_projects$project_code)
 
-# 1940, excluding UR trats: 211,500 (1940)
+# Numbers (Updated 6/3/2025)
+# 1940: 150876 (1940)
 sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE)
-# Number of projects: 532
+
+# Number of projects: 386 (5)
 nrow(public_housing_in_sample %>% filter(!is.na(total_public_housing_units)))
 
-# number of treated tracts
-
+# number of treated tracts: 324 (with 1950 tracts)
+nrow(treated_tracts_with_projects %>% select(GISJOIN_1950) %>% distinct())
 
 # Output files ---- 
-# output files
 
 # census sample
 st_write(balanced_sample, balanced_sample_filepath,
@@ -284,3 +353,121 @@ st_write(treated_tracts_panel_balanced, balanced_treated_tracts_panel_filepath,
 # public housing projects that are in the sample
 st_write(public_housing_in_sample, public_housing_sample_filepath,
          append = FALSE, layer = "points", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
+
+# Create 1950-1990 balanced sample -----
+# As a robustness check, I can use this dataset for site selection analysis
+
+years_range_1950 <- seq(1950, 1990, 10)
+
+# Identify tracts that appear in all years 1950–1990
+tracts_by_year_1950 <- 
+  census_tract_sample_with_treatment_status %>%
+  filter(YEAR %in% years_range_1950) %>%
+  select(GISJOIN_1950, YEAR) %>%
+  st_drop_geometry() %>%
+  distinct()
+
+tracts_all_years_1950 <- 
+  tracts_by_year_1950 %>%
+  group_by(GISJOIN_1950) %>%
+  summarise(num_years = n()) %>%
+  ungroup() %>%
+  filter(num_years == length(years_range_1950)) %>%
+  mutate(exists_all_years_1950 = 1)
+
+# Filter census tracts to those that exist all years 1950–1990
+census_tract_sample_balanced_1950 <- 
+  census_tract_sample_with_treatment_status %>%
+  select(-num_years) %>% 
+  left_join(tracts_all_years_1950) %>%
+  filter(!is.na(exists_all_years_1950)) %>%
+  select(-exists_all_years_1950)
+
+# Check for complete variable coverage
+tracts_with_complete_vars_1950 <- 
+  census_tract_sample_balanced_1950 %>%
+  filter(YEAR %in% years_range_1950)%>%
+  st_drop_geometry() %>%
+  group_by(GISJOIN_1950) %>%
+  summarise(across(all_of(balance_vars), ~ sum(!is.na(.)) == length(years_range_1950))) %>%
+  mutate(has_complete_data_1950 = if_all(all_of(balance_vars), ~ . == TRUE)) %>%
+  filter(has_complete_data_1950) %>%
+  select(GISJOIN_1950) %>% 
+  mutate(has_complete_data_1950 = 1)
+
+census_tract_sample_balanced_1950 <- 
+  census_tract_sample_balanced_1950 %>%
+  left_join(tracts_with_complete_vars_1950, by = c("GISJOIN_1950")) %>%
+  filter(!is.na(has_complete_data_1950)) %>%
+  select(-has_complete_data_1950)
+
+# small tracts in 1950
+small_tracts_1950 <- 
+  census_tract_sample_balanced_1950 %>%
+  filter(YEAR == 1950) %>%
+  filter(total_pop < 100) %>%
+  st_drop_geometry() %>%
+  mutate(small_tract_1950 = TRUE) %>% 
+  dplyr::select(GISJOIN_1950, small_tract_1950)
+
+census_tract_sample_balanced_1950 <-
+  census_tract_sample_balanced_1950 %>% 
+  left_join(small_tracts_1950) %>% 
+  mutate(small_tract_1950 = ifelse(is.na(small_tract_1950), FALSE, small_tract_1950))
+
+
+
+# Reapply filters used in 1940–1990 version
+balanced_sample_1950 <- 
+  census_tract_sample_balanced_1950 %>%
+  # exclude early treated
+  left_join(tracts_treated_before_1960) %>%
+  mutate(treated_before_1960 = ifelse(is.na(treated_before_1960), FALSE, treated_before_1960)) %>%
+  filter(treated_before_1960 == FALSE) %>%
+  # exclude urban renewal tracts
+  select(-contains('ur_binary')) %>% 
+  left_join(urban_renewal_tracts) %>%
+  mutate(ur_binary_5pp = ifelse(is.na(ur_binary_5pp), 0, ur_binary_5pp),
+         ur_binary_10pp = ifelse(is.na(ur_binary_10pp), 0, ur_binary_10pp)) %>%
+  filter(ur_binary_5pp == 0) %>%
+  # exclude small tracts in 1950
+  filter(small_tract_1950 == FALSE)
+  
+  
+
+# Rejoin city information and filter cities with too few tracts
+num_tracts_1950 <- 
+  balanced_sample_1950 %>%
+  filter(YEAR == 1950) %>%
+  st_drop_geometry() %>%
+  group_by(cbsa_title) %>%
+  summarise(num_tracts = n()) %>%
+  ungroup()
+
+balanced_sample_1950 <- 
+  balanced_sample_1950 %>%
+  left_join(num_tracts_1950) %>%
+  filter(num_tracts >= 50)
+
+
+# Create treated tracts panel for 1950–1990 balanced sample
+treated_tracts_panel_balanced_1950 <- 
+  treated_tracts_panel %>%
+  semi_join(balanced_sample_1950 %>% st_drop_geometry(), by = c("GISJOIN_1950"))
+
+
+
+# Save outputs
+
+balanced_sample_filepath_1950 <- here(merged_data_dir, dataset_choice,
+                                        "census_tract_sample_with_treatment_status_balanced_1950.gpkg")
+
+balanced_treated_panel_filepath_1950 <- here(merged_data_dir, dataset_choice,
+                                               "treated_tracts_panel_balanced_1950.gpkg")
+
+
+st_write(balanced_sample_1950, balanced_sample_filepath_1950,
+         append = FALSE, layer = "tracts", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
+
+st_write(treated_tracts_panel_balanced_1950, balanced_treated_panel_filepath_1950,
+         append = FALSE, layer = "tracts", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)

@@ -21,15 +21,15 @@ calculate_median_ed_from_census <- function(data, rank_df, var_code, var_name) {
     mutate_at(vars(contains(var_code)), as.numeric) %>%
     pivot_longer(cols = starts_with(var_code), names_to = "range", values_to = "num_in_sample") %>%
     left_join(rank_df, by = c("range" = "name")) %>%
-    group_by(YEAR, STATEA, COUNTYA, TRACTA) %>%
-    arrange(YEAR, STATEA, COUNTYA, TRACTA, rank) %>% 
+    group_by(YEAR, GISJOIN_1950) %>%
+    arrange(YEAR, GISJOIN_1950, rank) %>% 
     mutate(
       cumulative_freq = cumsum(num_in_sample),
       total = sum(num_in_sample),
       median_position = total / 2) %>% 
     filter(cumulative_freq >= median_position) %>%
     slice(1) %>% 
-    select(YEAR, STATEA, COUNTYA, TRACTA, range) %>% 
+    select(YEAR, GISJOIN_1950, range) %>% 
     dplyr::rename(!!var_name := range) %>% 
     # drop geometry
     st_drop_geometry()
@@ -37,13 +37,14 @@ calculate_median_ed_from_census <- function(data, rank_df, var_code, var_name) {
 
 
 # Read in geographic tract crosswalks ----
-# crosswalks, 1930 to 1990
-tract_crosswalk_1930 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1990.csv"))
-tract_crosswalk_1940 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1990.csv"))
-tract_crosswalk_1950 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1950_to_1990.csv"))
-tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1990.csv"))
-tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1990.csv"))
-tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1990.csv"))
+# crosswalks, 1930-1990 to 1950
+tract_crosswalk_1930 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1950.csv"))
+tract_crosswalk_1940 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1950.csv"))
+tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1950.csv"))
+tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1950.csv"))
+tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
+tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
+
 
 # Compile tract-level Census employment data ----
 
@@ -209,6 +210,14 @@ tract_employment_data_1950 <-
          lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
   select(any_of(tract_background_variables), contains("rate"), contains("pop"))
 
+#### save 1950 Census tract information ----
+
+# GISJOIN + tract IDs
+tract_info_1950_gisjoin <-
+  tract_employment_data_1950 %>% 
+  select(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, TRACTA) 
+
+
 
 ### 1960 -----
 full_tract_data_1960 <-
@@ -332,18 +341,14 @@ tract_employment_data_1990 <-
 
 
 
-#### save 1990 Census tract information ----
-tract_info_1990 <-
-  tract_employment_data_1990 %>% 
-  select(any_of(tract_background_variables), -YEAR)
 
-# Concord datasets to 1990 Census tracts ----
-# 1. Join on crosswalk to get GISJOIN_1990 and weights
-# 2. Weight populations by "weight" and collapse to GISJOIN_1990
-# 3. Merge geography information from 1990 NHGIS file
+# Concord datasets to 1950 Census tracts ----
+# 1. Join on crosswalk to get GISJOIN_1950 and weights
+# 2. Weight populations by "weight" and collapse to GISJOIN_1950
+# 3. Merge geography information from 1950 NHGIS file
 
-## Loop for 1930-1990 -----
-years <- c(1930, 1940, 1950, 1960, 1970, 1980)
+## Loop for 1930-1990-----
+years <- c(1930, 1940, 1960, 1970, 1980, 1990)
 
 for (year in years) {
   # Construct variable names and file names dynamically based on the year
@@ -359,24 +364,30 @@ for (year in years) {
            # weight populations
            mutate_at(vars(contains("pop")), ~ . * weight) %>%
            st_drop_geometry() %>% 
-           # collapse to GISJOIN_1990
-           group_by(GISJOIN_1990, YEAR) %>% 
+           # collapse to GISJOIN_1950
+           group_by(GISJOIN_1950, YEAR) %>% 
            summarise_at(vars(contains("pop")), sum, na.rm = TRUE) %>%
-           ungroup()  %>%
-           # merge geography information from 1990 NHGIS file
-           left_join(tract_info_1990, by = c("GISJOIN_1990" = "GISJOIN"))
+           # merge on 1950 tract IDs for each GISJOIN 
+           left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN")) 
   )
 }
+
+## Clean 1950 data to same format as concorded data  ----
+tract_employment_data_1950_concorded <-
+  tract_employment_data_1950 %>% 
+  ungroup() %>% 
+  dplyr::rename(GISJOIN_1950 = GISJOIN) %>% 
+  select(GISJOIN_1950, YEAR, contains("pop"))
 
 
 # Combine tract-level datasets ----
 
-# tract population data concorded to 1990 tracts
+# tract population data concorded to 1950 tracts
 tract_employment_data_concorded <-
   bind_rows(tract_employment_data_1930_concorded, tract_employment_data_1940_concorded,
             tract_employment_data_1950_concorded, tract_employment_data_1960_concorded,
             tract_employment_data_1970_concorded, tract_employment_data_1980_concorded,
-            tract_employment_data_1990) %>%
+            tract_employment_data_1990_concorded) %>%
   # calculate unemployment rate, lfp rate
   mutate(unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
          lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
