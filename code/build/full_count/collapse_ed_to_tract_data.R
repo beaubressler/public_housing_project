@@ -59,18 +59,22 @@ cbd_tracts_1950 <- read_csv(here(census_data_dir, "cbd_tracts_1950_concorded.csv
 # Clean data ----
 # split CITY_NAME into city and state, splitting on commas
 city_ed_data_1930 <- city_ed_data_1930_raw %>%
-  separate(CITY_NAME, c("city", "state"), sep = ",") %>%
-  mutate(city = str_trim(city), state = str_trim(state)) %>% 
+  # calculate state as last 2 characters of b_city
+  mutate(city = str_sub(b_city, 1, -3), 
+         state = str_sub(b_city, -2, -1),
+         city = str_trim(city), state = str_trim(state)) %>% 
   # convert b_ed to lower case character
   mutate(b_ed = tolower(b_ed)) %>% 
-  mutate(YEAR = 1930)
+  mutate(YEAR = 1930) 
 
 city_ed_data_1940 <- city_ed_data_1940_raw %>% 
-  separate(CITY_NAME, c("city", "state"), sep = ",") %>%
-  mutate(city = str_trim(city), state = str_trim(state)) %>% 
+  mutate(city = str_sub(b_city, 1, -3), 
+         state = str_sub(b_city, -2, -1),
+         city = str_trim(city), state = str_trim(state)) %>% 
   # convert b_ed to lower case character
   mutate(b_ed = tolower(b_ed)) %>%
-  mutate(YEAR = 1940)
+  mutate(YEAR = 1940) 
+
 
 # Collapse ED-level to tract level data ----
 

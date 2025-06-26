@@ -69,7 +69,7 @@ sample_1930 <- read_ipums_micro(ddi_1930, n_max = 10000)
 grf_1930 <- read_csv(here(grf_dir, "grf_1930_histid_ed_city.csv"))
 
 grf_1930 <- grf_1930 %>% 
-  select(histid, b_ed) %>%
+  select(histid, b_city, b_ed) %>%
   dplyr::rename(HISTID = histid)
 
 # convert to datatable
@@ -89,7 +89,7 @@ cb_function_pop_1930 <- function(x, pos) {
   x <- merge(x, grf_1930, by = "HISTID", all.x = TRUE)
   
   # collapse by City, ED #, Race
-  result <- x[, .(population = .N) , by = .(CITY, b_ed, RACE)]
+  result <- x[, .(population = .N) , by = .(CITY, b_city, b_ed, RACE)]
   
   return(result)
   
@@ -110,7 +110,7 @@ population_by_race_city_ed_1930 <-
   filter(CITY != 0, !is.na(b_ed)) %>% 
   mutate(CITY_NAME = as.character(as_factor(CITY)),
          race = as.character(as_factor(RACE))) %>% 
-  group_by(CITY_NAME, b_ed, race) %>%
+  group_by(CITY_NAME, b_ed, b_city, race) %>%
   summarize(population= sum(population), .groups = "drop") %>% 
   pivot_wider(names_from = race, 
               values_from = population,
@@ -118,7 +118,45 @@ population_by_race_city_ed_1930 <-
   mutate(white_pop = White,
          black_pop = `Black/African American`,
          other_pop = Chinese + `American Indian or Alaska Native` + Japanese +`Other Asian or Pacific Islander`) %>% 
-  select(CITY_NAME, b_ed, white_pop, black_pop, other_pop) 
+  select(CITY_NAME, b_ed, b_city, white_pop, black_pop, other_pop) 
+
+## Literacy -----
+# Share of Age 25+ that is literate
+cb_function_literacy_1930 <- function(x, pos) {
+  setDT(x)  # Ensure x is a data.table
+  
+  # Merge with grf_1930
+  x <- merge(x, grf_1930, by = "HISTID", all.x = TRUE)
+  
+  x <- as_tibble(x)
+  
+  # Filter for age 25+
+  x <- x %>%
+    filter(AGE >= 25) %>% 
+    # drop missing literacy
+    filter(!is.na(LIT), LIT != 0) %>% 
+    mutate(literate = ifelse(LIT == 4, 1, 0)) %>% 
+    group_by(CITY, b_city, b_ed) %>% 
+    summarize(total = n(), literate_count = sum(literate), .groups = "drop") %>% 
+    mutate(literacy_rate = literate_count / total)
+  
+  return(x)
+}
+
+cb_literacy_1930 <- IpumsDataFrameCallback$new(cb_function_literacy_1930)
+
+# read data in chunks
+chunked_results_literacy_1930 <-
+  read_ipums_micro_chunked(ddi_file_path_1930, callback = cb_literacy_1930, chunk_size = chunk_size_param)
+
+# combine and clean the results
+literacy_by_city_ed_1930 <-
+  chunked_results_literacy_1930 %>%
+  filter(CITY != 0, !is.na(b_ed)) %>% 
+  mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
+  select(CITY_NAME, b_ed, b_city, literacy_rate) 
+
+head(literacy_by_city_ed_1930)
 
 ## Housing ------
 ### Rent ----
@@ -161,7 +199,7 @@ cb_function_rent_1930 <- function(x, pos) {
   setDT(x)
   
   # Group by CITY, b_ed, and rent_group and calculate population
-  result <- x[, .(population = .N), by = .(CITY, b_ed, rent_group)]
+  result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, rent_group)]
   
   return(result)
 }
@@ -180,7 +218,7 @@ rent_group_by_city_ed_1930 <-
   # drop missing CITY and b_ed
   filter(CITY != 0, !is.na(b_ed)) %>% 
   mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, rent_group) %>%
+  group_by(CITY_NAME, b_ed, b_city, rent_group) %>%
   summarize(population= sum(population), .groups = "drop") %>%
   mutate(rent_group = paste0("rent_group_", rent_group)) %>% 
   pivot_wider(names_from = rent_group, 
@@ -234,7 +272,7 @@ cb_function_home_value_1930 <- function(x, pos) {
   setDT(x)
   
   # Group by CITY, b_ed, and valueh_group and calculate population
-  result <- x[, .(population = .N), by = .(CITY, b_ed, valueh_group)]
+  result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, valueh_group)]
   
   return(result)
 }  
@@ -253,7 +291,7 @@ home_value_by_city_ed_1930 <-
   # drop missing CITY and b_ed
   filter(CITY != 0, !is.na(b_ed)) %>% 
   mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, valueh_group) %>%
+  group_by(CITY_NAME, b_city, b_ed, valueh_group) %>%
   summarize(population= sum(population), .groups = "drop") %>% 
   mutate(valueh_group = paste0("home_value_", valueh_group)) %>% 
   pivot_wider(names_from = valueh_group, 
@@ -279,7 +317,7 @@ cb_function_lf_1930 <- function(x, pos) {
   x <- merge(x, grf_1930, by = "HISTID", all.x = TRUE)
   
   # collapse by City, ED #, Race
-  result <- x[, .(population = .N) , by = .(CITY, b_ed, EMPSTAT)]
+  result <- x[, .(population = .N) , by = .(CITY, b_ed, b_city, EMPSTAT)]
   
   return(result)
   
@@ -306,12 +344,12 @@ lf_status_by_city_ed_1930 <-
            EMPSTAT == 2 ~ "unemployed",
            EMPSTAT == 3 ~ "not_in_lf"
          )) %>% 
-  group_by(CITY_NAME, b_ed, employment_status) %>%
+  group_by(CITY_NAME, b_ed, b_city, employment_status) %>%
   summarize(population= sum(population), .groups = "drop") %>% 
   pivot_wider(names_from = employment_status, 
               values_from = population,
               values_fill =  0) %>%
-  select(CITY_NAME, b_ed, employed, unemployed, not_in_lf) 
+  select(CITY_NAME, b_ed, b_city, employed, unemployed, not_in_lf) 
 
 
 ## Combine and output -----
@@ -334,7 +372,8 @@ rm(list = ls(pattern = "1930"))
 grf_1940 <- read_csv(here(grf_dir, "grf_1940_histid_ed_city.csv"))
 
 grf_1940 <- grf_1940 %>% 
-  select(histid, b_ed) %>% dplyr::rename(HISTID = histid)
+  select(histid, b_ed, b_city) %>%
+  dplyr::rename(HISTID = histid)
 
 # convert to datatable
 setDT(grf_1940)
@@ -361,7 +400,7 @@ cb_function_pop_1940 <- function(x, pos) {
   x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
   
   # collapse by City,
-  result <- x[, .(population = .N) , by = .(CITY, b_ed, RACE)]
+  result <- x[, .(population = .N) , by = .(CITY, b_ed, b_city, RACE)]
   
   return(result)
 
@@ -382,7 +421,7 @@ pop_by_race_by_city_ed_1940 <-
   filter(CITY != 0, !is.na(b_ed)) %>% 
   mutate(CITY_NAME = as.character(as_factor(CITY)),
          race = as.character(as_factor(RACE))) %>% 
-  group_by(CITY_NAME, b_ed, race) %>%
+  group_by(CITY_NAME, b_ed, b_city, race) %>%
   summarize(population= sum(population), .groups = "drop") %>% 
   pivot_wider(names_from = race, 
               values_from = population,
@@ -390,7 +429,7 @@ pop_by_race_by_city_ed_1940 <-
   mutate(white_pop = White,
          black_pop = `Black/African American`,
          other_pop = Chinese + `American Indian or Alaska Native` + Japanese +`Other Asian or Pacific Islander`) %>% 
-  select(CITY_NAME, b_ed, white_pop, black_pop, other_pop) 
+  select(CITY_NAME, b_ed, b_city, white_pop, black_pop, other_pop) 
 
 ## Education -----
 # Following 1940 tract data: Persons 25 years and older by years of school completed
@@ -414,7 +453,7 @@ cb_function_educ_1940 <- function(x, pos) {
   setDT(x)
   
   # Group by CITY, b_ed, and rent_group and calculate population
-  result <- x[, .(population = .N), by = .(CITY, b_ed, EDUC)]
+  result <- x[, .(population = .N), by = .(CITY, b_city, b_ed, EDUC)]
   
   return(result)
 }
@@ -430,19 +469,18 @@ pop_by_educ_by_city_ed_1940 <-
   # drop missing CITY and b_ed
   filter(CITY != 0, !is.na(b_ed)) %>% 
   mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, EDUC) %>%
+  group_by(CITY_NAME, b_ed, b_city, EDUC) %>%
   summarize(population= sum(population), .groups = "drop") %>% 
-  # create 
   # create education binary variables
   mutate(hs_grad = ifelse(EDUC >= 6, population, 0),
          some_college = ifelse(EDUC >= 7, population, 0)) %>% 
-  group_by(CITY_NAME, b_ed) %>%
+  group_by(CITY_NAME, b_city, b_ed) %>%
   # total pop (of the subgroup)
   summarize(total_educ_pop = sum(population),
             hs_grad_pop = sum(hs_grad),
             some_college_pop = sum(some_college),
             .groups = "drop") %>% 
-  select(CITY_NAME, b_ed,
+  select(CITY_NAME, b_ed, b_city,
          total_educ_pop, hs_grad_pop, some_college_pop) 
 
 
@@ -471,7 +509,7 @@ cb_function_income_1940 <- function(x, pos) {
   x <- x %>%
     # Drop income == 0 or missing ()
     filter(INCWAGE != 999998, INCWAGE != 999999) %>% 
-    group_by(CITY, b_ed, SERIAL) %>% 
+    group_by(CITY, b_ed, b_city, SERIAL) %>% 
     summarise(family_wage = sum(INCWAGE), .groups = "drop") %>%   # %>% 
     # create wage income group
     mutate(income_group = case_when(family_wage < 500 ~ 1, # 0-499
@@ -514,7 +552,7 @@ chunked_results_income_1940 <-
 income_group_by_city_ed_1940 <-
   chunked_results_income_1940 %>% 
   filter(CITY != 0, !is.na(b_ed)) %>% 
-  group_by(CITY, b_ed, SERIAL) %>%
+  group_by(CITY, b_ed, b_city, SERIAL) %>%
   summarise(family_wage = sum(family_wage), .groups = "drop") %>%
   # create wage income group
   mutate(income_group = case_when(family_wage < 500 ~ 1, # 0-499
@@ -533,10 +571,10 @@ income_group_by_city_ed_1940 <-
                                   family_wage >= 10000 ~ 14,
                                   TRUE ~ NA_integer_)) %>% 
   # get population per income group
-  group_by(CITY, b_ed, income_group) %>%
+  group_by(CITY, b_ed, b_city, income_group) %>%
   summarise(population = n(), .groups = "drop") %>% 
   mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, income_group) %>%
+  group_by(CITY_NAME, b_ed, b_city, income_group) %>%
   summarize(population= sum(population), .groups = "drop") %>%
   mutate(income_group = paste0("income_group_", income_group)) %>% 
   pivot_wider(names_from = income_group, 
@@ -586,7 +624,7 @@ cb_function_rent_1940 <- function(x, pos) {
   setDT(x)
   
   # Group by CITY, b_ed, and rent_group and calculate population
-  result <- x[, .(population = .N), by = .(CITY, b_ed, rent_group)]
+  result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, rent_group)]
   
   return(result)
 }
@@ -603,7 +641,7 @@ rent_group_by_city_ed_1940 <-
   # drop missing CITY and b_ed
   filter(CITY != 0, !is.na(b_ed)) %>% 
   mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, rent_group) %>%
+  group_by(CITY_NAME, b_ed, b_city, rent_group) %>%
   summarize(population= sum(population), .groups = "drop") %>%
   mutate(rent_group = paste0("rent_group_", rent_group)) %>% 
   pivot_wider(names_from = rent_group, 
@@ -649,7 +687,7 @@ cb_function_valueh_1940 <- function(x, pos) {
   setDT(x)
   
   # Group by CITY, b_ed, and valueh_group and calculate population
-  result <- x[, .(population = .N), by = .(CITY, b_ed, valueh_group)]
+  result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, valueh_group)]
   
   return(result)
 }
@@ -666,7 +704,7 @@ valueh_group_by_city_ed_1940 <-
   # drop missing CITY and b_ed
   filter(CITY != 0, !is.na(b_ed)) %>% 
   mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, valueh_group) %>%
+  group_by(CITY_NAME, b_ed, b_city, valueh_group) %>%
   summarize(population= sum(population), .groups = "drop") %>%
   mutate(valueh_group = paste0("valueh_group_", valueh_group)) %>% 
   pivot_wider(names_from = valueh_group, 
@@ -691,7 +729,7 @@ cb_function_lf_1940 <- function(x, pos) {
   x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
   
   # collapse by City, ED #, Race
-  result <- x[, .(population = .N) , by = .(CITY, b_ed, EMPSTAT)]
+  result <- x[, .(population = .N) , by = .(CITY, b_ed, b_city, EMPSTAT)]
   
   return(result)
   
@@ -718,12 +756,12 @@ lf_status_by_city_ed_1940 <-
            EMPSTAT == 2 ~ "unemployed",
            EMPSTAT == 3 ~ "not_in_lf"
          )) %>% 
-  group_by(CITY_NAME, b_ed, employment_status) %>%
+  group_by(CITY_NAME, b_ed, b_city, employment_status) %>%
   summarize(population= sum(population), .groups = "drop") %>% 
   pivot_wider(names_from = employment_status, 
               values_from = population,
               values_fill =  0) %>%
-  select(CITY_NAME, b_ed, employed, unemployed, not_in_lf) 
+  select(CITY_NAME, b_ed, b_city, employed, unemployed, not_in_lf) 
 
 ## Combine and output -----
 
@@ -736,8 +774,6 @@ city_ed_data_1940 <-
 
 # output csv
 write_csv(city_ed_data_1940, here(output_dir, "city_ed_data_1940.csv"))
-
-  
 
     
   
