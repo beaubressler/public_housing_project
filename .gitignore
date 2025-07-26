@@ -1,0 +1,116 @@
+# R specific
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# RStudio files
+.Rproj.user/
+
+# Datasets
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.rds
+*.rda
+*.RData
+*.rdata
+*.feather
+*.fst
+*.sav
+*.dta
+*.json
+*.xml
+
+# Geospatial data
+*.shp
+*.shx
+*.dbf
+*.prj
+*.qpj
+*.gpkg
+*.geojson
+*.qgz
+
+# PDFs and documents
+*.pdf
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.odt
+*.ods
+*.odp
+*.txt
+*.rtf
+*.bib
+
+# Images
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.tif
+*.tiff
+*.bmp
+*.svg
+
+# Output files
+*/figure-gfm/
+*/figure-html/
+*.html
+*.md
+
+# Temporary files
+*.tmp
+*~
+~$*.doc*
+~$*.xls*
+*.swp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Packrat
+packrat/lib*/
+packrat/src/
+
+# renv
+renv/library/
+renv/.cache/
+
+# knitr and R markdown default cache directories
+*_cache/
+/cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Data directories
+data/
+georeferencing/
+
+# Project-specific ignores
+output/
+lib/
+grants/
+replications/
+tenant_project/data/
+tenant_project/regression_results/
