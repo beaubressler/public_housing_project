@@ -63,14 +63,14 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   model <- feols(formula, data = data, weights = ~weights, cluster = ~GISJOIN_1950)
   model_conley <- feols(formula, data = data, weights = ~weights,
                         vcov = vcov_conley(lat = "lat", lon = "lon", 
-                                           cutoff = 1)) 
+                                           cutoff = 2)) 
   
   # Model without matching
   formula_no_match <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | GISJOIN_1950"))
   model_no_match <- feols(formula_no_match, data = data, weights = ~weights, cluster = ~GISJOIN_1950)
   model_no_match_conley <- feols(formula_no_match, data = data, weights = ~weights,
                                  vcov = vcov_conley(lat = "lat", lon = "lon", 
-                                                    cutoff = 1)) 
+                                                    cutoff = 2)) 
   
   # # Sun and Abraham model, with matching
   # 5/2025: In current matched DiD set-up, Sun and Abraham is the same as TWFE

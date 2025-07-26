@@ -15,8 +15,6 @@ library(geosphere)
 library(here)
 library(segregation)
 library(readxl)
-  
-rm(list = ls())
 
 
 data_path <- here("data")
@@ -220,13 +218,44 @@ combined_data <-
   # manually fix Dade county CBSA
   mutate(cbsa_title = ifelse(COUNTYA == "025" & STATEA == "12",
                              "Miami-Fort Lauderdale-Miami Beach, FL",
-                             cbsa_title))
+                             cbsa_title),
+         cbsa_title = ifelse(COUNTYA %in% c("129","151") & STATEA == "51",
+                              "Virginia Beach-Norfolk-Newport News, VA-NC",
+                              cbsa_title)
+         )
 
 # Calculate segregation indices --------
-# TODO
 # See https://www.huduser.gov/portal/periodicals/cityscpe/vol17num1/ch8.pdf
-# for possible local segregation indices I could think about 
+# for possible local segregation indices
 
+# Calculate both a standard dissimilarity index (how different is tract black share from CBSA black share)
+# and a local aspatial dissimilarity index (following Oka and Wong 2015)
+
+local_aspatial_di <- combined_data %>%
+  mutate(bw_pop = black_pop + white_pop) %>%
+  filter(bw_pop > 0) %>%  # avoid division by zero
+  group_by(cbsa_title, YEAR) %>%
+  mutate(
+    cbsa_black_total = sum(black_pop, na.rm = TRUE),
+    cbsa_white_total = sum(white_pop, na.rm = TRUE),
+    cbsa_bw_total = cbsa_black_total + cbsa_white_total,
+    cbsa_black_share = cbsa_black_total / cbsa_bw_total
+  ) %>%
+  ungroup() %>%
+  mutate(
+    tract_black_share = black_pop / bw_pop,
+    # this is how much the tract's black share deviates from the CBSA's black share
+    local_dissimilarity_index = abs(tract_black_share - cbsa_black_share),
+    # abs(w/W - b/B): This the Oka and Wong (2015) measure: 
+    local_dissimilarity_index_std = abs((white_pop/cbsa_white_total) - 
+                                        (black_pop/cbsa_black_total))
+  ) %>% 
+  select(GISJOIN_1950, YEAR, local_dissimilarity_index, local_dissimilarity_index_std) %>% 
+  st_drop_geometry()
+
+# Join local dissimilarity index to combined data
+combined_data <- combined_data %>%
+  left_join(local_aspatial_di, by = c("GISJOIN_1950", "YEAR"))
 
 
 # Output ----

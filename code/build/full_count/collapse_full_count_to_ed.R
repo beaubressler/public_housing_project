@@ -14,6 +14,7 @@
 # preliminaries -----
 library(tidyverse)
 library(here)
+library(haven)
 library(ipumsr)
 library(data.table)
 
@@ -29,6 +30,7 @@ library(data.table)
 
 full_count_dir <- here("data", "raw", "ipums", "full_count")
 output_dir <- here("data", "derived", "census", "full_count", "ed_by_city")
+saavedra_twinam_dir <- here("data", "raw", "saavedra_and_twinam")
 
 # directory of the cleaned Geographic Reference File dataset, which contains the enumeration districts
 # that I cleaned
@@ -57,6 +59,16 @@ cities <- c(
 
 chunk_size_param <- 500000
 
+# Prep Saavedra and Twinam occscores ----
+st_occscores <- 
+  read_dta(here(saavedra_twinam_dir, "lido_score_1950_public_use.dta")) 
+
+# rename to uppercase
+st_occscores <- st_occscores %>%
+  rename_with(toupper)
+
+setDT(st_occscores)
+
 # 1930 ----
 ddi_file_path_1930 <- here(full_count_dir, "usa_00032.xml")
 
@@ -77,6 +89,11 @@ setDT(grf_1930)
 setkey(grf_1930, HISTID)
 
 
+# testing
+z <- 
+  left_join(sample_1930,st_occscores)
+
+z %>% filter(!is.na(LIDO)) %>% pull(AGE) %>% table()
 
 ## Population by race ----
 # Function that says what to do with each chunk:
@@ -351,14 +368,83 @@ lf_status_by_city_ed_1930 <-
               values_fill =  0) %>%
   select(CITY_NAME, b_ed, b_city, employed, unemployed, not_in_lf) 
 
+## Occupation-based income (LIDO) ------
+# Use Saavedra and Twinam (2020) method to calculate income based on occupation codes
+
+cb_function_lido_income_1930 <- function(x, pos) {
+  setDT(x)
+  
+  # merge with st_occscores to get LIDO
+  x <- merge(x, st_occscores, by = c("STATEFIP", "SEX", "AGE", "RACE", "OCC1950", "IND1950"), all.x = TRUE)
+  
+  # Merge with grf_1930
+  x <- merge(x, grf_1930, by = "HISTID", all.x = TRUE)
+  
+  x <- as_tibble(x)
+  
+  # Calculate family LIDO-based income
+  x <- x %>%
+    # Keep only individuals with valid LIDO scores
+    filter(!is.na(LIDO)) %>%
+    # Sum LIDO scores within each family
+    group_by(CITY, b_ed, b_city, SERIAL) %>%
+    summarise(family_wage = sum(LIDO), .groups = "drop") %>%
+    # Create income groups
+    # These are the 1950 tract-based income groups
+    mutate(family_wage = family_wage * 100,  # Convert to actual 1950 dollars
+           income_group = case_when(family_wage < 500 ~ 1, # 0-499
+                                           family_wage >= 500 & family_wage < 1000 ~ 2, # 500-999
+                                           family_wage >= 1000 & family_wage < 1500 ~ 3, # 1000-1499
+                                           family_wage >= 1500 & family_wage < 2000 ~ 4, # 1500-1999
+                                           family_wage >= 2000 & family_wage < 2500 ~ 5, # 2000-2499
+                                           family_wage >= 2500 & family_wage < 3000 ~ 6, # 2500-2999
+                                           family_wage >= 3000 & family_wage < 3500 ~ 7, # 3000-3499
+                                           family_wage >= 3500 & family_wage < 4000 ~ 8, # 3500-3999
+                                           family_wage >= 4000 & family_wage < 4500 ~ 9, # 4000-4999
+                                           family_wage >= 4500 & family_wage < 5000 ~ 10, # 4500-4999
+                                           family_wage >= 5000 & family_wage < 6000 ~ 11, # 5000-5999
+                                           family_wage >= 6000 & family_wage < 7000 ~ 12, # 6000-6999
+                                           family_wage >= 7000 & family_wage < 10000 ~ 13, # 7000-9999
+                                           family_wage >= 10000 ~ 14,
+                                           TRUE ~ NA_integer_))
+  
+  setDT(x)
+  result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, income_group)]
+  return(result)
+}
+
+
+# 2. Combine results automatically using a "callback object"
+# take results from each chunk and stack them on each other
+cb_lido_1930 <- IpumsDataFrameCallback$new(cb_function_lido_income_1930)
+
+# Read data in chunks
+chunked_results_lido_1930 <-
+  read_ipums_micro_chunked(ddi_file_path_1930, callback = cb_lido_1930, chunk_size = 500000)
+
+# Combine results
+lido_income_by_city_ed_1930 <-
+  chunked_results_lido_1930 %>%
+  # drop missing CITY and b_ed
+  filter(CITY != 0, !is.na(b_ed)) %>% 
+  mutate(CITY_NAME = as.character(as_factor(CITY))) %>%
+  group_by(CITY_NAME, b_ed, b_city, income_group) %>%
+  summarize(population = sum(population), .groups = "drop") %>%
+  mutate(income_group = paste0("income_group_", income_group)) %>%
+  pivot_wider(names_from = income_group,
+              values_from = population,
+              values_fill = 0)
+
 
 ## Combine and output -----
 
 # combine datasets
 city_ed_data_1930 <- 
-  left_join(population_by_race_city_ed_1930, rent_group_by_city_ed_1930) %>% 
+  left_join(population_by_race_city_ed_1930, literacy_by_city_ed_1930) %>% 
+  left_join(rent_group_by_city_ed_1930) %>% 
   left_join(home_value_by_city_ed_1930) %>%
-  left_join(lf_status_by_city_ed_1930)
+  left_join(lf_status_by_city_ed_1930) %>% 
+  left_join(lido_income_by_city_ed_1930) 
   
 # output csv
 write_csv(city_ed_data_1930, here(output_dir, "city_ed_data_1930.csv"))
@@ -378,7 +464,6 @@ grf_1940 <- grf_1940 %>%
 # convert to datatable
 setDT(grf_1940)
 setkey(grf_1940, HISTID)
-
 
 
 ddi_file_path_1940 <- here(full_count_dir, "usa_00033.xml")
@@ -508,10 +593,13 @@ cb_function_income_1940 <- function(x, pos) {
   # Create family (wage) income
   x <- x %>%
     # Drop income == 0 or missing ()
-    filter(INCWAGE != 999998, INCWAGE != 999999) %>% 
+    filter(INCWAGE != 999998, INCWAGE != 999999, INCW) %>% 
     group_by(CITY, b_ed, b_city, SERIAL) %>% 
     summarise(family_wage = sum(INCWAGE), .groups = "drop") %>%   # %>% 
     # create wage income group
+    # These are the 1950 tract-level income groups
+    # TODO: This is fine... but maybe I would want to convert this to 1950 dollars before
+    # grouping it as I do in 1950 for a bit more consistency
     mutate(income_group = case_when(family_wage < 500 ~ 1, # 0-499
                                     family_wage >= 500 & family_wage < 1000 ~ 2, # 500-999
                                     family_wage >= 1000 & family_wage < 1500 ~ 3, # 1000-1499

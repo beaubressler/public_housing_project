@@ -109,7 +109,11 @@ census_tract_data <-
          asinh_median_home_value_calculated = asinh(median_home_value_calculated),
          asinh_distance_from_cbd = asinh(distance_from_cbd),
          ln_population_density = log(population_density),
-         asinh_private_population_estimate = asinh(private_population_estimate)) %>% 
+         asinh_private_population_estimate = asinh(private_population_estimate),
+         asinh_private_black_population_estimate = asinh(private_black_population_estimate),
+         asinh_private_white_population_estimate = asinh(private_white_population_estimate),
+         log_private_units_estimate = asinh(total_private_units_estimate)
+         ) %>% 
   # create county identifier
   mutate(county_id = paste0(STATEA, COUNTYA)) %>% 
   dplyr::rename(year = YEAR) %>% 
@@ -157,12 +161,35 @@ matching_vars <- c(
                    "black_share",
                    # SES
                    "unemp_rate", 
-                   "pct_hs_grad",
-                   # "asinh_median_income",
+                   # "pct_hs_grad",
+                   "asinh_median_income"
                    # housing
-                   "asinh_median_home_value_calculated",
-                   "asinh_median_rent_calculated"
+                 #  "median_home_value_calculated"
+               #    "median_rent_calculated" # non-asinh is actually more normal looking distribution
                    )
+
+# In this version, I am picking variables that were significant in the site selection analysis 
+# + adding median rent (as I want some housing variable)
+
+matching_vars <- c(
+  #"population_density",
+  "asinh_distance_from_cbd",
+  # population by race
+  "asinh_pop_total",
+#  "asinh_pop_black",
+  # "asinh_pop_white",
+  # "total_pop",
+  # "black_pop",
+  # "white_pop",
+  "black_share",
+  # SES
+  "unemp_rate", 
+  # "pct_hs_grad",
+  "asinh_median_income",
+  # housing
+  #  "median_home_value_calculated"
+     "median_rent_calculated" # non-asinh is actually more normal looking distribution
+)
 
 
 # function for plotting density plots

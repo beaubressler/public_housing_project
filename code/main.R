@@ -25,14 +25,13 @@ exploratory_dir <- here(learn_dir, "exploratory")
 
 ## Construct tract crosswalks -----
 ###  crosswalks from 1930-1980 to 1990 tracts ----
-# 0.1 (OLD: Run  construct_tract_crosswalk_eglp.py 
-source(here(census_tract_build_dir, "construct_tract_crosswalk_eglp.R"))
+source(here(census_tract_build_dir, "construct_tract_crosswalk_eglp_to_1950.R"))
 
 ### Create CBD indicators (based on 1980 CBDs) -----
 source(here(census_tract_build_dir, "create_cbd_crosswalk.R"))
 
 ### 1930 and 1940 enumeration district -> 1990 Tract crosswalks -----
-source(here(census_tract_build_dir, "construct_ed_to_tract_crosswalk_eglp.R"))
+source(here(census_tract_build_dir, "construct_ed_to_tract_crosswalk_eglp_1950.R"))
 
 ##  Clean Census tract data from NHGIS -------
 # population by race
@@ -45,10 +44,12 @@ source(here(census_tract_build_dir, "clean_census_tract_income_data.R"))
 source(here(census_tract_build_dir, "clean_census_tract_housing_data.R"))
 # Occupation shares
 source(here(census_tract_build_dir, "clean_census_tract_occupation_data.R"))
+# employment 
+source(here(census_tract_build_dir), "clean_census_tract_employment_data.R")
 
 ## Construct tract-level data from full count -----
 source(here(full_count_build_dir, "prep_grf_for_ed_merge.R"))
-source(here(full_count_build_dir, "collapse_full_county_to_ed.R"))
+source(here(full_count_build_dir, "collapse_full_count_to_ed.R"))
 source(here(full_count_build_dir, "collapse_ed_to_tract_data.R"))
 
 ## Clean other neighborhood data----
@@ -104,11 +105,13 @@ source(here(exploratory_dir, "graph_census_data.R"))
 source(here(regression_dir, "site_selection_analysis.R"))
 
 ### Run spatial DiD
-source(here(regression_dir, "run_spatial_did_regressions.R"))
+# 5/2025: For now, don't really need to do this
+#source(here(regression_dir, "run_spatial_did_regressions.R"))
 
 ### Matched DiD -----
-source(here(regression_dir, "create_matched_did_data.R"))
-source(here(regression_dir, "run_matched_did_regressions.R"))
+source(here(regression_dir, "run_matching_algorithm.R"))
+source(here(regression_dir, "assess_matching_and_balance.R"))
+source(here(regression_dir, "matched_did_with_rings.R"))
 
 
 

@@ -123,20 +123,18 @@ census_tract_sample_with_treatment_status_balanced <-
 ## Balance on availability of variables, 1940-1990 ----
 # Variables to balance on 
 balance_vars <- c("total_pop", "total_units", "black_share",
+                  "median_income",
                   "median_rent_calculated", "median_home_value_calculated",
-                  "lfp_rate", "unemp_rate",
-                  "population_density")  
-# NOTE: Median income is often missing, so I do not balance on that
+                  "lfp_rate", "unemp_rate")  
 
-## Issue is mostly with median income
-# So, I won't require balance on median income
 tracts_with_complete_vars <- 
   census_tract_sample_with_treatment_status_balanced %>%
   filter(YEAR %in% years_range) %>%
   st_drop_geometry() %>%
   group_by(GISJOIN_1950) %>%
   summarise(
-    across(all_of(balance_vars), ~ sum(!is.na(.)) == length(years_range))
+    # Check if NO values are missing (sum of NAs equals 0)
+    across(all_of(balance_vars), ~ sum(is.na(.)) == 0)
   ) %>%
   # Step 2: Combine into single complete-data flag
   mutate(has_complete_data = if_all(all_of(balance_vars), ~ . == TRUE)) %>%
@@ -193,7 +191,7 @@ num_of_tracts_1940 <-
 census_tract_sample_with_treatment_status_balanced <- 
   census_tract_sample_with_treatment_status_balanced %>%
   left_join(num_of_tracts_1940) %>% 
-  mutate(num_tracts_geq_50 = ifelse(num_tracts >= 50, TRUE, FALSE))
+  mutate(num_tracts_geq_50 = ifelse(num_tracts >= 30, TRUE, FALSE))
 
 ## Identify urban renewal tracts -----
 urban_renewal_tracts <-
@@ -209,8 +207,9 @@ census_tract_sample_with_treatment_status_balanced <-
   mutate(ur_binary_5pp = ifelse(is.na(ur_binary_5pp), 0, ur_binary_5pp),
          ur_binary_10pp = ifelse(is.na(ur_binary_10pp), 0, ur_binary_10pp))
 
-## Tracts with too few people in the pre-period -----
-# Keep tracts with at least 500 people in 1940: Avoid these tiny tracts
+## OLD: Tracts with too few people in the pre-period -----
+# Now: Just doing a quantile based trimming
+# Keep tracts with at least 100 people in 1940: Avoid these tiny tracts
 # that could mess things up
 
 small_tracts_1940 <- 
@@ -230,6 +229,26 @@ census_tract_sample_with_treatment_status_balanced <-
 
 # quantile(census_tract_sample_with_treatment_status_balanced$total_pop, probs = c(0.01,0.05, 0.1, 0.25, 0.75, 0.9, 0.99))
 
+## Windorize bottom and top 2% of tract population -----
+# Identify the bottom and top 2% of tract population in any year
+pop_quantiles <- census_tract_sample_with_treatment_status_balanced %>%
+  st_drop_geometry() %>%
+  summarise(
+    q02 = quantile(total_pop, 0.02, na.rm = TRUE),
+    q98 = quantile(total_pop, 0.98, na.rm = TRUE)
+  )
+
+q02 <- pop_quantiles$q02
+q98 <- pop_quantiles$q98
+
+tracts_to_remove <- 
+  census_tract_sample_with_treatment_status_balanced %>%
+  st_drop_geometry() %>%
+  filter(total_pop < q02 | total_pop > q98) %>%
+  pull(GISJOIN_1950) %>% 
+  unique()
+
+
 ## Apply filters ----
 balanced_sample <- 
   census_tract_sample_with_treatment_status_balanced %>% 
@@ -239,8 +258,8 @@ balanced_sample <-
   filter(treated_before_1960 == FALSE) %>% 
   # exclude urban renewal tracts
   filter(ur_binary_5pp == 0) %>% 
-  # filter out tracts with too few people in 1940
-  filter(small_tract_1940 == FALSE) %>%
+  # filter out tracts that are outside the bounds 
+  filter(!GISJOIN_1950 %in% tracts_to_remove) %>% 
   # keep only 1940 onward to avoid changes in the sample across cities and variables
   filter(YEAR >= 1940)
 
@@ -260,7 +279,7 @@ balanced_sample <-
   balanced_sample %>% 
   left_join(share_of_treated_tracts) %>% 
   # drop if more than 20% of tracts are treated
-  filter(share_treated <= .20)
+  filter(share_treated <= .25)
 
 ## Create new treated tracts panel ----
 # filter out tracts that are not in balanced sample
@@ -330,14 +349,14 @@ public_housing_in_sample <-
   public_housing_data %>%
   filter(project_code %in% treated_tracts_with_projects$project_code)
 
-# Numbers (Updated 6/3/2025)
-# 1940: 150876 (1940)
+# Numbers (Updated 7/24/2025)
+# 128224
 sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE)
 
-# Number of projects: 386 (5)
+# Number of projects: 320 (6/30)
 nrow(public_housing_in_sample %>% filter(!is.na(total_public_housing_units)))
 
-# number of treated tracts: 324 (with 1950 tracts)
+# number of treated tracts: 292 
 nrow(treated_tracts_with_projects %>% select(GISJOIN_1950) %>% distinct())
 
 # Output files ---- 
@@ -357,6 +376,7 @@ st_write(public_housing_in_sample, public_housing_sample_filepath,
 # Create 1950-1990 balanced sample -----
 # As a robustness check, I can use this dataset for site selection analysis
 
+#TODO: This inst working, troubleshoot
 years_range_1950 <- seq(1950, 1990, 10)
 
 # Identify tracts that appear in all years 1950–1990

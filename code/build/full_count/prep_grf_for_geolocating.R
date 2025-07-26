@@ -74,4 +74,11 @@ for (y in years) {
   
   # Save full **histid-street address** dataset for this year
   write_csv(combined_data, here(grf_output_dir, paste0("grf_addresses_", y, ".csv")))
+  
+  # save unique street addresses
+  unique_addresses <- combined_data %>% 
+    select(full_street_address) %>% 
+    distinct() %>% 
+    write_csv(here(grf_output_dir, paste0("grf_unique_addresses_", y, ".csv")))
+  
 }

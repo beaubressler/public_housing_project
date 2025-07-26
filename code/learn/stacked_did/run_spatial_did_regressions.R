@@ -32,8 +32,6 @@ library(fixest)
 library(ggfixest)
 library(did2s)
  
-rm(list=ls())
-
 set.seed(123)
 
 # !! choose which data to use:
@@ -84,14 +82,14 @@ event_study_data_rings <-
   read_csv(event_study_rings_output_path) 
 
 
-# TODO: Run stacked diff-in-diff with inner and outer rings ----
+# Run stacked diff-in-diff with inner and outer rings ----
 
 # function for running event study regressions
 run_event_study_regression <- function(data, dep_var) {
   
-  # testing
-  data <- event_study_data_rings
-  dep_var <- "black_share"
+  # !! testing
+  # data <- event_study_data_rings
+  # dep_var <- "black_share"
   
   data <-
     data %>% 
@@ -101,21 +99,39 @@ run_event_study_regression <- function(data, dep_var) {
     mutate(ring = factor(ring, levels = c(3,2,1), labels = c("outer", "inner", "treated"))) %>% 
     filter(event_time > -40, event_time != 50)
   
+  # CALCULATE WING (2024) weights following Guennewig-Moehnert
+  # R-style pseudo-code
+  data <- data %>%
+    group_by(treated_id, ring) %>%
+    mutate(N_re = n()) %>%
+    ungroup() %>%
+    group_by(ring) %>%
+    mutate(N_r = sum(N_re)) %>%
+    ungroup() %>%
+    mutate(wing_weight = N_r / N_re)
+  
     
   
-  formula <- as.formula(paste(dep_var, "~ i(event_time, ring, ref = -10, ref2 = 'outer')",
-                              "| treated_id^event_time + treated_id^ring + COUNTY^year + tract_id"))
   
+  formula <- as.formula(paste(dep_var, "~ i(event_time, ring, ref = -10, ref2 = 'outer')",
+                              "| treated_id^event_time + treated_id^ring + COUNTY^year+ GISJOIN_1950"))
+  
+  # + COUNTY^year 
   # Project (treated_id)-census year
   # Project (treated_id)-ring (location_type_factor)-neighborhood
   
   model <- 
-    feols(formula, data = data, cluster = c("treated_id", "tract_id"))
+    feols(formula, data = data, weights= ~wing_weight, 
+          cluster = c("treated_id", "GISJOIN_1950"))
   
   model_treated <-
-    feols(formula, data = data %>% filter(location_type != "inner"), cluster = c("treated_id", "tract_id"))
+    feols(formula, data = data %>% filter(location_type != "inner"), 
+          weight = ~wing_weight,
+          cluster = c("treated_id"))
   model_inner <-
-    feols(formula, data %>% filter(location_type != "treated"), cluster = c("treated_id", "tract_id"))
+    feols(formula, data %>% filter(location_type != "treated"),
+          weight = ~wing_weight,
+          cluster = c("treated_id"))
   
   model_treated
   model_inner
@@ -128,7 +144,8 @@ run_event_study_regression <- function(data, dep_var) {
     mutate_if(is.numeric, round, 4) %>% 
     # remove event_time:: and :treated_group from term
     mutate(term = str_remove(term, "event_time::"),
-           term = str_remove(term, ":treated_group")) %>% 
+           term = str_remove(term, ":ring::treated"),
+           term = str_remove(term, ":ring::inner")) %>% 
     #rename term event_time, convert to numeric
     dplyr::rename(event_time = term) %>%
     mutate(event_time = as.numeric(event_time))
@@ -268,6 +285,11 @@ event_study_rings_lfp_rate_tidy <-
 event_study_rings_emp_pop_ratio_tidy <-
   run_event_study_regression(
     data = event_study_data_rings, dep_var = "employment_pop_ratio")
+
+
+run_event_study_regression(
+    data = event_study_data_rings %>% filter(cbsa_title == "New York-Northern New Jersey-Long Island, NY-NJ-PA"),
+    dep_var = "asinh_pop_black")
 
 
 # Create plots and output to pdf in the output directory ----
@@ -473,21 +495,29 @@ blk_sh_75p <- quantile(pre_treatment_data$black_share, probs = 0.75)
 # black share of the treated tract is less than 25th percentile, "50th" if pre-treatment black share is between
 # 25th and 50th percentile, "75th" if pre-treatment black share is between 50th and 75th
 # percentile and "high" otherwise
+
 pre_treatment_blk_sh <-
   event_study_data_rings %>% 
   filter(event_time == -10, location_type == "treated") %>% 
   select(black_share, treated_id) %>%
-  dplyr::rename(pre_treatment_blk_sh_treated = black_share)
+  dplyr::rename(pre_treatment_blk_sh_treated = black_share) %>% 
+  ntile()
 
 blk_sh_25p <- quantile(pre_treatment_blk_sh$pre_treatment_blk_sh_treated, probs = 0.25, na.rm = TRUE)
 blk_sh_50p <- quantile(pre_treatment_blk_sh$pre_treatment_blk_sh_treated, probs = 0.5, na.rm = TRUE)
-blk_sh_75p <- quantile(pre_treatment_blk_sh$pre_treatment_blk_sh_treated, probs = 0.75, na.rm = TRUE)
+blk_sh_75p <- quantile(pre_treatment_blk_sh$pre_treatment_blk_sh_treated, probs = 0,75, na.rm = TRUE)
 
 event_study_data_rings <- 
   left_join(event_study_data_rings, pre_treatment_blk_sh)  %>%
   mutate(pre_treatment_blk_sh = case_when(pre_treatment_blk_sh_treated < blk_sh_25p  ~ "low",
                                           pre_treatment_blk_sh_treated > blk_sh_25p & pre_treatment_blk_sh_treated < blk_sh_50p ~ "medium",
-                                          pre_treatment_blk_sh_treated >= blk_sh_50p ~ "high"))
+                                          pre_treatment_blk_sh_treated >= blk_sh_50p ~ "high")) %>% 
+  # alternative definition
+  mutate(pre_treatment_blk_sh = case_when(pre_treatment_blk_sh_treated < .1 ~ "low",
+                                              pre_treatment_blk_sh_treated >= .1 & pre_treatment_blk_sh_treated < .5 ~ "medium",
+                                              pre_treatment_blk_sh_treated >= .5 ~ "high"
+                                              
+  ))
 
 
 # re-run event studies separately for each pre-treatment black share group
@@ -495,7 +525,8 @@ for(race_group in unique(event_study_data_rings %>% filter(!is.na(pre_treatment_
   # Filter the dataset for the current size
   filtered_data <- event_study_data_rings %>% filter(pre_treatment_blk_sh == race_group)
   
-  pdf_file_name <- paste0(did_output_dir, "by_initial_share/ring_event_study_plots_by_blk_share_", race_group, ".pdf")
+  pdf_dir <- here(did_output_dir, "by_initial_share")
+  pdf_file_name <- here(pdf_dir, paste0("ring_event_study_plots_by_blk_share_", race_group, ".pdf"))
   
   # Open PDF device for the current size
   pdf(pdf_file_name, width = 10, height = 5)

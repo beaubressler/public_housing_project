@@ -29,10 +29,11 @@ digitized_projects_raw <- read_csv(here(working_dir, "geocoded_projects.csv"))
 # cleveland_projects <- read_xlsx("data/digitization/cleveland/1973_cmha_annual_report.xlsx")
 
 # Manual lat-long fixes
-# These were checked by undergrad RA
+# These were checked by undergrad RAs (or Beau)
 manual_fixes <- 
   read_xlsx(here(working_dir, "geocoded_projects_handchecked.xlsx")) %>% 
-  filter(city == "New York City" | city == "San Francisco") %>% 
+  #filter(city == "New York City" | city == "San Francisco") %>% 
+  filter(checked == "YES") %>% 
   select(project_code, address_or_streets, correct_intersection) %>% 
   filter(correct_intersection != "N/A") %>% 
   # split correct intersection into lat and long
@@ -143,11 +144,13 @@ cdd_data_for_combined_data <-
   # drop scattered sites
   filter(!str_detect(name, "Scattered"), !str_detect(name, "Scatter")) %>% 
   select(state, locality, project_code, name, totunitsplanned,
-         yearfullocc, latitude, longitude, statefips, countyfips, 
+         yearfullocc, monthfullocc, latitude, longitude, statefips, countyfips, 
          state_usps, slum, starts_with("proj_")) %>% 
   # define source, also note all CDD projects are federal
   mutate(source = "CDD", federal_or_state = "federal") %>% 
-  dplyr::rename(year_completed = yearfullocc, total_units = totunitsplanned,
+  dplyr::rename(year_completed = yearfullocc,
+                month_completed = monthfullocc,
+                total_units = totunitsplanned,
                 project_name = name) 
 
 # digitized data
@@ -225,7 +228,7 @@ combined_data <-
   bind_rows(cdd_data_for_combined_data, digitized_data_for_combined_data) %>% 
   bind_rows(merged_boston_data) %>% 
   select(state, locality, project_code, project_name, total_units, 
-         year_completed, latitude, longitude, statefips, countyfips, 
+         year_completed, month_completed, latitude, longitude, statefips, countyfips, 
          statefip, state_usps, slum, source, latitude, longitude,
          contains("proj_")) 
 

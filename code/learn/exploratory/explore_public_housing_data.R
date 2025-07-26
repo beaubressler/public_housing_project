@@ -1,6 +1,6 @@
-####
-# Exploratory analysis of CDD merged data
-#####
+##
+# Exploratory analysis of public housing data
+##
 
 # Preliminaries ----
 library(tidyverse)
@@ -9,6 +9,8 @@ library(sf)
 library(maps)
 library(mapdata)
 library(tigris)
+library(ggrepel)
+
 
 # dataset choice
 # !! Set this yourself
@@ -17,6 +19,7 @@ dataset_choice <- "combined"
 # directories
 merged_data_dir <- here("data", "derived", "merged")
 ph_data_dir <- here("data", "derived", "public_housing", "working")
+census_data_dir <- here("data", "derived", "census")
 
 ## filepaths
 balanced_sample_filepath <- 
@@ -25,6 +28,8 @@ balanced_treated_tracts_panel_filepath <-
   here(merged_data_dir, dataset_choice, "treated_tracts_panel_balanced.gpkg")
 public_housing_sample_filepath <-
   here(ph_data_dir, dataset_choice, "public_housing_sample_balanced.gpkg")
+treated_and_rings_dir <- 
+  here(merged_data_dir, dataset_choice, "unique_tracts_and_rings.csv")
 
 
 # Datasets before balancing
@@ -42,10 +47,16 @@ original_ph_data <- read_csv(here(ph_data_dir, "merged_cdd_projects_non_collapse
 original_ph_data_collapsed <- read_csv(here(ph_data_dir, "merged_cdd_projects.csv"))
 
 # read in datasets
-balanced_sample <- read_sf(balanced_sample_filepath)
+
+full_census_data <- read_sf(tract_with_treatment_status_filepath)
+balanced_sample <- read_sf(balanced_sample_filepath)  # 
 treated_tracts <- read_sf(balanced_treated_tracts_panel_filepath)
 public_housing_sample <- read_sf(public_housing_sample_filepath)
+tracts_and_rings <- read_csv(treated_and_rings_dir)
 
+
+# full census dataset for map
+census_tract_data <- read_sf(here(census_data_dir, "tract_population_data.gpkg"))
 
 ## Before balancing: Figure out where the ones that are not in my sample are
 
@@ -66,7 +77,7 @@ sum(public_housing_sample$total_public_housing_units, na.rm = TRUE)
 # get number of unique treated tracts
 first_treated_tract <- 
   treated_tracts %>% 
-  distinct(COUNTY, TRACTA, STATE, city, cbsa_title,
+  distinct(GISJOIN_1950, city, cbsa_title,
            total_public_housing_units, treatment_year)
 
 nrow(first_treated_tract)
@@ -101,7 +112,7 @@ tracts_summary <-
 # original treated tracts: 1022
 first_treated_tracts_original <- 
   original_treated_tracts %>% 
-  distinct(COUNTY, TRACTA, STATE, city, total_public_housing_units)
+  distinct(GISJOIN_1950, city, total_public_housing_units)
 
 
 # public housing projects not in my sample
@@ -137,9 +148,15 @@ public_housing_projects_not_in_sample_other_localities <-
 public_housing_projects_not_in_sample_other_localities %>% 
   distinct(locality)
 
-# how many units in these projects
+# how many units in these projects: 542K
 sum(public_housing_projects_not_in_sample_other_localities$total_public_housing_units)
 
+# by locality
+# Largest: Newawk (why is it missing?), San Antonio, Miami, Tampa
+public_housing_projects_not_in_sample_other_localities %>% 
+  group_by(locality) %>% 
+  summarise(total_units = sum(total_public_housing_units, na.rm = TRUE)) %>% 
+  arrange(desc(total_units))
 
 # Produce graphs ----
 
@@ -160,7 +177,7 @@ ggsave(here(fig_dir, "units_per_cbsa_plot.pdf"), units_per_cbsa_plot,
         width = 8, height = 6, dpi = 900,
        bg = "white")
 
-`## number of treated tracts per city ----
+## number of treated tracts per city ----
 tracts_per_cbsa_plot <- 
   ggplot(tracts_summary, aes(x = reorder(cbsa_title, n), y = n)) +
   geom_bar(stat = "identity", fill = "darkgreen") +
@@ -256,7 +273,7 @@ average_size_of_projects_per_year_plot <-
   labs(
     title = "Average Size of Public Housing Projects by Year Completed",
     x = "Year Completed",
-    y = "Average Size of Public Housing Projects"
+    y = "Average Number of Housing Units"
   ) +
   theme_minimal()
 average_size_of_projects_per_year_plot
@@ -331,7 +348,8 @@ share_units_with_missing_latitude <-
 
 # Plot
 share_missing_units_with_missing_latitude_plot <- 
-  ggplot(share_units_with_missing_latitude, aes(x = reorder(locality, share_units_missing_latitude), y = share_units_missing_latitude)) +
+  ggplot(share_units_with_missing_latitude,
+         aes(x = reorder(locality, share_units_missing_latitude), y = share_units_missing_latitude)) +
   geom_bar(stat = "identity", fill = "darkgreen") +
   coord_flip() +
   scale_y_continuous(labels = scales::percent_format()) +
@@ -365,3 +383,137 @@ number_of_projects_with_missing_latitude_plot <-
   ) +
   theme_minimal()
 number_of_projects_with_missing_latitude_plot
+
+# Maps of Chicago projects and tracts ----
+
+## Map of Chicago projects ----
+highlighted_projects <- public_housing_sample %>%
+  filter(project_name %in% c("Cabrini Extension", 
+                             "Robert R. Taylor Homes"))
+
+
+chicago_ph_sample <- 
+  public_housing_sample %>% 
+  filter(locality == "CHICAGO")
+
+chicago_coords <- chicago_ph_sample %>% 
+  st_coordinates()
+
+# find row wit hthe minimum longitude
+westmost_index <- which.min(chicago_coords[,1])
+westmost_point <- chicago_ph_sample[westmost_index,]
+
+# plot map
+ggplot() +
+  # Cook County Census Tracts (background layer)
+  geom_sf(data = census_tract_data %>%
+            filter(COUNTY == "Cook", STATE == "Illinois", YEAR == 1940
+                   ), 
+          fill = "white", color = "gray80", size = 0.2) +  
+  # Public Housing Projects
+  geom_sf(data = public_housing_sample %>% filter(locality == "CHICAGO"),
+          aes(size = total_public_housing_units),
+          color = "#0072B2", alpha = 0.8) +  
+  # Labels for key projects (with repel to avoid overlap)
+  geom_text_repel(data = highlighted_projects, 
+                  aes(label = project_name, geometry = geom),
+                  stat = "sf_coordinates", size = 3, fontface = "bold",
+                  box.padding = 0.8, point.padding = 0.5, 
+                  segment.color = "black", segment.size = 0.3,
+                  max.overlaps = Inf, min.segment.length = 0) +
+  # Title and Legend
+  labs(title = "Chicago Public Housing Projects in Sample",
+       size = "# of Units") +
+# Custom Themes
+  theme_void() +  # Removes background elements for a cleaner look
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 14, hjust = 0.5),
+    plot.caption = element_text(size = 10, hjust = 0.5, color = "gray50"),
+    legend.position = "bottom",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  ) +
+  scale_size(range = c(1, 6))  # Adjust point scaling
+
+
+ggsave(here(fig_dir, "public_housing_projects_chicago.pdf"), width = 8, height = 6, dpi = 900,
+       bg = "white")
+
+## Map of Chicago treated tracts, nearby neighborhoods, urban renewal -----
+chicago_all_tracts <- 
+  census_tract_data %>%
+  filter(COUNTY == "Cook", STATE == "Illinois", YEAR == 1940)
+
+# Get treated tracts in Chicago
+chicago_treated_tracts <- 
+  treated_tracts %>%
+  filter(city == "Chicago") %>%
+  # If you need to filter by a specific year, uncomment and modify the next line
+  # filter(YEAR == 1970) %>% 
+  select(TRACTA, COUNTY, STATE, treated, treatment_year, total_public_housing_units) %>%
+  distinct()
+
+# Get all Chicago tracts from balanced sample for context
+chicago_balanced_sample <-
+  balanced_sample %>%
+  filter(city == "Chicago") %>%
+  filter(YEAR == 1990) %>%  # Using 1990 to show final treatment status
+  select(TRACTA, COUNTY, STATE, treated) %>%
+  st_drop_geometry() %>% 
+  mutate(treated = factor(treated, levels = c(0, 1), labels = c("Never treated", "Ever Treated")))
+
+
+chicago_rings <- 
+  tracts_and_rings %>%
+  filter(COUNTY == "Cook") %>% 
+  select(-treatment_year) %>% 
+  filter(location_type != "outer")
+
+
+chicago_all_tracts_w_status <- 
+  chicago_all_tracts %>% 
+  left_join(chicago_rings) %>% 
+  left_join(chicago_balanced_sample) %>% 
+  mutate(status = ifelse(location_type == "treated", "Treated", "Never Treated")) %>% 
+  mutate(status = ifelse(location_type == "inner", "Neighbor", status)) %>% 
+  mutate(status = ifelse(is.na(location_type), "Never Treated",status)) %>% 
+  mutate(status = ifelse(is.na(treated), "Excluded", status))
+  
+
+# Create a dataset by joining onto all  
+
+# Create a map of Chicago treated tracts
+ggplot() +
+  # Cook County Census Tracts (background layer)
+  geom_sf(data = chicago_all_tracts_w_status,
+          aes(fill = status),
+           color = "black", size = 0.3, alpha = 0.9) +  
+    # Add projects as points for reference
+  geom_sf(data = chicago_ph_sample, size = 1.5, 
+          color = "lightgreen", alpha = 0.9) +   
+  # Customize appearance
+    # scale_fill_manual(values = c("white", "lightblue", "gray", "darkblue"),
+    # name = "Treatment Status") +
+  scale_fill_manual(values = c("Never Treated" = "#D3D3D3",  
+                               "Excluded" = "#F0F0F0",   
+                               "Neighbor" = "#E66100",  # Slightly darker orange
+                               "Treated" = "#00008B"),  # Dark Blue
+                    name = "Treatment Status") +
+
+    scale_size(range = c(0.5, 4), name = "PH Units") +
+    # Labels and theme
+    labs(title = "Chicago: Treatment assignment") +
+    theme_void() +
+    theme(
+      plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 14, hjust = 0.5),
+      legend.position = "bottom",
+      legend.title = element_text(size = 12),
+      legend.text = element_text(size = 10),
+      legend.box = "vertical"
+    )
+  
+ggsave(here(fig_dir, "chicago_treatment_assignment.pdf"), width = 8, height = 6, dpi = 900,
+       bg = "white")
+

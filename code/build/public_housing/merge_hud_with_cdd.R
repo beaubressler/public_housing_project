@@ -151,6 +151,22 @@ cdd_data <-
   cdd_data %>% 
   mutate(totunits = if_else(!is.na(yearfullocc) & (is.na(totunits) | totunits == 0), totunitsplanned, totunits))
 
+# 4. Get month of occupancy
+cdd_data <-
+  cdd_data %>% 
+  mutate(
+    # parse month abbreviation and 2-digit year
+    date_fullocc = parse_date_time(fullocc, orders = "b-y"),
+    
+    # correct year if it's post-2000
+    date_fullocc = if_else(year(date_fullocc) > 2024, 
+                           date_fullocc %m-% years(100), 
+                           date_fullocc),
+    
+    monthfullocc = month(date_fullocc)
+  ) %>% 
+  select(-date_fullocc)
+
 ### 0.3 Clean NGDA data ----
 ngda_data_developments <- 
   ngda_data_developments_raw %>% 
@@ -337,12 +353,26 @@ merged_cdd_project_data %>%
   mutate(share = total_units_no_missing_lat/total_units) %>% 
   pull(share)
 
-# manual fixes -----
+# manual fixes to project locations-----
 merged_cdd_project_data <-
   merged_cdd_project_data %>%
   # pruitt-igoe: 38.642122, -90.208910
-  mutate(latitude = ifelse(project_code == "MO-1-4" & is.na(latitude), 38.642122, latitude),
-         longitude = ifelse(project_code == "MO-1-4" & is.na(longitude), -90.208910, longitude))
+  mutate(name = ifelse(project_code == "MO-1-4", "Pruitt-Igoe", name),
+         source = ifelse(project_code == "MO-1-4" & is.na(latitude), "manual", source),
+         latitude = ifelse(project_code == "MO-1-4" & is.na(latitude), 38.642122, latitude),
+         longitude = ifelse(project_code == "MO-1-4" & is.na(longitude), -90.208910, longitude)) %>% 
+  # Brewster (MI-1-13): 701 units: 42.350130, -83.050177
+  mutate(name = ifelse(project_code == "MI-1-13", "Brewster", name),
+         source = ifelse(project_code == "MI-1-13" & is.na(latitude), "manual", source),
+         latitude = ifelse(project_code == "MI-1-13", 42.350130, latitude),
+         longitude = ifelse(project_code == "MI-1-13", -83.050177, longitude)
+         ) %>% 
+  # College Court (Louisville, KY-1-8):  38.240843, -85.764867
+  mutate(name = ifelse(project_code == "KY-1-8", "College Court", name),
+         source = ifelse(project_code == "KY-1-8" & is.na(latitude), "manual", source),
+         latitude = ifelse(project_code == "KY-1-8", 38.240843, latitude),
+         longitude = ifelse(project_code == "KY-1-8", -85.764867, longitude)
+  )
 
 # Collapse dataset by project code ----
 
@@ -392,7 +422,9 @@ collapsed_data <-
             totunitsplanned = sum(totunitsplanned, na.rm = TRUE),
             totelderly = sum(totelderly, na.rm = TRUE),
             roomsperunit = mean(roomsperunit, na.rm = TRUE),
+            # I am keeping the LAST yearfullocc and monthfullocc... why?
             yearfullocc = last(yearfullocc, na_rm = TRUE),
+            monthfullocc = last(monthfullocc, na_rm = TRUE),
             statefips = first(statefips, na_rm = TRUE),
             countyfips = first(countyfips, na_rm = TRUE),
             state_usps = first(state_usps, na_rm = TRUE),

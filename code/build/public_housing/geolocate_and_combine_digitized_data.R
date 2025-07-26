@@ -15,10 +15,11 @@ library(mapsapi)
 
 library(osmdata)
 library(sf)
-
-
 # places api
 library(googleway)
+
+library(here)
+
 
 digitization_dir <- "data/digitization/"
 out_dir <- "data/derived/public_housing/working/"
@@ -140,22 +141,90 @@ chicago_data <-
   mutate(year_completed_raw = year_completed,
          year_completed = as.numeric(str_extract(year_completed, "[0-9]{4}"))) %>% 
   mutate(total_acres = as.numeric(total_acres),
-         total_units = as.numeric(total_units))
+         total_units = as.numeric(total_units)) %>% 
+  # create project with name
+  mutate(project_name_with_city = paste0(project_name, ", Chicago, IL"))
+    
+
 
 
 # geocode: Note, this gets all of the addresses
 chicago_geocoded_google <- 
   chicago_data %>%
-  geocode(address_clean, method = "google") %>% 
+  geocode(address_clean, method = "google", lat = "lat_address", long = "long_address") %>% 
+  geocode(project_name_with_city, method = "google", lat = "lat_name_with_city", long = "long_name_with_city") %>% 
   # reverse geocode to make sure the address makes sense
-  reverse_geocode(lat, long, address = "reverse_geocoded_address") %>% 
-  mutate(geocode_source = "address")
+  reverse_geocode(lat_address, long_address, address = "reverse_geocoded_address") %>% 
+  reverse_geocode(lat_name_with_city, long_name_with_city, address = "reverse_geocoded_address_name_with_city")
+
+# calculate distance between the two geocoded addresses
+chicago_geocoded_google <-
+  chicago_geocoded_google %>% 
+  mutate(
+    geom_address = map2(long_address, lat_address, ~ st_point(c(.x, .y))),
+    geom_name_with_city = map2(long_name_with_city, lat_name_with_city, ~ st_point(c(.x, .y)))
+  ) %>%
+  # Convert the list of points to sfc objects with the correct CRS (EPSG:4326)
+  mutate(
+    geom_address = st_sfc(geom_address, crs = 4326),
+    geom_name_with_city = st_sfc(geom_name_with_city, crs = 4326)
+  ) %>%
+  # Calculate the distance between the two geometries for each row
+  mutate(distance_m = st_distance(geom_address, geom_name_with_city, by_element = TRUE),
+         distance_km = as.numeric(distance_m) / 1000) %>% 
+  mutate(
+    lat_long_address = paste(lat_address, long_address, sep = ", "),
+    lat_long_name_with_city = paste(lat_name_with_city, long_name_with_city, sep = ", ")
+  ) %>% 
+  # identify particular places where we should use the "name" based geolocation
+  # Prticularly, checked cases where difference between the two geocoded addresses was > 1 km
+  mutate(lat = 
+           case_when (project_name == "Philip Murray Homes" ~ lat_name_with_city,
+                      project_name == "Stateway Gardens" ~ lat_name_with_city,
+                      project_name == "Clark & Irving Apts." ~ lat_name_with_city,
+                      .default = lat_address
+           ),
+  long =
+           case_when (project_name == "Philip Murray Homes" ~ long_name_with_city,
+                      project_name == "Stateway Gardens" ~ long_name_with_city,
+                      project_name == "Clark & Irving Apts." ~ long_name_with_city,
+                      .default = long_address
+           )) %>% 
+  # manual fixes: Identified these through looking at google maps
+  # Particularly, checked cases where difference between the two geocoded addresses was > 1 km
+  mutate(lat_fix = case_when(
+    project_name == "Washington Park Homes" & address_or_streets == "57th-Stewart : 58th-Normal" ~ 41.78868,
+    project_name == "Raymond M. Hilliard Center" ~ 41.85350,
+    project_name == "Armour Sq. Apts. & Annex" ~ 41.83510,
+    project_name == "Harold L. Ickes Homes" ~ 41.85108
+  ),
+  long_fix = case_when(
+    project_name == "Washington Park Homes" & address_or_streets == "57th-Stewart : 58th-Normal" ~ -87.63639,
+    project_name == "Raymond M. Hilliard Center" ~ -87.62780,
+    project_name == "Armour Sq. Apts. & Annex" ~ -87.63164,
+    project_name == "Harold L. Ickes Homes" ~ -87.62866
+  )) %>%
+  # apply manual fixes
+  mutate(lat = if_else(is.na(lat_fix), lat, lat_fix),
+         long = if_else(is.na(long_fix), long, long)) %>%
+  # document source
+  mutate(geocode_source = case_when(
+    project_name == "Philip Murray Homes" ~ "name_with_city",
+    project_name == "Stateway Gardens" ~ "name_with_city",
+    project_name == "Clark & Irving Apts." ~ "name_with_city",
+    !is.na(lat_fix) ~ "manual",
+    TRUE ~ "address"
+  ))
+  
+
+# output the geocded data
+write_csv(chicago_geocoded_google, here(digitization_dir, "chicago", "chicago_geocoded_projects.csv"))
 
 #write_csv(chicago_geocoded_google, paste0(out_dir, "chicago_1973_geocoded.csv"))
 
 ## San Francisco -----
-sf_raw_1973 <- read_xlsx(paste0(digitization_dir, "san_francisco/1973_project_list.xlsx"))
-sf_raw_1966 <- read_xlsx(paste0(digitization_dir, "san_francisco/1966_sfha_annual_report.xlsx"))
+sf_raw_1973 <- read_xlsx(here(digitization_dir, "san_francisco", "1973_project_list.xlsx"))
+sf_raw_1966 <- read_xlsx(here(digitization_dir, "san_francisco", "1966_sfha_annual_report.xlsx"))
 
 # Geolocating works best with a single intersection, so I will create an abbreviated addresscolumn
 # that includes only the first two street names, and another column with the last two streets
@@ -284,11 +353,15 @@ sf_geocoded_1973_google_with_fixes <-
     TRUE ~ "first_two_streets"
   ))
 
-# not perfect, but we will use this for now....
+
+# output 
+write_csv(sf_geocoded_1973_google_with_fixes, here(digitization_dir, "san_francisco", "sf_geocoded_projects.csv"))
+
+
 
 ## Los Angeles -----
 
-la_raw <- read_xlsx(paste0(digitization_dir, "los_angeles/la_housing_authority_annual_report.xlsx"))
+la_raw <- read_xlsx(here(digitization_dir, "los_angeles", "la_housing_authority_annual_report.xlsx"))
 
 # geocode
 la_geocoded_google <- 
@@ -298,10 +371,12 @@ la_geocoded_google <-
   reverse_geocode(lat, long, address = "reverse_geocoded_address") %>% 
   mutate(geocode_source = "address")
 
+# output
+write_csv(la_geocoded_google, here(digitization_dir, "los_angeles", "la_geocoded_projects.csv"))
 
 ## Washington DC ------
 
-dc_raw <- read_xlsx(paste0(digitization_dir, "washington_dc/1972_ncha_annual_report.xlsx"))
+dc_raw <- read_xlsx(here(digitization_dir, "washington_dc", "1972_ncha_annual_report.xlsx"))
 
 # clean addresses to include one intersection
 dc_data <- 
@@ -327,10 +402,12 @@ dc_geocoded_google <-
   reverse_geocode(lat, long, address = "reverse_geocoded_address") %>% 
   mutate(geocode_source = "address")
 
+# output 
+write_csv(dc_geocoded_google, here(digitization_dir, "washington_dc", "dc_geocoded_projects.csv"))
 
 ## Atlanta -----
 
-atlanta_raw <- read_xlsx(paste0(digitization_dir, "atlanta/atlanta_annual_report_1970.xlsx"))
+atlanta_raw <- read_xlsx(here(digitization_dir, "atlanta", "atlanta_annual_report_1970.xlsx"))
 
 # geocode
 atlanta_geocoded_google <- 
@@ -341,9 +418,11 @@ atlanta_geocoded_google <-
   reverse_geocode(lat, long, address = "reverse_geocoded_address") %>% 
   mutate(geocode_source = "address")
 
+# output
+write_csv(atlanta_geocoded_google, here(digitization_dir, "atlanta", "atlanta_geocoded_projects.csv"))
 
 ## Baltimore -----
-baltimore_raw <- read_xlsx(paste0(digitization_dir, "baltimore/baltimore_projects.xlsx"))
+baltimore_raw <- read_xlsx(here(digitization_dir, "baltimore", "baltimore_projects.xlsx"))
 
 # geocode
 baltimore_geocoded_google <- 
@@ -353,6 +432,9 @@ baltimore_geocoded_google <-
   reverse_geocode(lat, long, address = "reverse_geocoded_address") %>% 
   # geocode source column
   mutate(geocode_source = "address")
+
+# output
+write_csv(baltimore_geocoded_google, here(digitization_dir, "baltimore", "baltimore_geocoded_projects.csv"))
 
 # Download Baltimore City boundaries
 # baltimore_boundary <-
@@ -381,10 +463,10 @@ baltimore_geocoded_google <-
 # 0. Geolocate the projects
 # 1. Merge in the initial population data from Max-GM
 
-nyc_raw <- read_xlsx(paste0(digitization_dir, "nycha/pdbdec1973_digitization.xlsx"))
+nyc_raw <- read_xlsx(here(digitization_dir, "nycha", "pdbdec1973_digitization.xlsx"))
 
-nyc_population_data_raw <-
-  read_xlsx(paste0(digitization_dir, "nycha/initial_composition_ph.xlsx"), sheet = "Final data")
+# nyc_population_data_raw <-
+#   read_xlsx(here(digitization_dir, "nycha", "initial_composition_ph.xlsx"), sheet = "Final data")
 
 # geocode projects (up through 1973)
 nyc_data <-
@@ -488,8 +570,11 @@ nyc_geocoded_google_with_fixes <-
     )
   )
 
+# output 
+write_csv(nyc_geocoded_google_with_fixes, here(digitization_dir, "nycha", "nyc_geocoded_projects.csv"))
+
 ## Boston ----
-boston_raw <- read_xlsx(paste0(digitization_dir, "boston/boston_housing_projects_final.xlsx"))
+boston_raw <- read_xlsx(here(digitization_dir, "boston", "boston_housing_projects_final.xlsx"))
 
 # geocode
 boston_geocoded_google <- 
@@ -500,9 +585,27 @@ boston_geocoded_google <-
   # geocode source column
   mutate(geocode_source = "address")
 
-# TODO: Cincinnati, Detroit, Philadelphia, Pittsburgh, Cleveland, St Louis, (optional) Miami
+# output
+write_csv(boston_geocoded_google, here(digitization_dir, "boston", "boston_geocoded_projects.csv"))
+
 
 # Combine digitized projects into a single dataset ------
+
+# If running separate, can uncomment and read in the geocoded files
+# This allows you to edit this dataset without necessarily re-geocoding every city
+# E.g. If you want to re-run new york, you can run the new york geocoding above, uncomment
+# every other city below, and then combine them all together
+
+# chicago_geocoded_google <- read_csv(here(digitization_dir, "chicago", "chicago_geocoded_projects.csv"))
+# sf_geocoded_1973_google_with_fixes <- read_csv(here(digitization_dir, "san_francisco", "sf_geocoded_projects.csv"))
+# la_geocoded_google <- read_csv(here(digitization_dir, "los_angeles", "la_geocoded_projects.csv"))
+# dc_geocoded_google <- read_csv(here(digitization_dir, "washington_dc", "dc_geocoded_projects.csv"))
+# atlanta_geocoded_google <- read_csv(here(digitization_dir, "atlanta", "atlanta_geocoded_projects.csv"))
+# baltimore_geocoded_google <- read_csv(here(digitization_dir, "baltimore", "baltimore_geocoded_projects.csv"))
+# nyc_geocoded_google_with_fixes <- read_csv(here(digitization_dir, "nyc", "nyc_geocoded_projects.csv"))
+# boston_geocoded_google <- read_csv(here(digitization_dir, "boston", "boston_geocoded_projects.csv"))
+
+# Combine all geocoded projects into a single dataset
 
 all_geocoded_projects <-
   bind_rows(
@@ -514,7 +617,8 @@ all_geocoded_projects <-
     baltimore_geocoded_google %>% mutate(city = "Baltimore"),
     nyc_geocoded_google_with_fixes %>% mutate(city = "New York City"),
     boston_geocoded_google %>% mutate(city = "Boston")
-  ) 
+  )
+
 
 # Save ----
 

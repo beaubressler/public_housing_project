@@ -142,8 +142,10 @@ reshaped_census_data <-
   filter(YEAR %in% c(1930, 1940, 1950, 1960)) %>%
   select(GISJOIN_1950, YEAR, share_no_water, share_needing_repair, black_share, population_density,
          housing_density, pct_hs_grad, median_income, median_home_value_calculated, median_rent_calculated, median_housing_age,
-         black_pop, total_pop, total_units, low_skill_share, lfp_rate, unemp_rate) %>%
+         black_pop, total_pop, white_pop, total_units, low_skill_share, lfp_rate, unemp_rate) %>%
   mutate(asinh_total_pop = asinh(total_pop),
+         asinh_black_pop = asinh(black_pop),
+         asinh_white_pop = asinh(white_pop),
          asinh_median_income = asinh(median_income),
          asinh_median_rent_calculated = asinh(median_rent_calculated),
          asinh_median_home_value_calculated = asinh(median_home_value_calculated)) %>% 
@@ -152,8 +154,8 @@ reshaped_census_data <-
     values_from = c(share_no_water, share_needing_repair, black_share, population_density,
                     housing_density, pct_hs_grad, median_income, median_home_value_calculated, 
                     median_rent_calculated, median_housing_age, 
-                    black_pop, total_pop, total_units, low_skill_share,
-                    asinh_total_pop, asinh_median_income, 
+                    total_units, low_skill_share, total_pop, white_pop, black_pop,
+                    asinh_total_pop, asinh_white_pop, asinh_black_pop, asinh_median_income, 
                     asinh_median_rent_calculated, asinh_median_home_value_calculated,
                     lfp_rate, unemp_rate),
     names_glue = "{.value}_{YEAR}"
@@ -233,7 +235,6 @@ reduced_varlist <-
   
 reduced_varlist_formula <- paste(reduced_varlist, collapse = " + ")
 
-## 1950 characteristics -----
 ## Model 1. Demographics
 model_1_probit <- 
   feglm(treated ~
@@ -255,7 +256,7 @@ model_1_probit_conley <-
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
         vcov = vcov_conley(lat = "lat", lon = "lon", 
-                    cutoff = 1)) 
+                    cutoff = 2)) 
 model_1_probit_conley_me <- avg_slopes(model_1_probit_conley)
 model_1_probit_conley_me
 
@@ -290,7 +291,7 @@ model_2_probit_conley <-
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
         vcov_conley(lat = "lat", lon = "lon", 
-                    cutoff = 1))
+                    cutoff = 2))
 model_2_probit_conley_me <- avg_slopes(model_2_probit_conley)
 model_2_probit_conley_me
 
@@ -298,11 +299,12 @@ model_2_probit_conley_me
 model_3_probit <- 
   feglm(treated ~
           black_share_1950 + 
+          asinh_total_pop_1950 +
           median_income_1950  + 
           pct_hs_grad_1950 +
           unemp_rate_1950 + 
           redlined_binary_80pp + 
-          population_density_1950 +
+          #population_density_1950 +
           asinh_distance_from_cbd + 
           cbd + 
           share_needing_repair_1940 + 
@@ -316,6 +318,9 @@ model_3_probit_me
 
 model_3_probit_conley <- 
   feglm(treated ~
+          asinh_black_pop_1950 + 
+          asinh_total_pop_1950 +
+          asinh_white_pop_1950 +
           black_share_1950 + 
           median_income_1950  + 
           pct_hs_grad_1950 +
@@ -331,11 +336,11 @@ model_3_probit_conley <-
         family = binomial(link = "probit"), 
         data = census_tract_sample_1990,
         vcov_conley(lat = "lat", lon = "lon", 
-                    cutoff = 1))
+                    cutoff = 2))
 
+model_3_probit_conley
 model_3_probit_conley_me <- avg_slopes(model_3_probit_conley)
 model_3_probit_conley_me
-
 
 # output 
 models <- list(
@@ -423,7 +428,7 @@ model_1_lpm_conley <-
           pct_hs_grad_1950 | county_id, 
         data = census_tract_sample_1990,
         vcov_conley(lat = "lat", lon = "lon", 
-                    cutoff = 1))
+                    cutoff = 2))
 model_1_lpm_conley
 
 ## Model 2. Add neighborhood characteristics
@@ -449,12 +454,12 @@ model_2_lpm_conley <-
           pct_hs_grad_1950 +
           unemp_rate_1950 + 
           redlined_binary_80pp + 
-          population_density_1950 +
+          asinh_total_pop_1950 +
           cbd + 
           asinh_distance_from_cbd | county_id, 
         data = census_tract_sample_1990,
         vcov_conley(lat = "lat", lon = "lon", 
-                    cutoff = 1))
+                    cutoff = 2))
 model_2_lpm_conley
 
 ## Model 3. Add housing characteristics
@@ -466,11 +471,11 @@ model_3_lpm <-
           unemp_rate_1950 + 
           redlined_binary_80pp + 
           population_density_1950 +
-          asinh_distance_from_cbd + 
           cbd + 
           share_needing_repair_1940 + 
-          median_home_value_calculated_1950 + 
-          median_rent_calculated_1950 | county_id, 
+          asinh_distance_from_cbd + 
+          median_rent_calculated_1950 + 
+          median_home_value_calculated_1950 | county_id,
         data = census_tract_sample_1990,
         cluster = "GISJOIN_1950")
 model_3_lpm
@@ -479,11 +484,12 @@ model_3_lpm
 model_3_lpm_conley <- 
   feols(treated ~
           black_share_1950 + 
-          median_income_1950  + 
+          asinh_total_pop_1950 +
+          asinh_median_income_1950  + 
           pct_hs_grad_1950 +
           unemp_rate_1950 + 
           redlined_binary_80pp + 
-          population_density_1950 +
+          #population_density_1950 +
           asinh_distance_from_cbd + 
           cbd +
           share_needing_repair_1940 + 
@@ -491,7 +497,7 @@ model_3_lpm_conley <-
           median_rent_calculated_1950  | county_id, 
         data = census_tract_sample_1990,
         vcov_conley(lat = "lat", lon = "lon", 
-                    cutoff = 1))
+                    cutoff = 2))
 model_3_lpm_conley
 
 
@@ -546,3 +552,122 @@ modelsummary(
 
 
 
+# Lasso -----
+# Streamlined LASSO Analysis for Site Selection Paper
+library(glmnet)
+library(ggplot2)
+
+## 1. PREPARE DATA ----
+X <- census_tract_sample_1990 %>%
+  dplyr::select(
+    asinh_total_pop_1950, asinh_black_pop_1950, black_share_1950,
+    asinh_median_income_1950, pct_hs_grad_1950, redlined_binary_80pp,
+    cbd, asinh_distance_from_cbd,
+    lfp_rate_1950, unemp_rate_1950, share_needing_repair_1940,
+    median_home_value_calculated_1950, median_rent_calculated_1950
+  ) %>%
+  as.matrix()
+
+y <- census_tract_sample_1990$treated
+
+# Keep complete cases only
+complete_cases <- complete.cases(X, y)
+X_complete <- X[complete_cases, ]
+y_complete <- y[complete_cases]
+
+## 2. FIT LASSO MODEL ----
+lasso_model <- cv.glmnet(X_complete, y_complete, alpha = 1, family = "binomial", standardize = TRUE)
+
+## 3. VARIABLE SELECTION RESULTS ----
+# Get coefficients at lambda.min and lambda.1se
+coef_min <- coef(lasso_model, s = "lambda.min")
+coef_1se <- coef(lasso_model, s = "lambda.1se")
+
+# Create results table
+lasso_results <- data.frame(
+  Variable = rownames(coef_min),
+  Coef_Lambda_Min = as.numeric(coef_min),
+  Coef_Lambda_1SE = as.numeric(coef_1se)
+) %>%
+  filter(Variable != "(Intercept)") %>%
+  mutate(
+    Selected_Min = Coef_Lambda_Min != 0,
+    Selected_1SE = Coef_Lambda_1SE != 0,
+    Stable_Selection = Selected_Min & Selected_1SE
+  ) %>%
+  arrange(desc(abs(Coef_Lambda_Min)))
+
+print("LASSO Variable Selection Results:")
+print(lasso_results)
+
+# Variables selected at lambda.min (for paper text)
+selected_vars_min <- lasso_results %>% filter(Selected_Min) %>% pull(Variable)
+cat("\nVariables selected at lambda.min:\n")
+print(selected_vars_min)
+
+# Most stable variables (selected at both lambda values)
+stable_vars <- lasso_results %>% filter(Stable_Selection) %>% pull(Variable) 
+cat("\nMost stable variables (selected at both lambda.min and lambda.1se):\n")
+print(stable_vars)
+
+## 4. COMPARISON WITH LPM RESULTS ----
+# Your significant LPM variables (update these based on your actual results)
+lpm_significant_vars <- c("black_share_1950", "asinh_total_pop_1950", 
+                          "asinh_median_income_1950", "unemp_rate_1950", 
+                          "redlined_binary_80pp")
+
+# Compare
+overlap <- intersect(gsub("_1950", "", lpm_significant_vars), gsub("_1950", "", selected_vars_min))
+lmp_only <- setdiff(gsub("_1950", "", lpm_significant_vars), gsub("_1950", "", selected_vars_min))
+lasso_only <- setdiff(gsub("_1950", "", selected_vars_min), gsub("_1950", "", lpm_significant_vars))
+
+cat("\n=== COMPARISON WITH LPM RESULTS ===\n")
+cat("Variables important in both LPM and LASSO:\n")
+print(overlap)
+cat("\nVariables significant in LPM but not selected by LASSO:\n") 
+print(lmp_only)
+cat("\nVariables selected by LASSO but not significant in LPM:\n")
+print(lasso_only)
+
+## 5. CREATE FIGURE FOR PAPER ----
+# Variable importance plot
+top_vars <- lasso_results %>% 
+  filter(Selected_Min) %>% 
+  slice_max(abs(Coef_Lambda_Min), n = 8)
+
+importance_plot <- ggplot(top_vars, aes(x = reorder(Variable, abs(Coef_Lambda_Min)), 
+                                        y = abs(Coef_Lambda_Min))) +
+  geom_col(fill = "steelblue", alpha = 0.7) +
+  coord_flip() +
+  labs(
+    title = "LASSO Variable Importance for Site Selection",
+    x = "Variables",
+    y = "Absolute Coefficient Value"
+  ) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 10))
+
+print(importance_plot)
+
+## 6. SUMMARY STATS FOR PAPER ----
+cat("\n=== SUMMARY FOR PAPER ===\n")
+cat("Total variables considered:", nrow(lasso_results), "\n")
+cat("Variables selected at lambda.min:", sum(lasso_results$Selected_Min), "\n") 
+cat("Variables selected at lambda.1se:", sum(lasso_results$Selected_1SE), "\n")
+cat("Most stable variables:", sum(lasso_results$Stable_Selection), "\n")
+
+# Top 3 predictors by importance
+top_3 <- head(selected_vars_min, 3)
+cat("\nTop 3 predictors:\n")
+for(i in 1:length(top_3)) {
+  coef_val <- lasso_results[lasso_results$Variable == top_3[i], "Coef_Lambda_Min"]
+  cat(paste(i, ".", top_3[i], "(coef =", round(coef_val, 3), ")\n"))
+}
+
+## 7. SAVE RESULTS FOR PAPER ----
+# Save the main results table
+#write.csv(lasso_results, here(site_selection_output_dir, "lasso_variable_selection.csv"), row.names = FALSE)
+
+# Save the plot
+ggsave(here(site_selection_output_dir, "lasso_variable_importance.png"), 
+       importance_plot, width = 8, height = 6, dpi = 300)

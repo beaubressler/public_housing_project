@@ -362,11 +362,12 @@ event_study_data_full<-
 
 # Prepare census data
 census_data_for_event_study <- census_tract_sample %>% 
-  dplyr::select(GISJOIN_1950, STATE, COUNTY, TRACTA, YEAR, city,
+  dplyr::select(GISJOIN_1950, STATE, COUNTY, TRACTA, YEAR, city, cbsa_title,
          black_share, white_share, white_pop, black_pop, total_pop, 
          median_income, median_rent_calculated, median_home_value_calculated, median_educ_years_25plus,
          pct_hs_grad, pct_some_college,
-         population_density, distance_from_cbd, housing_density,
+         population_density, distance_from_cbd, distance_from_project, 
+         housing_density,
          employment_pop_ratio, unemp_rate, lfp_rate) %>%
   st_drop_geometry() %>% 
   # Inverse hyperbolic sine transformations
@@ -424,6 +425,30 @@ baseline_black_share <-
 event_study_data_rings <-
   event_study_data_rings %>%
   left_join(baseline_black_share, by = c("treated_id", "GISJOIN_1950"))
+
+# Define distance thresholds (in same units as distance_from_project, e.g., kilometers)
+
+max_dist_outer <- 1000    # and within 1000 km (following Blanco and Neri)
+                              # This is a bit above the mean
+max_dist_inner <- 500    # and within 500 km
+                              # This is a bit above the mean
+
+# look at distributions of distance_from_project
+event_study_data_rings %>%
+  filter(location_type == "inner") %>% 
+  pull(distance_from_project) %>% 
+  summary()
+
+# Filter
+event_study_data_rings_filtered <- event_study_data_rings %>%
+  filter(
+    (location_type == "treated") |
+      (location_type == "inner" & distance_from_project <= max_dist_inner)|
+      (location_type == "outer" &  distance_from_project <= max_dist_outer)
+  )
+
+# FOR NOW: TRY WITH EVENT STUDY DATA RINGS FILTERED
+event_study_data_rings <- event_study_data_rings_filtered
 
 # Output event study data with rings
 write_csv(event_study_data_rings, event_study_rings_output_path)
@@ -483,6 +508,8 @@ inner_ring_tracts_first_treated_collapsed <- inner_ring_tracts_first_treated %>%
 
 # output 
 write_csv(inner_ring_tracts_first_treated_collapsed, inner_ring_tracts_first_treated_output_path)
+
+
 
 #  TODO: Move this elsewhere
 # # Create, in each year, 800, 1600, 2400, and 3200m rings based on centroid distance ----

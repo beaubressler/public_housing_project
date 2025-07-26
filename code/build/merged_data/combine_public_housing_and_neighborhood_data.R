@@ -12,10 +12,6 @@ library(geosphere)
 library(here)
 library(tidyverse)
 
-
-rm(list = ls())
-
-
 # !! Enter dataset choice. Can be "digitized", "cdd_large" or "cdd_small", or "combined" 
 dataset_choice <- "combined"
 
@@ -33,7 +29,13 @@ cleaned_projects_filepath <- here(ph_data_dir, "cleaned_housing_projects.gpkg")
 # Common functions and variables
 tract_id_variables <- c("YEAR", "GISJOIN_1950")
 
-# Function to filter census data for specific cities -----
+# Public housing units threshold: 
+# I will exclude tiny projects
+public_housing_units_minimum <- 30
+
+
+# Functions -----
+## Function to filter census data for specific cities -----
 filter_census_data <- function(census_data, dataset_choice) {
   if (dataset_choice == "cdd_large" | dataset_choice == "combined") {
     # Add filter conditions for large sample and combined
@@ -107,7 +109,7 @@ filter_census_data <- function(census_data, dataset_choice) {
   }
 }
 
-# Function to process public housing data -----
+## Function to process public housing data -----
 process_public_housing <- function(dataset_choice) {
   if (dataset_choice == "cdd_small" | dataset_choice == "cdd_large") {
     cdd_projects_merged <- read_csv(here(ph_data_dir, "merged_cdd_projects.csv"))
@@ -169,7 +171,7 @@ process_public_housing <- function(dataset_choice) {
 } 
 
 
-# Function to assign cities to Census counties -----
+## Function to assign cities to Census counties -----
 assign_census_cities <- function(census_data) {
   census_data %>% 
   mutate(city = case_when(
@@ -327,7 +329,7 @@ assign_census_cities <- function(census_data) {
     ))
 }
 
-# Function to calculate distance between Census tract and nearest CBD tract ----
+## Function to calculate distance between Census tract and nearest CBD tract ----
 calculate_distance_to_cbd <- function(census_data) {  
   
   # get CBD tracts
@@ -362,6 +364,35 @@ calculate_distance_to_cbd <- function(census_data) {
   
   return(output)
 }
+
+## Calculate distance to nearest public housing project for all tracts-----
+calculate_distance_to_project <- function(census_data) {  
+  
+  # get all tracts
+  all_sample_tracts <- 
+    census_data %>%
+    # keep one of each tract
+    group_by(GISJOIN_1950) %>% 
+    filter(row_number() ==1) %>%
+    dplyr::select(GISJOIN_1950, geom) %>% 
+    ungroup()
+    
+    
+    # calculate nearest CBD
+  nearest_project <- st_nearest_feature(all_sample_tracts, public_housing_data)
+  project_distances <- st_distance(all_sample_tracts, public_housing_data[nearest_project,], 
+                                   by_element = TRUE)
+  
+  all_sample_tracts <- 
+    all_sample_tracts %>%
+    mutate(distance_from_project = project_distances) %>%
+    st_drop_geometry()
+  
+  output <- all_sample_tracts 
+  
+  return(output)
+}
+
 
 
 # Main processing pipeline: ----
@@ -420,12 +451,50 @@ public_housing_data <-
     TRUE ~ NA_real_
   ))
 
+# Exclude small public housing projects
+public_housing_data <-
+  public_housing_data %>%
+  filter(total_public_housing_units >= public_housing_units_minimum) %>%
+  # Keep only projects that were completed before 1980
+  filter(year_completed < 1980)
+
 ## Merge Census and Public Housing data -----
 ### Identify which Census tracts received public housing by merging the two datasets -----
+### Method 1: Buffer intersection (PRIMARY METHOD)
+# Create 100m buffer around public housing locations
+public_housing_buffered <- st_buffer(public_housing_data, dist = 100) 
+
+# Find tracts within .1 km of public housing
+treated_tracts <- 
+  st_join(census_tract_sample, public_housing_buffered, join = st_intersects)
+
 treated_tracts <-
-  st_join(census_tract_sample, public_housing_data, join = st_intersects)
+  treated_tracts %>% 
+  filter(!is.na(treatment_year))
 
+# Calculate number of tracts per project for population splitting
+tracts_per_project <-
+  treated_tracts %>% 
+  st_drop_geometry() %>%
+  group_by(project_name, year_completed, treatment_year) %>%
+  summarise(n_tracts = n_distinct(GISJOIN_1950), .groups = "drop")
 
+# Add tract count and split population estimates evenly across tracts
+treated_tracts <-
+  treated_tracts %>%
+  left_join(tracts_per_project, by = c("project_name", "year_completed", "treatment_year")) %>%
+  mutate(
+    proj_total_population_estimate = proj_total_population_estimate / n_tracts,
+    proj_black_population_estimate = proj_black_population_estimate / n_tracts,
+    proj_white_population_estimate = proj_white_population_estimate / n_tracts
+  )
+
+### Method 2: Alternative definition - Exact intersection (ARCHIVED)
+# treated_tracts_exact <-
+#   st_join(census_tract_sample, public_housing_data, join = st_intersects)
+# 
+# treated_tracts_exact <-
+#   treated_tracts_exact %>% filter(!is.na(treatment_year))
 
 
 ### Create a panel tract dataset of public housing population per year ----
@@ -435,26 +504,48 @@ unique_treated_tracts_panel <-
   dplyr::select(GISJOIN_1950, YEAR) %>% 
   st_drop_geometry() %>% 
   distinct()
+  
 
-
-# 2. Get dataset of public housing population per tract per year
+# 2. Get dataset for every tract per year, of:
+#. Public housing population
+#  
 public_housing_pop_estimates <-
   treated_tracts %>% 
   filter(!is.na(treatment_year)) %>% 
   st_drop_geometry() %>% 
   group_by(GISJOIN_1950, YEAR, treatment_year) %>%
-  summarise(total_public_housing_pop_estimate = sum(proj_total_population_estimate)) %>%
+  summarise(total_public_housing_pop_estimate = sum(proj_total_population_estimate, na.rm = TRUE),
+            black_public_housing_pop_estimate = sum(proj_black_population_estimate, na.rm = TRUE),
+            white_public_housing_pop_estimate = sum(proj_white_population_estimate, na.rm = TRUE),
+            total_public_housing_units = sum(total_public_housing_units, na.rm = TRUE),
+              ) %>%
   mutate(total_public_housing_pop_estimate = case_when(YEAR >= treatment_year ~ total_public_housing_pop_estimate,
+                                                    TRUE ~ NA_real_),
+         black_public_housing_pop_estimate = case_when(YEAR >= treatment_year ~ black_public_housing_pop_estimate,
+                                                    TRUE ~ NA_real_),
+         white_public_housing_pop_estimate = case_when(YEAR >= treatment_year ~ white_public_housing_pop_estimate,
+                                                    TRUE ~ NA_real_),
+         total_public_housing_units = case_when(YEAR >= treatment_year ~ total_public_housing_units,
                                                     TRUE ~ NA_real_)) %>%
-  dplyr::select(GISJOIN_1950, YEAR, treatment_year, total_public_housing_pop_estimate) %>% 
-  # collapse to each year
+  dplyr::select(GISJOIN_1950, YEAR, treatment_year,
+                total_public_housing_pop_estimate, black_public_housing_pop_estimate,
+                white_public_housing_pop_estimate, total_public_housing_units) %>% 
+  # collapse to each year: This is necessary because some tracts have multiple public housing projects which appear in differnet
+  # treatment years
   group_by(GISJOIN_1950, YEAR) %>%
-  summarise(total_public_housing_pop_estimate = sum(total_public_housing_pop_estimate, na.rm = TRUE)) %>% 
+  summarise(total_public_housing_pop_estimate = sum(total_public_housing_pop_estimate, na.rm = TRUE),
+            black_public_housing_pop_estimate = sum(black_public_housing_pop_estimate, na.rm = TRUE),
+            white_public_housing_pop_estimate = sum(white_public_housing_pop_estimate, na.rm = TRUE),
+            total_public_housing_units = sum(total_public_housing_units, na.rm = TRUE)) %>% 
   # if a tract is 0 every year, replace with NA
   group_by(GISJOIN_1950) %>%
-  mutate(all_years_estimate = sum(total_public_housing_pop_estimate)) %>%
-  mutate(total_public_housing_pop_estimate = ifelse(all_years_estimate == 0, NA, total_public_housing_pop_estimate)) %>% 
-  dplyr::select(-all_years_estimate) %>% 
+  mutate(all_years_pop_estimate = sum(total_public_housing_pop_estimate),
+         all_years_unit_estimate = sum(total_public_housing_units)) %>%
+  # 5/2025: Weird data issue: G1701630SCC0002 has non-zero project population, but zero PH units at any point
+  mutate(total_public_housing_pop_estimate = ifelse(all_years_pop_estimate == 0, NA, total_public_housing_pop_estimate),
+         black_public_housing_pop_estimate = ifelse(all_years_pop_estimate == 0, NA, black_public_housing_pop_estimate),
+         white_public_housing_pop_estimate = ifelse(all_years_pop_estimate == 0, NA, white_public_housing_pop_estimate)) %>% 
+  dplyr::select(-all_years_pop_estimate, -all_years_unit_estimate) %>% 
   ungroup() 
 
 ### Filter which tracts we consider treated ----
@@ -468,6 +559,9 @@ treated_tracts_aggregated_by_year <-
   group_by(GISJOIN_1950, YEAR, treatment_year) %>%
   mutate(total_public_housing_units = sum(total_public_housing_units, na.rm = TRUE)) 
 
+treacted_tracts_buffer_aggregated_by_year <-
+  treated_tracts_buffer %>% 
+  group_by(GISJOIN_1950, YEAR, treatment_year)
 
 
 share_of_units_treated <- 
@@ -483,9 +577,13 @@ share_of_units_treated <-
 treated_tracts_aggregated_by_year <- 
   treated_tracts_aggregated_by_year %>%
   left_join(share_of_units_treated) %>%
-  filter(share_of_housing_units_that_are_public_in_treatment_year > 0.05 &
-           total_public_housing_units >= 30)
+  filter(share_of_housing_units_that_are_public_in_treatment_year > 0.05)
   
+# for the buffer, this "share of units in pH" doesnt make sense, so I will just
+# filter out by total
+treacted_tracts_buffer_aggregated_by_year <-
+  treacted_tracts_buffer_aggregated_by_year %>% 
+  filter(total_public_housing_units >= public_housing_units_threshold)
 
 #  keep only one observation per year
 treated_tracts_aggregated_by_year <-
@@ -496,6 +594,15 @@ treated_tracts_aggregated_by_year <-
   filter(row_number() == 1) %>%
   ungroup()
 
+treacted_tracts_buffer_aggregated_by_year <-
+  treacted_tracts_buffer_aggregated_by_year %>% 
+  arrange(GISJOIN_1950, treatment_year) %>%
+  # for each treated tract and year, keep only the one with the smallest treatment year (eg keep first year of treatment)
+  group_by(GISJOIN_1950, YEAR) %>%
+  filter(row_number() == 1) %>%
+  ungroup()
+
+
 # keep a panel of treated tracts, only when they are treated
 treated_tracts_panel <- 
   treated_tracts_aggregated_by_year %>%
@@ -503,6 +610,13 @@ treated_tracts_panel <-
   dplyr::select(GISJOIN_1950, YEAR, city, cbsa_title, treatment_year, total_public_housing_units) %>%
   mutate(treated = 1)
 
+# for buffer as well
+treated_tracts_panel_buffer <-
+  treacted_tracts_buffer_aggregated_by_year %>% 
+  filter(YEAR >= treatment_year) %>% 
+  dplyr::select(GISJOIN_1950, YEAR, city, cbsa_title, treatment_year, total_public_housing_units) %>%
+  mutate(treated = 1)
+  
 # Merge on treatment status of each tract to the Census data
 census_tract_sample_with_treatment_status <- left_join(
   census_tract_sample, 
@@ -510,14 +624,37 @@ census_tract_sample_with_treatment_status <- left_join(
   mutate(treated = ifelse(is.na(treated), 0, 1)) %>% 
   # merge on public housing population
   left_join(public_housing_pop_estimates, by = c("GISJOIN_1950", "YEAR")) %>% 
-  # set total public housing population equal to 0 if treated == 0
-  mutate(total_public_housing_pop_estimate = ifelse(treated == 0, 0, total_public_housing_pop_estimate)) %>%
+  # set public housing population and units equal to 0 if treated == 0
+  mutate(total_public_housing_pop_estimate = ifelse(treated == 0, 0, total_public_housing_pop_estimate),
+         black_public_housing_pop_estimate = ifelse(treated == 0, 0, black_public_housing_pop_estimate),
+         white_public_housing_pop_estimate = ifelse(treated == 0, 0, white_public_housing_pop_estimate),
+         total_public_housing_units = ifelse(treated == 0, 0, total_public_housing_units)) %>%
   # calculate private population
-  mutate(private_population_estimate = total_pop - total_public_housing_pop_estimate) %>% 
+  mutate(private_population_estimate = total_pop - total_public_housing_pop_estimate,
+         private_black_population_estimate = black_pop - black_public_housing_pop_estimate,
+         private_white_population_estimate = white_pop - white_public_housing_pop_estimate) %>%
   # if private population is negative, set equal to 0 (these are cases where
   # estimated public housing population is greater than Census-reported total population)
-  mutate(private_population_estimate = ifelse(private_population_estimate < 0, 0, private_population_estimate))
+  mutate(private_population_estimate = ifelse(private_population_estimate < 0, 0, private_population_estimate),
+         private_black_population_estimate = ifelse(private_black_population_estimate < 0, 0, private_black_population_estimate),
+         private_white_population_estimate = ifelse(private_white_population_estimate < 0, 0, private_white_population_estimate)) %>%
+  # calculating private housing units 
+  mutate(total_private_units_estimate = total_units - total_public_housing_units) %>% 
+  # if private housing units is negative, set equal to 0
+  mutate(total_private_units_estimate = ifelse(total_private_units_estimate < 0, 0, total_private_units_estimate)) %>% 
+  # calculate private black share 
+  mutate(private_black_share = private_black_population_estimate / private_population_estimate)
 
+
+# calculate distance from projects
+distances_to_nearest_project <-
+  calculate_distance_to_project(census_tract_sample) %>% 
+  select(GISJOIN_1950, distance_from_project) %>% 
+  st_drop_geometry()
+
+# merge on distance to nearest project
+census_tract_sample_with_treatment_status <- 
+  left_join(census_tract_sample_with_treatment_status, distances_to_nearest_project)
 
 ## Output datasets -----
 # Census tracts with treatment status

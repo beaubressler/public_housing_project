@@ -289,6 +289,7 @@ write_dta(data, paste0(int_data_dir, "pic77_data_cleaned_full.dta"))
 # project code, population by race and race shares, occupancy pattern, and elderly designation
 data_output <- data %>%
   select(LSTATE, contains("project_code"), contains("proj_"), average_household_size, 
+         black_share, white_share,
          LOCPAT_code, LOCPAT_label, LDESIN, LDESIN_label)
 
 write_dta(data_output, paste0(int_data_dir, "pic77_data_for_analysis.dta"))

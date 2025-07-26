@@ -141,12 +141,17 @@ median_rent_1930 <-
 median_home_value_1930 <-
   calculate_median_from_census(tract_data_1930_concorded, var_code = "home_value_", var_name = "median_home_value_group")
 
+median_income_1930 <-
+  calculate_median_from_census(tract_data_1930_concorded, var_code = "income_group_", var_name = "median_income_group")
+
+
 tract_data_1930_concorded <-
   tract_data_1930_concorded %>% 
   # keep only variables of interest
-  select(-contains("rent_group_"), -contains("home_value_")) %>%
+  select(-contains("rent_group_"), -contains("home_value_"), -contains("income_group_")) %>%
   left_join(median_rent_1930, by = c("YEAR", "GISJOIN_1950")) %>% 
   left_join(median_home_value_1930, by = c("YEAR", "GISJOIN_1950")) %>%
+  left_join(median_income_1930, by = c("YEAR", "GISJOIN_1950")) %>%
   # replace the medians with the label of the variable it represents (midpoint values except last value)
   mutate(median_home_value_calculated = case_when(
           median_home_value_group == "home_value_1" ~ 250,      # 0 - 500
@@ -181,7 +186,24 @@ tract_data_1930_concorded <-
           median_rent_group == "rent_group_13" ~ 124,    # 99-149
           median_rent_group == "rent_group_14" ~ 174,    # 149-199
           median_rent_group == "rent_group_15" ~ 200     # 200+
+        ),
+        median_income = case_when(
+          median_income_group == "income_group_1" ~ 250,       # 0 - 499
+          median_income_group == "income_group_2" ~ 750,       # 500 - 999
+          median_income_group == "income_group_3" ~ 1250,      # 1000 - 1499
+          median_income_group == "income_group_4" ~ 1750,      # 1500 - 1999
+          median_income_group == "income_group_5" ~ 2250,      # 2000 - 2499
+          median_income_group == "income_group_6" ~ 2750,      # 2500 - 2999
+          median_income_group == "income_group_7" ~ 3250,      # 3000 - 3499
+          median_income_group == "income_group_8" ~ 3750,      # 3500 - 3999
+          median_income_group == "income_group_9" ~ 4250,      # 4000 - 4499
+          median_income_group == "income_group_10" ~ 4750,     # 4500 - 4999
+          median_income_group == "income_group_11" ~ 5500,     # 5000 - 5999
+          median_income_group == "income_group_12" ~ 6500,     # 6000 - 6999
+          median_income_group == "income_group_13" ~ 8500,     # 7000 - 9999
+          median_income_group == "income_group_14" ~ 15000     # 10000+
         ))
+
         
         
 ## 1940 ----
