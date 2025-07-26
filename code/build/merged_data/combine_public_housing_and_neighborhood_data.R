@@ -393,6 +393,47 @@ calculate_distance_to_project <- function(census_data) {
   return(output)
 }
 
+## Function to visualize a specific project with buffer and affected tracts -----
+visualize_project <- function(project_name_to_plot, buffer_distance = 50) {
+  
+  # Get the specific project
+  selected_project <- public_housing_data %>%
+    filter(project_name == project_name_to_plot)
+  
+  if(nrow(selected_project) == 0) {
+    stop("Project not found. Check project name.")
+  }
+  
+  # Create buffer for this project
+  selected_project_buffered <- st_buffer(selected_project, dist = buffer_distance)
+  
+  # Get tracts that intersect this project's buffer
+  affected_tracts <- st_join(census_tract_sample, selected_project_buffered, join = st_intersects) %>%
+    filter(!is.na(treatment_year)) %>%
+    filter(project_name == project_name_to_plot)
+  
+  # Create a larger area around the project for context
+  project_area <- st_buffer(selected_project, dist = 500) # 500m for context
+  nearby_tracts <- st_filter(census_tract_sample, project_area)
+  
+  # Plot
+  ggplot() +
+    # All nearby tracts (light gray)
+    geom_sf(data = nearby_tracts, fill = "lightgray", color = "white", size = 0.5) +
+    # Affected tracts (highlighted)
+    geom_sf(data = affected_tracts, fill = "red", alpha = 0.5, color = "darkred", size = 1) +
+    # Project buffer
+    geom_sf(data = selected_project_buffered, fill = NA, color = "blue", size = 1.5, linetype = "dashed") +
+    # Project point
+    geom_sf(data = selected_project, color = "blue", size = 3) +
+    labs(title = paste("Project:", project_name_to_plot),
+         subtitle = paste("Buffer:", buffer_distance, "m |", nrow(affected_tracts), "tracts affected |", 
+                         selected_project$total_public_housing_units, "units")) +
+    theme_minimal() +
+    theme(axis.text = element_blank(),
+          axis.ticks = element_blank())
+}
+
 
 
 # Main processing pipeline: ----
@@ -462,7 +503,7 @@ public_housing_data <-
 ### Identify which Census tracts received public housing by merging the two datasets -----
 ### Method 1: Buffer intersection (PRIMARY METHOD)
 # Create 100m buffer around public housing locations
-public_housing_buffered <- st_buffer(public_housing_data, dist = 100) 
+public_housing_buffered <- st_buffer(public_housing_data, dist = 50) 
 
 # Find tracts within .1 km of public housing
 treated_tracts <- 
@@ -476,17 +517,21 @@ treated_tracts <-
 tracts_per_project <-
   treated_tracts %>% 
   st_drop_geometry() %>%
-  group_by(project_name, year_completed, treatment_year) %>%
-  summarise(n_tracts = n_distinct(GISJOIN_1950), .groups = "drop")
+  group_by(project_name, year_completed, locality, treatment_year) %>%
+  summarise(n_tracts = n_distinct(GISJOIN_1950), .groups = "drop") %>% 
+  arrange(-n_tracts) 
 
-# Add tract count and split population estimates evenly across tracts
+# Add tract count and split population estimates and units evenly across tracts
 treated_tracts <-
   treated_tracts %>%
   left_join(tracts_per_project, by = c("project_name", "year_completed", "treatment_year")) %>%
   mutate(
+    # Split population estimates
     proj_total_population_estimate = proj_total_population_estimate / n_tracts,
     proj_black_population_estimate = proj_black_population_estimate / n_tracts,
-    proj_white_population_estimate = proj_white_population_estimate / n_tracts
+    proj_white_population_estimate = proj_white_population_estimate / n_tracts,
+    # Split unit counts evenly across tracts
+    total_public_housing_units = total_public_housing_units / n_tracts
   )
 
 ### Method 2: Alternative definition - Exact intersection (ARCHIVED)
@@ -550,40 +595,30 @@ public_housing_pop_estimates <-
 
 ### Filter which tracts we consider treated ----
 # Consider a tract as treated if:
-# 1. Share of units > 5% 
-# 2. Number of units >= 30 (there are some tracts which have issue with total housing units measure from Census,
-# so I filter out small number of units like this)
+# 1. Number of units >= 30 (for buffer method, share of units doesn't make sense since units are split)
 # aggregate public housing units constructed in each tract by year
 treated_tracts_aggregated_by_year <- 
   treated_tracts %>%
   group_by(GISJOIN_1950, YEAR, treatment_year) %>%
-  mutate(total_public_housing_units = sum(total_public_housing_units, na.rm = TRUE)) 
+  mutate(total_public_housing_units = sum(total_public_housing_units, na.rm = TRUE)) %>%
+  # filter by minimum units threshold
+  filter(total_public_housing_units >= public_housing_units_minimum)
 
-treacted_tracts_buffer_aggregated_by_year <-
-  treated_tracts_buffer %>% 
-  group_by(GISJOIN_1950, YEAR, treatment_year)
-
-
-share_of_units_treated <- 
-  treated_tracts_aggregated_by_year %>%
-  filter(YEAR == treatment_year) %>% 
-  mutate(share_of_housing_units_that_are_public_in_treatment_year =
-           total_public_housing_units /total_units) %>%
-  dplyr::select(GISJOIN_1950, treatment_year, share_of_housing_units_that_are_public_in_treatment_year) %>% 
-  st_drop_geometry() %>% 
-  distinct()
-
-# filter by share of public housing units
-treated_tracts_aggregated_by_year <- 
-  treated_tracts_aggregated_by_year %>%
-  left_join(share_of_units_treated) %>%
-  filter(share_of_housing_units_that_are_public_in_treatment_year > 0.05)
-  
-# for the buffer, this "share of units in pH" doesnt make sense, so I will just
-# filter out by total
-treacted_tracts_buffer_aggregated_by_year <-
-  treacted_tracts_buffer_aggregated_by_year %>% 
-  filter(total_public_housing_units >= public_housing_units_threshold)
+# OLD METHOD (exact intersection with share filtering) - keeping for reference:
+# share_of_units_treated <- 
+#   treated_tracts_aggregated_by_year %>%
+#   filter(YEAR == treatment_year) %>% 
+#   mutate(share_of_housing_units_that_are_public_in_treatment_year =
+#            total_public_housing_units /total_units) %>%
+#   dplyr::select(GISJOIN_1950, treatment_year, share_of_housing_units_that_are_public_in_treatment_year) %>% 
+#   st_drop_geometry() %>% 
+#   distinct()
+# 
+# # filter by share of public housing units
+# treated_tracts_aggregated_by_year <- 
+#   treated_tracts_aggregated_by_year %>%
+#   left_join(share_of_units_treated) %>%
+#   filter(share_of_housing_units_that_are_public_in_treatment_year > 0.05)
 
 #  keep only one observation per year
 treated_tracts_aggregated_by_year <-
@@ -594,26 +629,10 @@ treated_tracts_aggregated_by_year <-
   filter(row_number() == 1) %>%
   ungroup()
 
-treacted_tracts_buffer_aggregated_by_year <-
-  treacted_tracts_buffer_aggregated_by_year %>% 
-  arrange(GISJOIN_1950, treatment_year) %>%
-  # for each treated tract and year, keep only the one with the smallest treatment year (eg keep first year of treatment)
-  group_by(GISJOIN_1950, YEAR) %>%
-  filter(row_number() == 1) %>%
-  ungroup()
-
-
 # keep a panel of treated tracts, only when they are treated
 treated_tracts_panel <- 
   treated_tracts_aggregated_by_year %>%
   filter(YEAR >= treatment_year) %>%
-  dplyr::select(GISJOIN_1950, YEAR, city, cbsa_title, treatment_year, total_public_housing_units) %>%
-  mutate(treated = 1)
-
-# for buffer as well
-treated_tracts_panel_buffer <-
-  treacted_tracts_buffer_aggregated_by_year %>% 
-  filter(YEAR >= treatment_year) %>% 
   dplyr::select(GISJOIN_1950, YEAR, city, cbsa_title, treatment_year, total_public_housing_units) %>%
   mutate(treated = 1)
   
@@ -654,7 +673,9 @@ distances_to_nearest_project <-
 
 # merge on distance to nearest project
 census_tract_sample_with_treatment_status <- 
-  left_join(census_tract_sample_with_treatment_status, distances_to_nearest_project)
+  left_join(census_tract_sample_with_treatment_status, distances_to_nearest_project) %>%
+  # Set distance to 0 for treated tracts (they are within the 50m buffer)
+  mutate(distance_from_project = ifelse(treated == 1, 0, distance_from_project))
 
 ## Output datasets -----
 # Census tracts with treatment status
@@ -668,4 +689,33 @@ st_write(treated_tracts_panel, treated_tracts_panel_filepath,
 # cleaned public housing data
 st_write(public_housing_data, cleaned_projects_filepath,
          append = FALSE, layer = "points", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
+
+## Create interactive map -----
+# Uncomment to create clickable map (can be slow with large datasets)
+# interactive_map <- mapview(public_housing_data, 
+#                           zcol = "total_public_housing_units",
+#                           cex = "total_public_housing_units",
+#                           layer.name = "Public Housing Projects") + 
+#                   mapview(census_tract_sample %>% filter(YEAR == 1970), 
+#                           alpha.regions = 0.2, 
+#                           color = "white",
+#                           layer.name = "Census Tracts 1970")
+# interactive_map
+
+# NYC-specific interactive map
+# nyc_projects <- public_housing_data %>%
+#   filter(str_detect(locality, "NEW YORK"))
+# 
+# nyc_tracts <- census_tract_sample %>%
+#   filter(city == "New York City", YEAR == 1970)
+# 
+# nyc_map <- mapview(nyc_projects,
+#                    zcol = "total_public_housing_units",
+#                    cex = "total_public_housing_units",
+#                    layer.name = "NYC Public Housing") +
+#            mapview(nyc_tracts,
+#                    alpha.regions = 0.2,
+#                    color = "white",
+#                    layer.name = "NYC Census Tracts 1970")
+# nyc_map
 

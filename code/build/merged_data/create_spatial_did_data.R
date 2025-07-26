@@ -64,7 +64,11 @@ treated_tracts_panel <-
 
 # read in Census tract sample with treatment status
 census_tract_sample <-
-  st_read(census_tract_sample_path) 
+  st_read(census_tract_sample_path)
+
+# read in public housing project locations
+public_housing_data <-
+  st_read(here("data", "derived", "public_housing", "working", "cleaned_housing_projects.gpkg")) 
 
 # Create a dataframe with the total number of public housing units per tract
 total_ph_units_per_tract <-
@@ -426,25 +430,46 @@ event_study_data_rings <-
   event_study_data_rings %>%
   left_join(baseline_black_share, by = c("treated_id", "GISJOIN_1950"))
 
-# Define distance thresholds (in same units as distance_from_project, e.g., kilometers)
+# Define distance thresholds (in meters, same units as distance_from_project)
 
-max_dist_outer <- 1000    # and within 1000 km (following Blanco and Neri)
-                              # This is a bit above the mean
-max_dist_inner <- 500    # and within 500 km
-                              # This is a bit above the mean
+max_dist_outer <- 1000    # and within 1000 meters (following Blanco and Neri)
+                          # This is approximately 0.6 miles
+max_dist_inner <- 500     # and within 500 meters
+                          # This is approximately 0.3 miles
+
+# No minimum distance thresholds - trust the contiguity-based ring definitions
+# Only use maximum distance to exclude tracts that are unreasonably far due to odd boundaries
+
+
 
 # look at distributions of distance_from_project
-event_study_data_rings %>%
+inner_dist_summary <- event_study_data_rings %>%
   filter(location_type == "inner") %>% 
   pull(distance_from_project) %>% 
   summary()
 
-# Filter
+outer_dist_summary <- event_study_data_rings %>%
+  filter(location_type == "outer") %>% 
+  pull(distance_from_project) %>% 
+  summary()
+
+cat("Inner ring distances (contiguity-based):\n")
+print(inner_dist_summary)
+cat("\nOuter ring distances (contiguity-based):\n") 
+print(outer_dist_summary)
+
+# Based on these distributions, we can choose distance thresholds for distance-based rings
+# Common choices in urban economics literature:
+# - 0.25 miles (≈400m) for immediate spillovers
+# - 0.5 miles (≈800m) for broader neighborhood effects
+# - 1 km for extended effects (as in Blanco and Neri)
+
+# Filter - only maximum distance thresholds to exclude unreasonably distant tracts
 event_study_data_rings_filtered <- event_study_data_rings %>%
   filter(
     (location_type == "treated") |
-      (location_type == "inner" & distance_from_project <= max_dist_inner)|
-      (location_type == "outer" &  distance_from_project <= max_dist_outer)
+      (location_type == "inner" & distance_from_project <= max_dist_inner) |
+      (location_type == "outer" & distance_from_project <= max_dist_outer)
   )
 
 # FOR NOW: TRY WITH EVENT STUDY DATA RINGS FILTERED
@@ -452,6 +477,87 @@ event_study_data_rings <- event_study_data_rings_filtered
 
 # Output event study data with rings
 write_csv(event_study_data_rings, event_study_rings_output_path)
+
+## Visualize ring structure -----
+# Function to visualize rings for a specific treated tract
+visualize_rings_for_treated_tract <- function(treated_tract_id, year = 1970) {
+  
+  # Get all tracts associated with this treated tract
+  rings_for_tract <- event_study_data_rings %>%
+    filter(treated_id == treated_tract_id, year == year)
+  
+  if(nrow(rings_for_tract) == 0) {
+    stop("No data found for treated_id:", treated_tract_id)
+  }
+  
+  # Get the geographic data
+  tract_geoms <- census_tract_sample %>%
+    filter(YEAR == year, GISJOIN_1950 %in% rings_for_tract$GISJOIN_1950) %>%
+    select(GISJOIN_1950, geom)
+  
+  # Merge with ring data
+  rings_with_geom <- rings_for_tract %>%
+    left_join(tract_geoms, by = "GISJOIN_1950") %>%
+    st_as_sf()
+  
+  # Get the treated tract location for reference
+  treated_tract_geom <- rings_with_geom %>% filter(location_type == "treated")
+  
+  # Color mapping
+  colors <- c("treated" = "red", "inner" = "orange", "outer" = "lightblue")
+  
+  # Create mapview
+  map <- mapview(rings_with_geom, 
+                 zcol = "location_type",
+                 col.regions = colors,
+                 layer.name = paste("Rings for Treated Tract", treated_tract_id))
+  
+  return(map)
+}
+
+# Function to investigate 0-distance issues
+investigate_zero_distance <- function() {
+  
+  # Find problematic cases
+  zero_dist_outer <- event_study_data_rings %>%
+    filter(location_type == "outer", distance_from_project == 0, !is.na(distance_from_project))
+  
+  if(nrow(zero_dist_outer) == 0) {
+    cat("No outer ring tracts with 0 distance found after filtering!\n")
+    return(NULL)
+  }
+  
+  cat("Found", nrow(zero_dist_outer), "outer ring tracts with 0 distance\n")
+  
+  # Pick first example to visualize
+  example <- zero_dist_outer[1,]
+  
+  # Get the tract geometry for the problem tract
+  problem_tract <- census_tract_sample %>%
+    filter(YEAR == 1970, GISJOIN_1950 == example$GISJOIN_1950)
+  
+  if(nrow(problem_tract) == 0) {
+    cat("Could not find geometry for problem tract\n")
+    return(example)
+  }
+  
+  # Get all projects and tracts in the area around this tract
+  area_buffer <- st_buffer(problem_tract, dist = 2000)  # 2km buffer
+  
+  area_tracts <- st_filter(census_tract_sample %>% filter(YEAR == 1970), area_buffer)
+  area_projects <- st_filter(public_housing_data, area_buffer)
+  
+  # Create map showing the problem
+  map <- mapview(area_tracts, alpha.regions = 0.1, color = "gray", layer.name = "Area Tracts") +
+         mapview(area_projects, col.regions = "red", cex = 3, layer.name = "Projects") +
+         mapview(problem_tract, col.regions = "blue", layer.name = "Problem Tract (0 distance)")
+  
+  return(list(data = example, map = map))
+}
+
+# Example usage (uncomment to run):
+#visualize_rings_for_treated_tract(1)  # Replace 1 with actual treated_id
+#investigate_zero_distance()
 
 # Output unique tracts and ring status, and their associated treated tract ----
 unique_tracts_and_rings <-
