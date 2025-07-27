@@ -31,7 +31,7 @@ tract_id_variables <- c("YEAR", "GISJOIN_1950")
 
 # Public housing units threshold: 
 # I will exclude tiny projects
-public_housing_units_minimum <- 30
+public_housing_units_minimum <- 50
 
 
 # Functions -----

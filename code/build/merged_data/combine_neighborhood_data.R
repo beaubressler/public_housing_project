@@ -75,7 +75,9 @@ census_tract_data_full <- read_census_data()
 ## Incorporate in Census tract data constructed from full count ----
 # Two uses:
 # 1. Use tract-data from full count for any tracts unavailable in the tract-level data (1930 and 1940)
-# 2. 1940: Income data is only available as constructed from full count data -> use it here
+# 2. 1930 and 1940: Income data is only available as constructed from full count data -> use it here
+# 3. For any tracts missing tract data that I constructed with EDs, coalesce
+
 
 # 1/2025: Use tract-data from full count for any tracts unavailable in the tract-level data
 # this mostly includes tracts in cities that were not available at the tract level in those years
@@ -87,7 +89,8 @@ census_tract_data_from_full_count <-
   dplyr::rename(employed_pop = employed,
                 unemployed_pop = unemployed,
                 not_in_lf_pop = not_in_lf) %>% 
-  mutate(employment_pop_ratio = employed_pop / total_pop) %>% 
+  mutate(employment_pop_ratio = employed_pop / total_pop,
+         lfp_rate) %>% 
   # drop a couple of erroneous observations
   filter(total_pop != 0 )
 
@@ -101,22 +104,38 @@ additional_tracts_from_full_count_1930_1940 <-
             by = c("GISJOIN_1950", "YEAR"))
 
 
-# Census tract data constructed from full count, 1940, only Income
-census_tract_data_from_full_count_income <- 
+# Census tract data from full count - all variables that may need filling
+census_tract_data_from_full_count_supplement <- 
   census_tract_data_from_full_count %>%
-  select(GISJOIN_1950, YEAR, median_income) %>% 
-  filter(YEAR == 1940) %>% 
-  dplyr::rename(median_income_fc = median_income)  %>% 
+  select(GISJOIN_1950, YEAR, 
+         median_income, 
+         median_rent_calculated, 
+         median_home_value_calculated,
+         lfp_rate, 
+         unemp_rate) %>% 
+  filter(YEAR %in% c(1930, 1940)) %>% 
+  dplyr::rename(
+    median_income_fc = median_income,
+    median_rent_calculated_fc = median_rent_calculated,
+    median_home_value_calculated_fc = median_home_value_calculated,
+    lfp_rate_fc = lfp_rate,
+    unemp_rate_fc = unemp_rate
+  ) %>% 
   st_drop_geometry()
 
-
-# add these tracts to the full count data
+# Single merge with all supplemental variables
 census_tract_data_full <- 
   bind_rows(census_tract_data_full, additional_tracts_from_full_count_1930_1940) %>% 
-  left_join(census_tract_data_from_full_count_income) %>% 
-  # replace median income with median income fc if missing 
-  mutate(median_income = coalesce(median_income, median_income_fc)) %>% 
-  select(-median_income_fc)
+  left_join(census_tract_data_from_full_count_supplement, by = c("GISJOIN_1950", "YEAR")) %>% 
+  # Replace all variables with full count versions if missing 
+  mutate(
+    median_income = coalesce(median_income, median_income_fc),
+    median_rent_calculated = coalesce(median_rent_calculated, median_rent_calculated_fc),
+    median_home_value_calculated = coalesce(median_home_value_calculated, median_home_value_calculated_fc),
+    lfp_rate = coalesce(lfp_rate, lfp_rate_fc),
+    unemp_rate = coalesce(unemp_rate, unemp_rate_fc)
+  ) %>% 
+  select(-ends_with("_fc"))
 
 # variables that are in the full count data but not in the tract-level data
 
@@ -142,6 +161,10 @@ summary(lm(median_rent_calculated_fc ~ median_rent_calculated_orig, data = merge
 summary(lm(median_home_value_calculated_fc ~ median_home_value_calculated_orig, data = merged_fc_and_fc_tracts))
 summary(lm(black_share_fc ~ black_share_orig, data = merged_fc_and_fc_tracts))
 summary(lm(pct_hs_grad_fc ~ pct_hs_grad_orig, data = merged_fc_and_fc_tracts))
+summary(lm(median_rent_calculated_fc ~ median_rent_calculated_orig, data = merged_fc_and_fc_tracts))
+summary(lm(median_home_value_calculated_fc ~ median_home_value_calculated_orig, data = merged_fc_and_fc_tracts))
+summary(lm(lfp_rate_fc ~ lfp_rate_orig, data = merged_fc_and_fc_tracts))
+        
 
 
 # check cities where orig is missing in 1930
@@ -162,15 +185,23 @@ cpi_data <- cpi_data_raw %>%
   filter(year %in% seq(1930, 1990, 10)) %>% 
   mutate(deflator = cpi[year ==1990] / cpi)
 
+# Calculate the 1950 to 1990 deflator for 1930 income data
+deflator_1950_to_1990 <- 
+  cpi_data$cpi[cpi_data$year == 1990] / cpi_data$cpi[cpi_data$year == 1950]
+
 # join to census data, apply deflator to monetary values of median home value and median rent
 census_tract_data_full <- census_tract_data_full %>% 
   left_join(cpi_data, by = c("YEAR" = "year")) %>% 
   mutate_at(vars("median_home_value_calculated", "median_home_value_reported",
                  "median_home_value_reported_alt", 
                  "median_rent_calculated", "median_rent_reported",
-                 "median_rent_reported_alt",
-                 "median_income"),
+                 "median_rent_reported_alt"),
             ~ . * deflator) %>%
+  # Special handling for median_income: 1930 data is already in 1950 dollars
+  mutate(median_income = case_when(
+    YEAR == 1930 ~ median_income * deflator_1950_to_1990,
+    TRUE ~ median_income * deflator
+  )) %>%
   dplyr::select(-deflator) %>% 
   # convert income and home values to 1000s of $ for easier interpretation
   mutate(median_home_value_calculated = median_home_value_calculated / 1000,
