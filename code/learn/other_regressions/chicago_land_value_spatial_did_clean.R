@@ -80,7 +80,7 @@ run_spatial_did <- function(data, location_filter, urban_renewal_treatment = "ba
     analysis_data <- analysis_data %>% filter(!in_urban_renewal)
     fixed_effects <- "project_id^year + project_id^location_type + grid_id"
   } else if (urban_renewal_treatment == "control") {
-    fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^project_id"
+    fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^year"
   } else {
     fixed_effects <- "project_id^year + project_id^location_type + grid_id"
   }
@@ -137,7 +137,7 @@ run_spatial_did_all_rings <- function(data, urban_renewal_treatment = "baseline"
     analysis_data <- analysis_data %>% filter(!in_urban_renewal)
     fixed_effects <- "project_id^year + project_id^location_type + grid_id"
   } else if (urban_renewal_treatment == "control") {
-    fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^project_id"
+    fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^year"
   } else {
     fixed_effects <- "project_id^year + project_id^location_type + grid_id"
   }
