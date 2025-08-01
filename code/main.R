@@ -45,7 +45,7 @@ source(here(census_tract_build_dir, "clean_census_tract_housing_data.R"))
 # Occupation shares
 source(here(census_tract_build_dir, "clean_census_tract_occupation_data.R"))
 # employment 
-source(here(census_tract_build_dir), "clean_census_tract_employment_data.R")
+source(here(census_tract_build_dir, "clean_census_tract_employment_data.R"))
 
 ## Construct tract-level data from full count -----
 source(here(full_count_build_dir, "prep_grf_for_ed_merge.R"))
@@ -102,16 +102,16 @@ source(here(exploratory_dir, "graph_census_data.R"))
 
 ## Regressions -----
 ### Site selection regressions
-source(here(regression_dir, "site_selection_analysis.R"))
+source(here(site_selection_dir, "site_selection_analysis.R"))
 
 ### Run spatial DiD
 # 5/2025: For now, don't really need to do this
-#source(here(regression_dir, "run_spatial_did_regressions.R"))
+#source(here(stacked_did_dir, "run_spatial_did_regressions.R"))
 
 ### Matched DiD -----
-source(here(regression_dir, "run_matching_algorithm.R"))
-source(here(regression_dir, "assess_matching_and_balance.R"))
-source(here(regression_dir, "matched_did_with_rings.R"))
+source(here(matched_did_dir, "run_matching_algorithms.R"))
+source(here(matched_did_dir, "assess_matching_and_balance.R"))
+source(here(matched_did_dir, "matched_did_with_rings.R"))
 
 
 

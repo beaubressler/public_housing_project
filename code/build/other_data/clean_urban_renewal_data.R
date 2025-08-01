@@ -79,9 +79,18 @@ tract_ur_summary <-
          ur_binary_25pp = ifelse(as.numeric(total_ur_share) >= 0.25, 1, 0),
          ur_binary_10pp = ifelse(as.numeric(total_ur_share) >= 0.1, 1, 0),
          ur_binary_5pp = ifelse(as.numeric(total_ur_share) >= 0.05, 1, 0),
-         ur_binary_any = ifelse(as.numeric(total_ur_share) > 0, 1, 0)
+         ur_binary_any = ifelse(as.numeric(total_ur_share) > 0, 1, 0),
+         # Add improved categorical variable for controlling (not excluding)
+         ur_intensity = case_when(
+           total_ur_share == 0 ~ "None",
+           total_ur_share < 0.10 ~ "Low", 
+           total_ur_share < 0.50 ~ "Medium",
+           total_ur_share >= 0.50 ~ "High"
+         ),
+         # Add continuous variable (same as total_ur_share but clearer name)
+         ur_share_continuous = total_ur_share
          ) %>% 
-  select(GISJOIN_1950, contains("ur_binary"), total_ur_share)
+  select(GISJOIN_1950, contains("ur_"), total_ur_share)
   
 # output
 tract_ur_summary %>% 

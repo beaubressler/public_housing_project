@@ -25,6 +25,7 @@ holc_data_path <- here(data_path, "derived", "holc")
 ur_data_path <- here(data_path, "derived", "urban_renewal")
 cpi_data_path <- here(data_path, "raw", "measuring_worth")
 cbsa_data_path <- here(data_path, "raw", "cbsa_crosswalk")
+highway_data_path <- here(data_path, "derived", "highways")
 
 merged_data_path <- here(data_path, "derived", "merged")
 
@@ -236,6 +237,10 @@ cbsa_data <-
          STATEA = substr(FIPS, 1, 2)) %>% 
   dplyr::select(-FIPS)
 
+### Highway proximity data -----
+highway_proximity <- 
+  read_csv(here(highway_data_path, "tract_data_with_highway_proximity.csv"))
+
 
 # Combine datasets -----
 combined_data <- 
@@ -245,7 +250,8 @@ combined_data <-
   left_join(urban_renewal_classifications, by = c("GISJOIN_1950")) %>% 
   # if tract is not in HOLC data, assume it was not redlined
   mutate_at(vars(contains('redlined_binary')), ~ifelse(is.na(.), 0, .)) %>% 
-  left_join(cbsa_data, by = c("STATEA", "COUNTYA")) %>% 
+  left_join(cbsa_data, by = c("STATEA", "COUNTYA")) %>%
+  left_join(highway_proximity, by = c("GISJOIN_1950")) %>% 
   # manually fix Dade county CBSA
   mutate(cbsa_title = ifelse(COUNTYA == "025" & STATEA == "12",
                              "Miami-Fort Lauderdale-Miami Beach, FL",

@@ -25,6 +25,11 @@ cdd_projects <- read_csv(here(working_dir, "merged_cdd_projects.csv"))
 # digitized projects
 digitized_projects_raw <- read_csv(here(working_dir, "geocoded_projects.csv"))
 
+# digitization dir
+digitization_dir <- here("data", "digitization")
+chi_digitization_dir <- here(digitization_dir, "chicago")
+nyc_digitization_dir <- here(digitization_dir, "nycha")
+
 # Cleveland, separately (just to merge additional names on, I suppose)
 # cleveland_projects <- read_xlsx("data/digitization/cleveland/1973_cmha_annual_report.xlsx")
 
@@ -105,7 +110,334 @@ digitized_projects <-
 #   dplyr::rename(project_code_original = project_code,
 #                 project_code = split_codes)
 
+# Assign race shares to NYC and Chicago digitized projects -----
 
+# For Chicago, convert black and white share based on share of families, 
+# Then calculate population by race estimates
+chicago_data_raw <- read_xlsx(here(chi_digitization_dir, "digitization_annual_statistical_report_1973.xlsx"))
+chicago_data_race <- 
+  chicago_data_raw %>%
+  # Fix Excel auto-formatting: Convert "Feb" back to "2"
+  mutate(project_code = str_replace(project_code, "Feb", "2")) %>%
+  mutate(number_of_families_black = as.numeric(number_of_families_black),
+         number_of_families_white = as.numeric(number_of_families_white),
+         total_families = as.numeric(total_families),
+         total_population = as.numeric(total_population)) %>%
+  mutate(black_share = number_of_families_black / total_families,
+         white_share = number_of_families_white/ total_families) %>%
+  mutate(black_pop = round(black_share * total_population),
+         white_pop = round(white_share * total_population)) %>%
+  select(project_code, project_name, address_or_streets, black_pop, white_pop) %>% 
+  rename(black_pop_chicago = black_pop, white_pop_chicago = white_pop) %>%
+  mutate(project_code = paste0("IL-", project_code))
+
+
+# For NYC: I will use data shared by Max Guennewig-Moenert  (initial_composition_ph.xlsx), which comes from NYCHA
+
+nyc_data_race_raw <- 
+  read_xlsx(here(nyc_digitization_dir, "initial_composition_ph.xlsx"),
+            sheet = "Final data")
+
+nyc_data_race <-
+  nyc_data_race_raw %>% 
+  # Keep latest date for each project (should be 1971)
+  group_by(Project) %>%
+  filter(date == max(date, na.rm = TRUE)) %>%
+  ungroup() %>%
+  # Keep both Project and joint_develop_name for matching, plus race data
+  select(Project, joint_develop_name, date, pwhite_date, pblack_date, total_date) %>%
+  rename(project_name = Project,
+         joint_name = joint_develop_name,
+         white_share_nyc = pwhite_date,
+         black_share_nyc = pblack_date,
+         total_pop_nyc = total_date)
+
+# Test NYC race data merge - first check for exact matches
+nyc_exact_matches <- intersect(
+  digitized_projects %>% filter(city == "New York City") %>% pull(project_name),
+  nyc_data_race$project_name
+)
+
+cat("Exact matches found:", length(nyc_exact_matches), "\n")
+cat("Exact matches:", paste(nyc_exact_matches, collapse = ", "), "\n\n")
+
+# Show some examples of non-matching names for manual inspection
+cat("Sample digitized project names:\n")
+cat(paste(head(digitized_projects %>% filter(city == "New York City") %>% pull(project_name), 10), collapse = "\n"))
+cat("\n\nSample race data project names:\n") 
+cat(paste(head(nyc_data_race$project_name, 10), collapse = "\n"))
+
+# Manual matching table for NYC projects (corrected with actual race data names)
+nyc_name_matches <- tribble(
+  ~digitized_name, ~race_data_name,
+  
+  # Street addresses
+  "03 Vernon Ave", "303 Vernon Avenue",
+  "1010 E. 178th St", "1010 East 178th Street", 
+  "131 St. Nicholas Ave.", "131 St. Nicholas Avenue",
+  "335 E. 111th St", "335 East 111th Street",
+  "344 E. 28th St", "344 East 28th Street",
+  "830 Amsterdam Ave.", "830 Amsterdam Avenue",
+  "1471 Watson Ave", "1471 Watson Avenue",
+  "33-35 Saratoga Ave", "33-35 Saratoga Ave",
+  
+  # Key direct name matches using actual race data names
+  "Queens-Bridge", "Queensbridge",
+  "Jacob Riis", "Riis Federal", 
+  "Red Hook", "Red Hook I",
+  "Red Hook II", "Red Hook II",
+  "East River", "East River",
+  "Vladeck", "Viadeck Federal",
+  "South Jamaica", "South Jamaica I",
+  "South Jamaica II", "South Jamaica II",
+  "Baruch", "Baruch - Sect. 1",
+  "Van Dyke", "Van Dyke - Sect. I",
+  "Van Dyke II", "Van Dyke II",
+  "Breukelen", "Breukelen",
+  "Bronxdale", "Bronxdale",
+  "Cooper Park", "Cooper Park",
+  "Gravesend", "Gravesend",
+  "Hammel", "Hammel",
+  "Baisley Park", "Baisley Park",
+  "Richmond Terrace", "Richmond Terrace",
+  "Williamsburg", "Williamsburg",
+  "Harlem River", "Harlem River",
+  "Harlem River II", "Harlem River II",
+  "Tompkins", "Tompkins",
+  "Morrisania", "Morrisania",
+  "Abraham Lincoln", "Lincoln",
+  "Amsterdam", "Amsterdam",
+  "Albany II", "Albany II",
+  "Marcy", "Marcy",
+  "Gowanus", "Gowanus",
+  "Astoria", "Astoria - Sect. I",
+  "Melrose", "Melrose",
+  "Farragut", "Farragut",
+  "Bronx River", "Bronx River",
+  "Sound View", "Sound View",
+  "Cypress Hills", "Cypress Hills",
+  "Howard", "Howard",
+  "Douglass Addition", "Douglass Addition",
+  "Marlboro", "Marlboro",
+  "Bushwick", "Bushwick",
+  "Castle Hill", "Castle Hill",
+  "Edgemere", "Edgemere",
+  "Rutgers", "Rutgers",
+  "Stapleton", "Stapleton",
+  "Baychester", "Baychester",
+  "Audubon", "Audubon",
+  "Independence", "Independence",
+  "Chelsea", "Chelsea",
+  "Chelsea Addition", "Chelsea Addition",
+  "Bronx River Addition", "Bronx River Addition",
+  "Pelham Parkway", "Pelham Parkway",
+  "Gun Hill", "Gun Hill",
+  "Nostrand", "Nostrand",
+  "Glenwood", "Glenwood",
+  "Todt Hill", "Todt Hill",
+  "Marble Hill", "Marble Hill",
+  "Boulevard", "Boulevard",
+  "Parkside", "Parkside",
+  "Arverne", "Arverne",
+  "Linden", "Linden",
+  "Bay View", "Bay View",
+  "Coney Island", "Coney Island",
+  "Glenmore Plaza", "Glenmore Plaza",
+  "Woodside", "Woodside",
+  "Wyckoff Gardens", "Wyckoff Gardens",
+  
+  # Additional comprehensive matches for remaining projects
+  "Kings-Borough", "Kingsborough",
+  "Claron Point Gardens", "Clason Point",
+  "Edwin Markham Gardens", "Markham Gardens",
+  "St. Nicholas", "St.Nicholas - Sect.I & II",
+  "George Washington", "Washington - Sect. I",
+  "Throgg's Neck", "Throggs Neck",
+  "Jefferson", "Jefferson Sect. 1",
+  "Brevoort", "Brevoort Sect. 1",
+  "Edenwald", "Edenwald",
+  "Mariner's Harbor", "Mariners Harbor",
+  "La Guardia", "LaGuardia - Sect. I",
+  "Sen. Robert F. Wagner, Sr.", "Wagner - Sect. I",
+  "Highbridge Gardens", "Highbridge",
+  "Daniel Webster", "Webster",
+  "General Grant", "Grant Sect. 1",
+  "William McKinley", "McKinley",
+  "Samuel Gompers", "Gompers",
+  "Herbert H. Lehman", "Lehman Village",
+  "Samuel J. Tilden", "Tilden",
+  "Louis Heaton Pink", "Pink",
+  "James Monroe", "Monroe",
+  "Gouverneur Morris", "Morris - Sect. I",
+  "West Brighton I", "West Brighton Plaza I",
+  "West Brighton II", "West Brighton Plaza II",
+  "Andrew Jackson", "Jackson",
+  "Mott Haven (C)", "Mott Haven",
+  "De Witt Clinton", "Clinton",
+  "Lafayette", "Lafayette Gardens",
+  "John Adams", "Adams",
+  "John P. Mitchell", "Mitchel",
+  "Robert Fulton", "Fulton",
+  "Eleanor Roosevelt", "Eleaner Roosevelt I",
+  "Site A", "120 West 94th Street",
+  "Site B", "74 West 92nd Street",
+  "Site C", "589 Amsterdam Avenue",
+  "Stanley M. Isaacs", "Isaacs",
+  "Boston Sector", "Boston-Secor",
+  "La Guardia Addition", "LaGuardia Addition",
+  "Polo Grounds Towers", "Polo Grounds",
+  "Nathan Straus", "Straus",
+  "Sen. Robert A. Taft", "Taft",
+  "Eugenio Maria De Hostos Apts.", "Eugenio Maria de Hostos",
+  "John Haynes Holmes Towers", "John Haynes Holmes",
+  "Mary McLeod Bethune", "Bethune",
+  "Ocean Hill Apartments", "Ocean Hill",
+  "E.R. Moore", "Moore",
+  "Langston Hughes Apartments", "Langston Hughes",
+  "Eleanor Roosevelt II", "Eleaner Roosevelt II",
+  "Carter G. Woodson", "larter G. Woodson",
+  "Max Meltzer Tower", "Max Meltzer",
+  "Rafael Hernandez", "Raphael Hernandes",
+  "W 32nd St, Mermaid Ave", "W 32nd St.-Mermaid Avenue",
+  "Garald J Carey Gardens", "Gerald Carey Gardens",
+  "William Reid Apartments", "Williem Reid",
+  "Metro North Plaza", "Metro North",
+  "Lewis H. Latimer Gardens", "Latimer Gardens",
+  "Throggs Neck Addtion", "Throggs Neck Addition",
+  "East Chester", "Eastchester",
+  "Colonial Park", "Colonial Park",
+  "First Houses", "First",
+  "J.L. Elliot", "Elliot",
+  "Dyckman", "Dyckman",
+  "Seogwick", "Sedgwick",
+  "Lexington", "Lexington",
+  "Ravenswood", "Ravenswood",
+  "Cassidy Place- Lafayette Ave.", "Hassidy Pl-Lafayette Ave.",
+  "Park Ave-E. 122nd St.-E. 123rd St", "Park Avenue-East 123rd st. 115 East 122nd Street",
+  "Fenimore St-Lefferts Ave", "Fenimore St. Lefferts Ave",
+  "Teller Ave-E 166th St", "1100-1110 Teller Avenue",
+  "Hoe Ave-E.,173rd St", "Hoe Avenue-East 173rd St.",
+  "Eagle Ave-E. 163rd St", "905-907 Eagle Avenue",
+  "Whitman-Ingersoll", "Whitman",
+  "Lillian Wald", "Wald",
+  "Lester W. Patterson", "Patterson",
+  "J.W. Johnson", "Johnson",
+  "Gov. Smith", "Smith - Sect. I",
+  "Martin Luther King, Jr.", "King",
+  "Albany", "Albany I",
+  "James A. Bland", "Bland",
+  "Redfern", "Redfern - Sect. I",
+  "Carver", "Carver - Sect. I",
+  "Forest", "Forest - Sect. I",
+  "Sumner", "Sumner - Sect. I",
+  "Frederick Douglass", "Douglass",
+  "Mill Brook", "Mill Brook - Sect. I",
+  "Manhattan-Ville", "Manhattanville",
+  "Drew-Hamilton", "Drew",
+  "Borgia Butler", "Butler - Sect. I",
+  "Woodrow Wilson", "Wilson",
+  "Gaylord White", "White",
+  "Mill Brook Extension", "Mill Brook - Extension",
+  "Jonathan Williams", "Williams",
+  "Stephen Wise Towers", "Wise",
+  "Arthur H. Murphy", "Murphy",
+  "Bernard Haber", "Haber",
+  "Gen. Charles W. Berry", "Berry",
+  "Pmonok", "Pomonok",
+  "St.Mary's Park", "St. Mary's Park",
+  "John F. Hylan", "Hylan",
+  "William O'Dwyer Gardens", "O'Dwyer",
+  
+  # Final round - remaining unmatched projects
+  "Rehab W. Side Urban Renewal", "W.S.U.R. Rehabs W.S.U.R. Vest Pockets",
+  "Seth Low", "Seth Low",
+  "Dr. Ramon E. Betances", "Eugenio Maria de Hostos",
+  "Rehabilitation", "Rehabilitation Program",
+  "Mott Haven (Rehab) (Sites 9, 13, 18)", "Rehab - Mott Haven",
+  "Mott Haven (Rehab) (Sites 4, 5, 9)", "Rehab - Mott Haven",
+  "Brownsville", "Brownsville",
+  "Amsterdam Addition", "Amsterdam",
+  "Coney Island I", "Coney Island",
+  "Village View (Roosevelt)", "Eleaner Roosevelt I",
+  "Cedar Manor (Baisley Gardens)", "Baisley Park",
+  "Vladeck", "Vladeck City",
+  
+  # Additional matches found from unmatched analysis
+  "Sheepshead Bay", "Sheepshead Bay",
+  "South Beach", "South Beach", 
+  "Carleton Manor", "Carleton Manor",
+  "Kingsborough Extension", "Kingsborough Extension",
+  "Coney Island I (Site 1B)", "Coney Island",
+  "Coney Island I (Site 8)", "Coney Island"
+)
+
+# Use manual matching table - try both project_name and joint_name
+nyc_manual_match <- 
+  digitized_projects %>%
+  filter(city == "New York City") %>%
+  left_join(nyc_name_matches, by = c("project_name" = "digitized_name")) %>%
+  left_join(nyc_data_race, by = c("race_data_name" = "project_name")) %>%
+  mutate(match_type = "project_name_match")
+
+# Also try direct matching with joint_develop_name for unmatched projects
+nyc_joint_match <- 
+  digitized_projects %>%
+  filter(city == "New York City") %>%
+  # Only try projects that didn't match in manual table
+  anti_join(nyc_name_matches, by = c("project_name" = "digitized_name")) %>%
+  # Clean joint names for matching (remove \r\n characters)
+  left_join(
+    nyc_data_race %>% 
+      mutate(joint_name_clean = str_replace_all(joint_name, "\\r\\n", "") %>% str_trim()),
+    by = c("project_name" = "joint_name_clean")
+  ) %>%
+  mutate(match_type = "joint_name_match", race_data_name = joint_name)
+
+# Combine both matching approaches
+nyc_proj_race_merged <- 
+  bind_rows(
+    nyc_manual_match %>% filter(!is.na(white_share_nyc)),
+    nyc_joint_match %>% filter(!is.na(white_share_nyc))
+  ) %>%
+  # Calculate population by race using shares * total population
+  mutate(
+    white_pop_nyc = round((white_share_nyc/100) * total_population),
+    black_pop_nyc = round((black_share_nyc/100) * total_population)
+  ) %>%
+  # Keep project_code and project_name for unique identification
+  select(project_code, project_name, white_pop_nyc, black_pop_nyc)
+
+
+cat("Manual matches found:", nrow(nyc_proj_race_merged), "\n")
+
+# Show sample matches
+cat("Sample successful matches:\n")
+print(head(nyc_proj_race_merged, 10))
+
+# Identify unmatched race data projects
+nyc_race_unmatched <- nyc_data_race %>%
+  anti_join(nyc_proj_race_merged %>% 
+              select(project_name, white_pop_nyc, black_pop_nyc) %>%
+              left_join(
+                bind_rows(
+                  nyc_manual_match %>% filter(!is.na(white_share_nyc)) %>% select(project_name, race_data_name),
+                  nyc_joint_match %>% filter(!is.na(white_share_nyc)) %>% select(project_name, race_data_name = joint_name)
+                ), 
+                by = "project_name"
+              ) %>%
+              filter(!is.na(race_data_name)),
+            by = c("project_name" = "race_data_name")) %>%
+  select(project_name, joint_name, white_share_nyc, black_share_nyc, total_pop_nyc) %>%
+  arrange(project_name)
+
+cat("\nUnmatched NYC race data projects:", nrow(nyc_race_unmatched), "\n")
+cat("Race data used:", nrow(nyc_data_race) - nrow(nyc_race_unmatched), "out of", nrow(nyc_data_race), "\n")
+cat("Usage rate:", round((nrow(nyc_data_race) - nrow(nyc_race_unmatched)) / nrow(nyc_data_race) * 100, 1), "%\n\n")
+
+if(nrow(nyc_race_unmatched) > 0) {
+  cat("Sample unmatched race data projects:\n")
+  print(head(nyc_race_unmatched, 20))
+}
 
 
 # Merge digitized projects with CDD projects: See how much I merge for each city -----
@@ -223,13 +555,24 @@ merged_boston_data <-
   # drop observations that are duplicates on project_code and units
   distinct(project_code, total_units, .keep_all = TRUE)
   
-# Combine all data
+# Combine all data and merge race data for NYC and Chicago
 combined_data <-
   bind_rows(cdd_data_for_combined_data, digitized_data_for_combined_data) %>% 
   bind_rows(merged_boston_data) %>% 
+  # Standardize locality names by removing extra spaces
+  mutate(locality = str_squish(locality)) %>%
+  # Merge NYC race data using project_code and project_name
+  left_join(nyc_proj_race_merged, by = c("project_code", "project_name")) %>%
+  # Merge Chicago race data using project_code and address
+  left_join(chicago_data_race, by = c("project_code", "project_name", "address_or_streets")) %>%
+  # Coalesce race data columns for final variables
+  mutate(
+    proj_white_population_estimate = coalesce(proj_white_population_estimate, white_pop_nyc, white_pop_chicago),
+    proj_black_population_estimate = coalesce(proj_black_population_estimate, black_pop_nyc, black_pop_chicago)
+  ) %>%
   select(state, locality, project_code, project_name, total_units, 
          year_completed, month_completed, latitude, longitude, statefips, countyfips, 
-         statefip, state_usps, slum, source, latitude, longitude,
+         statefip, state_usps, slum, source, 
          contains("proj_")) 
 
 ## output ----

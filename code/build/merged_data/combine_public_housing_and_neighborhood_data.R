@@ -480,6 +480,11 @@ public_housing_data <- process_public_housing(dataset_choice)
 # Transform public housing data to match census data CRS
 public_housing_data <- st_transform(public_housing_data, st_crs(census_tract_sample))
 
+# Transform both to projected CRS for faster spatial operations
+census_tract_sample <- st_transform(census_tract_sample, crs = 3857)  # Web Mercator
+public_housing_data <- st_transform(public_housing_data, crs = 3857)
+
+
 # Create treatment year variable
 public_housing_data <-
   public_housing_data %>%
@@ -677,6 +682,11 @@ census_tract_sample_with_treatment_status <-
   # Set distance to 0 for treated tracts (they are within the 50m buffer)
   mutate(distance_from_project = ifelse(treated == 1, 0, distance_from_project))
 
+# Convert back to EPSG:4326 for consistency with other data
+census_tract_sample_with_treatment_status <- st_transform(census_tract_sample_with_treatment_status, crs = 4326)
+treated_tracts_panel <- st_transform(treated_tracts_panel, crs = 4326)
+public_housing_data <- st_transform(public_housing_data, crs = 4326)
+
 ## Output datasets -----
 # Census tracts with treatment status
 st_write(census_tract_sample_with_treatment_status, tract_with_treatment_status_filepath,
@@ -692,12 +702,12 @@ st_write(public_housing_data, cleaned_projects_filepath,
 
 ## Create interactive map -----
 # Uncomment to create clickable map (can be slow with large datasets)
-# interactive_map <- mapview(public_housing_data, 
+# interactive_map <- mapview(public_housing_data,
 #                           zcol = "total_public_housing_units",
 #                           cex = "total_public_housing_units",
-#                           layer.name = "Public Housing Projects") + 
-#                   mapview(census_tract_sample %>% filter(YEAR == 1970), 
-#                           alpha.regions = 0.2, 
+#                           layer.name = "Public Housing Projects") +
+#                   mapview(census_tract_sample %>% filter(YEAR == 1970),
+#                           alpha.regions = 0.2,
 #                           color = "white",
 #                           layer.name = "Census Tracts 1970")
 # interactive_map

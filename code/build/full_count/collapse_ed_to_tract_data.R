@@ -63,9 +63,14 @@ city_ed_data_1930 <- city_ed_data_1930_raw %>%
   mutate(city = str_sub(b_city, 1, -3), 
          state = str_sub(b_city, -2, -1),
          city = str_trim(city), state = str_trim(state)) %>% 
+  # Atlanta issue in ED maps: b_city is a number (350) instead of AtlantaGA. Fix manually
+  mutate(city = ifelse(b_city == "350", "Atlanta", city),
+         state = ifelse(b_city == "350", "GA", state)) %>%
   # convert b_ed to lower case character
   mutate(b_ed = tolower(b_ed)) %>% 
-  mutate(YEAR = 1930) 
+  mutate(YEAR = 1930) %>% 
+  # 7/2025: Found that there are some duplicated rows in 1930 data, so delete them 
+  distinct(state, city, b_ed, .keep_all = TRUE)
 
 city_ed_data_1940 <- city_ed_data_1940_raw %>% 
   mutate(city = str_sub(b_city, 1, -3), 

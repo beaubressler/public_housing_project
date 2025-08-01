@@ -361,6 +361,11 @@ merged_cdd_project_data <-
          source = ifelse(project_code == "MO-1-4" & is.na(latitude), "manual", source),
          latitude = ifelse(project_code == "MO-1-4" & is.na(latitude), 38.642122, latitude),
          longitude = ifelse(project_code == "MO-1-4" & is.na(longitude), -90.208910, longitude)) %>% 
+  # MO-1-5 as well
+  mutate(name = ifelse(project_code == "MO-1-5", "Pruitt-Igoe", name),
+         source = ifelse(project_code == "MO-1-5" & is.na(latitude), "manual", source),
+         latitude = ifelse(project_code == "MO-1-5" & is.na(latitude), 38.642122, latitude),
+         longitude = ifelse(project_code == "MO-1-5" & is.na(longitude), -90.208910, longitude)) %>%
   # Brewster (MI-1-13): 701 units: 42.350130, -83.050177
   mutate(name = ifelse(project_code == "MI-1-13", "Brewster", name),
          source = ifelse(project_code == "MI-1-13" & is.na(latitude), "manual", source),
@@ -372,7 +377,21 @@ merged_cdd_project_data <-
          source = ifelse(project_code == "KY-1-8" & is.na(latitude), "manual", source),
          latitude = ifelse(project_code == "KY-1-8", 38.240843, latitude),
          longitude = ifelse(project_code == "KY-1-8", -85.764867, longitude)
-  )
+  ) %>% 
+  # La Casita (Denver, CO-1-1): 39.735259116809615, -105.02261160007725
+  mutate(name = ifelse(project_code == "CO-1-1", "La Casita", name),
+         source = ifelse(project_code == "CO-1-1" & is.na(latitude), "manual", source),
+         latitude = ifelse(project_code == "CO-1-1", 39.73525, latitude),
+         longitude = ifelse(project_code == "CO-1-1", -105.02261, longitude)) %>% 
+  # Tasker Homes Addition (PA-2-8 and PA-2-7): 39.93032934178652, -75.1950514740041
+  # Tasker Homes fixes (PA-2-8 and PA-2-7)
+  mutate(name = ifelse(project_code %in% c("PA-2-8", "PA-2-7"), "Tasker Homes", name),
+       source = ifelse(project_code %in% c("PA-2-8", "PA-2-7") & is.na(latitude), "manual", source),
+       latitude = ifelse(project_code == "PA-2-8", 39.93033,
+                         ifelse(project_code == "PA-2-7", 39.93033, latitude)),
+       longitude = ifelse(project_code == "PA-2-8", -75.19505,
+                          ifelse(project_code == "PA-2-7", -75.19505, longitude)))
+  
 
 # Collapse dataset by project code ----
 

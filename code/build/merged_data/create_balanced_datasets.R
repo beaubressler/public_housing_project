@@ -299,8 +299,8 @@ balanced_sample <-
   filter(num_tracts_geq_50 == TRUE) %>% 
   # Exclude tracts treated 1940 or earlier (to preserve 1930 and 1940 as pre-treatment)
   filter(treated_1940_or_earlier == FALSE) %>% 
-  # exclude urban renewal tracts
-  filter(ur_binary_5pp == 0) %>% 
+  # NOTE: Removed urban renewal filter - now controlling for it instead of excluding
+  # filter(ur_binary_5pp == 0) %>% 
   # filter out tracts that are outside the population bounds 
   filter(!GISJOIN_1950 %in% tracts_to_remove) %>% 
   # keep only 1940 onward to avoid changes in the sample across cities and variables
@@ -395,14 +395,21 @@ public_housing_in_sample <-
 
 
 # Numbers (Updated 7/24/2025)
-# 183822
+# 229163
 sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE)
 
-# Number of projects: 445 (6/30)
+# Number of projects: 599 (7/30)
 nrow(public_housing_in_sample %>% filter(!is.na(total_public_housing_units)))
 
-# number of treated tracts: 413 
+# projects per city
+projects_per_city <- 
+  public_housing_in_sample %>%
+  pull(locality) %>% 
+  table()
+
+# number of treated tracts: 545 
 nrow(treated_tracts_with_projects %>% select(GISJOIN_1950) %>% distinct())
+
 
 
 # CHECKING BOSTON
