@@ -49,9 +49,17 @@ manual_fixes <-
 digitized_projects <-
   digitized_projects_raw %>% 
   left_join(manual_fixes) %>% 
-  # apply fixes
-  mutate(lat = ifelse(!is.na(lat_fixed), lat_fixed, lat),
-         long = ifelse(!is.na(long_fixed), long_fixed, long)) %>% 
+  # apply fixes and use hand-checked coordinates when available
+  mutate(lat = case_when(
+           !is.na(lat_fixed) ~ lat_fixed,  # Manual fixes first
+           !is.na(lat) ~ as.character(lat),  # Use existing lat if available
+           !is.na(lat_name_with_city) ~ as.character(lat_name_with_city),  # Fall back to name-based coords
+           TRUE ~ as.character(lat)),
+         long = case_when(
+           !is.na(long_fixed) ~ long_fixed,  # Manual fixes first
+           !is.na(long) ~ as.character(long),  # Use existing long if available
+           !is.na(long_name_with_city) ~ as.character(long_name_with_city),  # Fall back to name-based coords
+           TRUE ~ as.character(long))) %>% 
   select(-lat_fixed, -long_fixed) %>% 
   # convert lat and long to numeric
   mutate(lat = as.numeric(lat),
