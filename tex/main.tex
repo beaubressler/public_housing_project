@@ -1,0 +1,115 @@
+\documentclass[reqno, hidelinks, 12pt]{article}
+\usepackage{amsmath,amsthm,fancyhdr,setspace,graphicx,booktabs,pdflscape,url,fancyvrb}
+\usepackage[position=above]{subfig}
+\usepackage{caption}
+\usepackage[left=1in, right=1in, top=1in, bottom=1in]{geometry}
+\usepackage[charter]{mathdesign}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{natbib}%[longnamesfirst]
+\usepackage{multirow,rotating}
+\usepackage{pgfpages,tikz}
+\usepackage{tabularx}
+\usepackage{nameref}
+\usepackage{longtable}
+
+
+% For modelsummary tables
+\usepackage{tabularray}
+\usepackage{float}
+\usepackage[normalem]{ulem}
+\UseTblrLibrary{booktabs}
+\UseTblrLibrary{siunitx}
+\newcommand{\tinytableTabularrayUnderline}[1]{\underline{#1}}
+\newcommand{\tinytableTabularrayStrikeout}[1]{\sout{#1}}
+\NewTableCommand{\tinytableDefineColor}[3]{\definecolor{#1}{#2}{#3}}
+
+% for formatting tables
+\usepackage{pdflscape}
+\usepackage{adjustbox}
+
+% Bibliography
+\usepackage[style=apa, backend=biber]{biblatex} % Choose your style
+\addbibresource{bibliography/full_library.bib}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Optional packages
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\usepackage[finalold]{\mainroot/tools/trackchanges} %finalold, finalnew, footnotes, margins, inline
+%\usepackage{outlines}
+% For highlighting text.
+%\usepackage{soul}
+%\usetikzlibrary{er,positioning,calc,decorations.pathreplacing}
+
+\usepackage{csquotes}
+% Shading in tables
+\usepackage{color,colortbl}
+
+% For renumbering within sections.
+\usepackage{chngcntr}
+\usepackage{verbatim}
+\usepackage{pifont}
+
+\usepackage{epigraph}
+% Has to be LAST package loaded?
+\usepackage[bookmarks]{hyperref}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Commands and environments.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\ex}{\mathbb{E}}
+\newcommand{\cov}{\mathbb{C}}
+\newcommand{\var}{\mathbb{V}}
+\newcommand{\tu}{\overline{\theta}}
+\newcommand{\tl}{\underline{\theta}}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{defn}{Definition}
+%\numberwithin{equation}{section}
+\newtheorem{assumption}{Assumption}
+\newtheorem{hypothesis}{Hypothesis}
+
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\def\citeapos#1{\citeauthor{#1}'s (\citeyear{#1})} 
+
+\newcommand{\cmark}{\ding{51}}%
+
+\definecolor{orange}{RGB}{255,238,222}
+\definecolor{navy}{RGB}{237,240,243}
+\definecolor{teal}{RGB}{241,244,243}
+
+
+\title{\Large Public Housing and The Transformation of American Neighborhoods}
+%\thanks{I thank participants at the UC Davis Economic History Coffee and Applied Microeconomics Student Talk}}
+
+\author{
+    Beau Bressler \\ UC Davis \\
+    \small{\url{blbressler@ucdavis.edu}} 
+}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+\input{sections/abstract}
+\end{abstract}
+
+\vspace{0.1in}
+
+\centerline{\large {PRELIMINARY DRAFT: PLEASE DO NOT CITE}}
+
+
+\newpage
+\setstretch{1.3}
+
+\input{sections/introduction}
+\input{sections/historical_background}
+\input{sections/data}
+\input{sections/site_selection}
+\input{sections/neighborhood_effects}
+\input{sections/conclusion}
+
+\newpage
+\printbibliography
+
+\end{document}

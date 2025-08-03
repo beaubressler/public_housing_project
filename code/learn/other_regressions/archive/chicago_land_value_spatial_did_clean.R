@@ -32,6 +32,10 @@ set.seed(123)
 crs_chicago <- 26971  # NAD83 Illinois East Zone for accurate distance calculations
 data_type <- "combined"  # Which public housing dataset to use
 
+# Highway control configuration
+include_highway_controls <- TRUE  # Whether to include highway proximity controls
+highway_control_distance <- 1     # Distance threshold in km for highway controls
+
 # Ring distance definitions (in meters) - following Blanco & Neri (2025)
 # Note: Land value data has 300x300 feet (~91m) resolution, so 100m rings are appropriate
 ring_width <- 100            # 100m ring width
@@ -56,10 +60,11 @@ dir.create(data_dir, recursive = TRUE, showWarnings = FALSE)
 #' @param data Event study dataset
 #' @param location_filter Which location types to include
 #' @param urban_renewal_treatment How to handle urban renewal: "baseline", "exclude", "control"  
+#' @param highway_controls Whether to include highway proximity controls
 #' @param period_filter Optional filter for treatment years
 #' @param spec_name Name for the specification (for logging)
 run_spatial_did <- function(data, location_filter, urban_renewal_treatment = "baseline", 
-                           period_filter = NULL, spec_name = "Specification") {
+                           highway_controls = FALSE, period_filter = NULL, spec_name = "Specification") {
   
   # Apply filters
   analysis_data <- data %>%
@@ -75,14 +80,26 @@ run_spatial_did <- function(data, location_filter, urban_renewal_treatment = "ba
     }
   }
   
-  # Handle urban renewal
+  # Handle urban renewal and highway controls
   if (urban_renewal_treatment == "exclude") {
     analysis_data <- analysis_data %>% filter(!in_urban_renewal)
-    fixed_effects <- "project_id^year + project_id^location_type + grid_id"
+    if (highway_controls) {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id + has_highway_1km^year"
+    } else {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id"
+    }
   } else if (urban_renewal_treatment == "control") {
-    fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^year"
+    if (highway_controls) {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^year + has_highway_1km^year"
+    } else {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^year"
+    }
   } else {
-    fixed_effects <- "project_id^year + project_id^location_type + grid_id"
+    if (highway_controls) {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id + has_highway_1km^year"
+    } else {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id"
+    }
   }
   
   # Run regression
@@ -114,10 +131,11 @@ run_spatial_did <- function(data, location_filter, urban_renewal_treatment = "ba
 #' 
 #' @param data Event study dataset with all location types
 #' @param urban_renewal_treatment How to handle urban renewal: "baseline", "exclude", "control"
+#' @param highway_controls Whether to include highway proximity controls
 #' @param period_filter Optional filter for treatment years
 #' @param spec_name Name for the specification (for logging)
 run_spatial_did_all_rings <- function(data, urban_renewal_treatment = "baseline", 
-                                     period_filter = NULL, spec_name = "All Rings") {
+                                     highway_controls = FALSE, period_filter = NULL, spec_name = "All Rings") {
   
   # Apply time filters but keep ALL location types
   analysis_data <- data %>%
@@ -132,14 +150,26 @@ run_spatial_did_all_rings <- function(data, urban_renewal_treatment = "baseline"
     }
   }
   
-  # Handle urban renewal
+  # Handle urban renewal and highway controls
   if (urban_renewal_treatment == "exclude") {
     analysis_data <- analysis_data %>% filter(!in_urban_renewal)
-    fixed_effects <- "project_id^year + project_id^location_type + grid_id"
+    if (highway_controls) {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id + has_highway_1km^year"
+    } else {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id"
+    }
   } else if (urban_renewal_treatment == "control") {
-    fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^year"
+    if (highway_controls) {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^year + has_highway_1km^year"
+    } else {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id + in_urban_renewal^year"
+    }
   } else {
-    fixed_effects <- "project_id^year + project_id^location_type + grid_id"
+    if (highway_controls) {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id + has_highway_1km^year"
+    } else {
+      fixed_effects <- "project_id^year + project_id^location_type + grid_id"
+    }
   }
   
   # Run regression
@@ -383,6 +413,16 @@ ur_spatial <- st_read(here("data", "raw", "Renewing_Inequality_Data-master", "Da
 
 cat("Urban renewal projects loaded:", nrow(ur_spatial), "projects\n")
 
+## 4. Load highway data (shapefiles for direct distance calculation)
+if(include_highway_controls) {
+  cat("Loading highway shapefiles for direct distance calculation...\n")
+  highways_raw <- st_read(here("data", "raw", "highways", "weiwu_2024", "highways_actual.shp"), quiet = TRUE)
+  highways <- st_transform(highways_raw, crs = crs_chicago)  # Transform to Chicago projection
+  cat("Highway data loaded:", nrow(highways), "highway segments\n")
+} else {
+  cat("Highway controls disabled\n")
+}
+
 # SPATIAL ANALYSIS =============================================================
 
 cat("\n=== SPATIAL RING CREATION ===\n")
@@ -544,6 +584,52 @@ if(nrow(ur_spatial) > 0) {
 
 cat("Grid points in urban renewal areas:", sum(ur_indicators$in_urban_renewal), "\n")
 
+# HIGHWAY CONTROLS =============================================================
+
+cat("\n=== CREATING HIGHWAY CONTROLS ===\n")
+
+# Calculate highway proximity directly from grid points to highway segments
+if(include_highway_controls) {
+  
+  cat("Calculating distances from grid points to highways...\n")
+  
+  # Get grid points for distance calculation (using same as for spatial rings)
+  land_value_grid_points <- land_value_points %>%
+    st_transform(crs = crs_chicago)  # Ensure same projection as highways
+  
+  # Calculate distance from each grid point to nearest highway
+  distances_to_highways <- st_distance(land_value_grid_points, highways)
+  min_distances_m <- apply(distances_to_highways, 1, min)
+  min_distances_km <- as.numeric(min_distances_m) / 1000
+  
+  # Create highway indicators
+  highway_indicators <- land_value_grid_points %>%
+    st_drop_geometry() %>%
+    mutate(
+      distance_to_highway_km = min_distances_km,
+      has_highway_1km = distance_to_highway_km <= 1,
+      has_highway_2km = distance_to_highway_km <= 2
+    ) %>%
+    select(grid_id, has_highway_1km, has_highway_2km, distance_to_highway_km)
+  
+  cat("Grid points with highway data:", nrow(highway_indicators), "\n")
+  cat("Grid points within 1km of highway:", sum(highway_indicators$has_highway_1km, na.rm = TRUE), "\n")
+  cat("Grid points within 2km of highway:", sum(highway_indicators$has_highway_2km, na.rm = TRUE), "\n")
+  
+} else {
+  # Create dummy highway indicators if not using highway controls
+  highway_indicators <- land_value_points %>%
+    st_drop_geometry() %>%
+    mutate(
+      has_highway_1km = FALSE,
+      has_highway_2km = FALSE,
+      distance_to_highway_km = 999
+    ) %>%
+    select(grid_id, has_highway_1km, has_highway_2km, distance_to_highway_km)
+  
+  cat("Highway controls disabled - using dummy indicators\n")
+}
+
 # FINAL DATASET CREATION =======================================================
 
 cat("\n=== CREATING FINAL ANALYSIS DATASET ===\n")
@@ -557,6 +643,7 @@ land_value_stacked <- stacked_panel %>%
     by = c("grid_id", "year" = "Year")
   ) %>%
   left_join(ur_indicators, by = "grid_id") %>%
+  left_join(highway_indicators, by = "grid_id") %>%
   filter(year >= 1913) %>%
   # Create event study variables
   mutate(
@@ -673,17 +760,29 @@ cat("\n=== RUNNING SPATIAL DID REGRESSIONS ===\n")
 ## Main Specifications (Closest Ring vs Control)
 # Compare closest treated ring (0-100m) to control ring (800-1000m)
 specs <- list(
-  list(name = "Baseline (No UR Controls)", 
+  list(name = "Baseline (No Controls)", 
        location_filter = c("ring_0_100", "control_800_1000"), 
-       urban_renewal_treatment = "baseline"),
+       urban_renewal_treatment = "baseline", highway_controls = FALSE),
+  
+  list(name = "Highway Controls Only", 
+       location_filter = c("ring_0_100", "control_800_1000"), 
+       urban_renewal_treatment = "baseline", highway_controls = TRUE),
+  
+  list(name = "UR Controls Only", 
+       location_filter = c("ring_0_100", "control_800_1000"), 
+       urban_renewal_treatment = "control", highway_controls = FALSE),
+  
+  list(name = "UR + Highway Controls", 
+       location_filter = c("ring_0_100", "control_800_1000"), 
+       urban_renewal_treatment = "control", highway_controls = TRUE),
   
   list(name = "Exclude UR Areas", 
        location_filter = c("ring_0_100", "control_800_1000"), 
-       urban_renewal_treatment = "exclude"),
+       urban_renewal_treatment = "exclude", highway_controls = FALSE),
   
-  list(name = "Control for UR", 
+  list(name = "Exclude UR + Highway Controls", 
        location_filter = c("ring_0_100", "control_800_1000"), 
-       urban_renewal_treatment = "control")
+       urban_renewal_treatment = "exclude", highway_controls = TRUE)
 )
 
 # Run main specifications
@@ -693,11 +792,12 @@ main_results <- map2(specs, 1:length(specs), ~{
     data = event_study_data,
     location_filter = .x$location_filter,
     urban_renewal_treatment = .x$urban_renewal_treatment,
+    highway_controls = .x$highway_controls,
     spec_name = spec_name
   )
 })
 
-names(main_results) <- c("closest_baseline", "closest_exclude_ur", "closest_control_ur")
+names(main_results) <- c("baseline", "highway_only", "ur_only", "ur_highway", "exclude_ur", "exclude_ur_highway")
 
 ## Mid-Distance Ring Specifications (400-500m vs Control)
 # Compare mid-distance ring to control ring for comparison
@@ -732,13 +832,13 @@ cat("\n=== BLANCO & NERI APPROACH: ALL RINGS IN SINGLE REGRESSION ===\n")
 
 all_rings_specs <- list(
   list(name = "All Rings Baseline", 
-       urban_renewal_treatment = "baseline"),
+       urban_renewal_treatment = "baseline", highway_controls = FALSE),
+  
+  list(name = "All Rings Control UR + Highway", 
+       urban_renewal_treatment = "control", highway_controls = TRUE),
   
   list(name = "All Rings Exclude UR", 
-       urban_renewal_treatment = "exclude"),
-  
-  list(name = "All Rings Control UR", 
-       urban_renewal_treatment = "control")
+       urban_renewal_treatment = "exclude", highway_controls = FALSE)
 )
 
 all_rings_results <- map2(all_rings_specs, 1:length(all_rings_specs), ~{
@@ -746,6 +846,7 @@ all_rings_results <- map2(all_rings_specs, 1:length(all_rings_specs), ~{
   run_spatial_did_all_rings(
     data = event_study_data,
     urban_renewal_treatment = .x$urban_renewal_treatment,
+    highway_controls = .x$highway_controls,
     spec_name = spec_name
   )
 })
@@ -807,6 +908,7 @@ all_rings_period_results <- list(
   early = run_spatial_did_all_rings(
     data = event_study_data,
     urban_renewal_treatment = "control",
+    highway_controls = TRUE,
     period_filter = list(type = "early", cutoff = 1961),
     spec_name = "All Rings Early Periods (≤1961)"
   ),
@@ -814,10 +916,64 @@ all_rings_period_results <- list(
   late = run_spatial_did_all_rings(
     data = event_study_data,
     urban_renewal_treatment = "control",
+    highway_controls = TRUE,
     period_filter = list(type = "late", cutoff = 1961),
     spec_name = "All Rings Late Periods (>1961)"
   )
 )
+
+## HETEROGENEITY ANALYSIS ======================================================
+
+cat("\n=== HETEROGENEITY ANALYSIS ===\n")
+
+# Create heterogeneity indicators
+event_study_data_hetero <- event_study_data %>%
+  mutate(
+    # Project size categories
+    project_size_category = case_when(
+      total_units <= 100 ~ "small",
+      total_units <= 500 ~ "medium", 
+      total_units > 500 ~ "large"
+    ),
+    # Treatment period categories
+    period_category = case_when(
+      treatment_year <= 1949 ~ "early",
+      treatment_year <= 1971 ~ "middle",
+      treatment_year > 1971 ~ "late"
+    )
+  )
+
+# Project size heterogeneity
+size_hetero_results <- list()
+for(size_cat in c("small", "medium", "large")) {
+  size_data <- event_study_data_hetero %>% filter(project_size_category == size_cat)
+  
+  if(nrow(size_data) > 100) {  # Only run if sufficient data
+    size_hetero_results[[size_cat]] <- run_spatial_did(
+      data = size_data,
+      location_filter = c("ring_0_100", "control_800_1000"),
+      urban_renewal_treatment = "control",
+      highway_controls = TRUE,
+      spec_name = paste("Project Size:", size_cat)
+    )
+  }
+}
+
+# Treatment period heterogeneity  
+period_hetero_results <- list()
+for(period_cat in c("early", "middle", "late")) {
+  period_data <- event_study_data_hetero %>% filter(period_category == period_cat)
+  
+  if(nrow(period_data) > 100) {  # Only run if sufficient data
+    period_hetero_results[[period_cat]] <- run_spatial_did(
+      data = period_data,
+      location_filter = c("ring_0_100", "control_800_1000"),
+      urban_renewal_treatment = "control", 
+      highway_controls = TRUE,
+      spec_name = paste("Treatment Period:", period_cat)
+    )
+  }
+}
 
 # RESULTS OUTPUT ===============================================================
 
@@ -839,12 +995,19 @@ robustness_plot <- create_event_study_plot(robustness_400m,
                                           all_rings = TRUE)
 ggsave(here(figures_dir, "chicago_land_value_event_study_400m_robustness.pdf"), robustness_plot, width = 10, height = 6)
 
-# Save regression tables
-etable(main_results$closest_baseline, main_results$closest_exclude_ur, main_results$closest_control_ur,
+# Save regression tables with updated specifications
+etable(main_results$baseline, main_results$highway_only, main_results$ur_only, main_results$ur_highway,
        tex = TRUE,
        file = here(results_dir, "chicago_land_value_main_results.tex"),
-       title = "Effect of Public Housing on Chicago Land Values - Closest Ring Specifications",
+       title = "Effect of Public Housing on Chicago Land Values - Main Specifications",
        label = "tab:chicago_main")
+
+# Save robustness specifications (excluding UR areas)
+etable(main_results$exclude_ur, main_results$exclude_ur_highway,
+       tex = TRUE,
+       file = here(results_dir, "chicago_land_value_robustness_exclude_ur.tex"),
+       title = "Effect of Public Housing on Chicago Land Values - Excluding Urban Renewal Areas",
+       label = "tab:chicago_exclude_ur")
 
 etable(mid_results$mid_baseline, mid_results$mid_exclude_ur, mid_results$mid_control_ur,
        tex = TRUE,
@@ -877,6 +1040,23 @@ etable(all_rings_results$all_rings_baseline, robustness_400m,
        file = here(results_dir, "chicago_land_value_robustness_100m_vs_400m.tex"),
        title = "Robustness Check: 100m vs 400m Ring Specifications",
        label = "tab:chicago_robustness")
+
+# Save heterogeneity results
+if(length(size_hetero_results) > 0) {
+  etable(size_hetero_results,
+         tex = TRUE,
+         file = here(results_dir, "chicago_land_value_heterogeneity_size.tex"),
+         title = "Heterogeneity by Project Size",
+         label = "tab:chicago_hetero_size")
+}
+
+if(length(period_hetero_results) > 0) {
+  etable(period_hetero_results,
+         tex = TRUE,
+         file = here(results_dir, "chicago_land_value_heterogeneity_period.tex"),
+         title = "Heterogeneity by Treatment Period",
+         label = "tab:chicago_hetero_period")
+}
 
 # Create summary statistics
 summary_stats <- event_study_data %>%
