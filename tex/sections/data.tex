@@ -1,0 +1,50 @@
+\section{Data}\label{sec:data}
+
+\subsection{Public Housing Data}
+
+A significant challenge in studying the history of public housing is the absence of a comprehensive dataset containing the list of projects, construction dates, and precise locations of the projects. Consequently, previous research on the neighborhood effects of public housing has been limited in scope or restricted to a small number of cities where researchers could obtain this information directly from housing authorities. My paper addresses this gap by constructing a more complete dataset, combining information from public, recently digitized, and newly digitized sources.
+
+
+The first source I use is the publicly available Picture of Subsidized Households (PSH) datasets from the US Department of Housing and Urban Development (HUD). These datasets contain a list of the universe of federally-funded housing projects, various characteristics of the project (e.g., number of units, demographics) and, from 1997 onward, their locations. I use the PSH datasets from 1997, 2000, and 2023, due to gaps in each of them. Crucially, however, these data do not contain the construction date of the projects, and therefore are not sufficient by themselves to study the effects of the projects.
+
+
+To remedy this, I merge these data with the  \textit{Consolidated Development Directory} (CDD),  published by HUD in 1973 and digitized by \textcite{shesterLocalEconomicEffects2013}. This data contains the universe federally-funded public housing projects which existed in 1973, along with various project characteristics (e.g. number of units) and, crucially, the year each project was completed. Both the PSH datasets and the CDD contain HUD-assigned project codes, enabling linkage between the two datasets together. This linkage allows me to assign locations to over 90\% of the projects in the CDD. I explain the linkage procedure in Appendix \ref{sec:appendix_A}.
+
+I supplemented these data with hand-collected information from historical annual reports of local public housing agencies, obtained from various libraries (or directly from the housing authority, in the case of San Francisco), and data obtained from FOIAs of public housing agencies. This supplementary data collection focused on seven major cities: New York, Chicago, Los Angeles, Washington DC, San Francisco, Atlanta, and Baltimore. For these cities, I constructed a full set of projects built up to 1973, including their construction dates and locations. I was able to geolocate these projects using the Google Maps API. For projects for that I was unable to successfully geolocate, I manually filled in the locations. %More details on the geolocation procedure can be found in the Appendix. 
+
+There were two motivations for collecting these additional data. First, it allowed for a better understanding of the projects in the CDD that I was unable to match to the PSH. Public housing demolitions due to HOPE VI, which began in 1993, and earlier demolitions meant that some projects in the CDD might be missing from the PSH datasets. Indeed, the incomplete matching between CDD and PSH data suggests that some projects may have ceased to when PSH data collection began. Moreover, these missing projects might not be randomly distributed, as demolitions targeted particularly blighted projects. 
+
+Second, the CDD-HUD data only include federally funded public housing projects. However, some cities had significant city- and
+New York City, in particular, had a notable city- and state-funded public housing program, and using only the data on federal projects in New York City misses a substantial number of housing projects and units \footnote{My digitized dataset of NYC housing projects contains 129,430 housing units, compared to 80,000 in the PSH-CDD data}. The other cities for which I collected data had either none or few non-federal projects. Ultimately, I use my hand-collected data for housing projects in New York City, Chicago, and San Francisco, supplement the PSH-CDD for Boston and Washington DC, and rely on the PSH-CDD data for all other cities \footnote{For the other cities for which I hand-collected data, I find no benefit in using my hand-collected data versus the PSH-CDD data}. 
+I found little evidence in the historical record that by otherwise relying on data on federal projects, I am missing a notable stock of public housing in other cities. 
+
+The end result of this process is a dataset containing the construction dates, locations, and characteristics of over 1 million units of public housing built from 1935 until 1973.
+
+\subsection{Neighborhood Data}
+I collect outcomes at the Census tract-level from the 1940-1990 decennial censuses. These data include tract-level measures of population, housing stock, racial composition, various socioeconomic measures (median income, high school graduation rate, labor force participation and unemployment rates, and median rents and home values. All census data and shapefiles were acquired from IPUMS NHGIS (\cite{mansonNationalHistoricalGeographic2022}). I construct a consistent panel of census tracts by concording all tracts to 1950 Census tract boundaries using an area-reweighting approach, following \textcite{eckertMethodConstructGeographical2020}.\footnote{I fix geographies at the 1950 Census tract level, which is defined just prior to the onset of public housing construction in my sample (1951 onward). This approach ensures tract boundaries are exogenous to treatment, avoiding potential bias introduced by post-treatment changes in tract delineation.} 
+I convert all monetary values to 1990 dollar values using US CPI from Officer and Williamson (2024).
+
+I supplement this tract-level data with data from the 1940 full-count Census (\cite{rugglesIPUMSUSAVersion2022}), which I collapse to the tract-level. To convert this to the Census tract level, I merge the full count data to the 1940 enumeration district shape files provided by the Urban Transitions Project (\cite{loganSideStreetGhetto2024} and collapse these data to the enumeration district level. I then, again, use area-reweighting to aggregate these data to 1990 Census tracts.
+This process both allows me to expand my tract-level dataset to some neighborhoods for which tract-level data was unavailable in 1940, as well as include 1940 income information, which is not available from NHGIS.
+
+
+I also use the data and shapefiles 
+of the "redlining" maps drawn by the Home Owners' Loan Corporation, made available by \textit{Mapping Inequality}. These Home Owners' Loan Corporation maps, which graded neighborhoods from ``A'' (best) to ``D'' (hazardous), serve as a proxy for institutional segregation. Areas with high minority populations were systematically marked as ``hazardous'' (red), which may have limited mortgage lending and investment (\cite{aaronsonEffects1930sHOLC2021}). I overlay these maps onto the 1990 Census tract boundaries. Following Weiwu (2024), I consider a neighborhood to be redlined if 80\% of the area is designated as "hazardous."
+
+Finally, I use data on the locations of U.S. urban renewal projects (1955-1966) from \textit{Renewing Inequality} (Nelson and Ayers 2025). I again overlay these maps onto the 1990 Census tract boundaries. To avoid picking up effects from this contemporaneous policy, I exclude Census tracts where more than 5\% of the tract area overlaps with an urban renewal tract boundary.
+
+\subsection{Sample selection}
+
+My analysis will focus on projects built between 1951 and 1973. This is partially due to limitations in the available of neighborhood-level Census data, and the variables available in the Census. I restrict the sample in order to ensure that I have a balanced panel with at least two pre-periods for my difference-in-difference estimates. Thus, I restrict the sample to neighborhoods to Census tracts that exist in each year from 1940-1990. 
+
+I define a Census tract as ``treated'' if it received its first public housing project in the previous decade and if the total public housing units in a tract amounts to more than 5\% of all housing units in the tract, and is more than 30 units. This avoids counting neighborhoods with a miniscule amount of public housing as treated neighborhoods.
+
+
+I make several further sample restrictions. I exclude several small metropolitan areas (< X total tracts), who have too few tracts to do valid within-metro comparisons. I exclude tracts with public housing built before my analysis period (pre-1951), as well as urban renewal tracts, and tracts with fewer than 100 people in 1940. 
+
+The resulting sample includes:
+\begin{itemize}
+    \item 44 metropolitan areas (85 local housing authorities)
+    \item 205,355 public housing units in 513 projects
+    \item 501 treated tracts
+\end{itemize}

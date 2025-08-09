@@ -1,0 +1,31 @@
+\begin{table}
+\centering
+\begin{talltblr}[         %% tabularray outer open
+caption={},
+note{}={+ p \num{< 0.1}, * p \num{< 0.05}, ** p \num{< 0.01}, *** p \num{< 0.001}},
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]Q[]Q[]Q[]Q[]Q[]Q[]Q[]Q[]Q[]},
+column{1}={halign=l,},
+column{2}={halign=c,},
+column{3}={halign=c,},
+column{4}={halign=c,},
+column{5}={halign=c,},
+column{6}={halign=c,},
+column{7}={halign=c,},
+column{8}={halign=c,},
+column{9}={halign=c,},
+column{10}={halign=c,},
+column{11}={halign=c,},
+hline{4}={1,2,3,4,5,6,7,8,9,10,11}{solid, 0.05em, black},
+}                     %% tabularray inner close
+\toprule
+& Black Share: Low-exp & Black Share: High-exp & Log Median Income: Low-exp & Log Median Income: High-exp & HS Grad. Rate: Low-exp & HS Grad. Rate: High-exp & LFP Rate: Low-exp & LFP Rate: High-exp & Unemp. Rate: Low-exp & Unemp. Rate: High-exp \\ \midrule %% TinyTableHeader
+ATT      & \num{0.01}   & \num{0.02}   & \num{-0.04}+ & \num{-0.07}** & \num{0.00}   & \num{-0.01}  & \num{0.00}   & \num{-0.02}** & \num{0.00}   & \num{0.00}   \\
+& (\num{0.03}) & (\num{0.01}) & (\num{0.07}) & (\num{0.05})  & (\num{0.02}) & (\num{0.01}) & (\num{0.00}) & (\num{0.01})  & (\num{0.01}) & (\num{0.01}) \\
+Num.Obs. & \num{6608}   & \num{7300}   & \num{6529}   & \num{6955}    & \num{6608}   & \num{7300}   & \num{6608}   & \num{7300}    & \num{6608}   & \num{7300}   \\
+R2       & \num{0.929}  & \num{0.935}  & \num{0.901}  & \num{0.910}   & \num{0.961}  & \num{0.958}  & \num{0.847}  & \num{0.805}   & \num{0.877}  & \num{0.839}  \\
+R2 Adj.  & \num{0.740}  & \num{0.778}  & \num{0.631}  & \num{0.676}   & \num{0.858}  & \num{0.857}  & \num{0.442}  & \num{0.336}   & \num{0.552}  & \num{0.451}  \\
+\bottomrule
+\end{talltblr}
+\end{table}

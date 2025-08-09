@@ -1,0 +1,33 @@
+\begin{table}
+\centering
+\begin{talltblr}[         %% tabularray outer open
+caption={},
+note{}={+ p \num{< 0.1}, * p \num{< 0.05}, ** p \num{< 0.01}, *** p \num{< 0.001}},
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]Q[]Q[]Q[]},
+column{1}={halign=l,},
+column{2}={halign=c,},
+column{3}={halign=c,},
+column{4}={halign=c,},
+column{5}={halign=c,},
+hline{12}={1,2,3,4,5}{solid, 0.05em, black},
+}                     %% tabularray inner close
+\toprule
+& Log Total Pop. & Log Housing Units & Log Median Rent & Log Median Home Value \\ \midrule %% TinyTableHeader
+event\_time = -20 × treated & \num{0.00}   & \num{-0.01}  & \num{0.00}    & \num{0.00}   \\
+& (\num{0.01}) & (\num{0.02}) & (\num{0.01})  & (\num{0.01}) \\
+event\_time = 0 × treated   & \num{-0.02}  & \num{-0.02}  & \num{0.00}    & \num{-0.03}* \\
+& (\num{0.02}) & (\num{0.02}) & (\num{0.01})  & (\num{0.01}) \\
+event\_time = 10 × treated  & \num{-0.03}  & \num{-0.04}+ & \num{-0.02}*  & \num{-0.03}* \\
+& (\num{0.02}) & (\num{0.02}) & (\num{0.01})  & (\num{0.01}) \\
+event\_time = 20 × treated  & \num{-0.05}+ & \num{-0.05}* & \num{-0.03}*  & \num{-0.04}* \\
+& (\num{0.03}) & (\num{0.03}) & (\num{0.01})  & (\num{0.02}) \\
+event\_time = 30 × treated  & \num{-0.04}  & \num{-0.05}  & \num{-0.05}** & \num{-0.05}+ \\
+& (\num{0.04}) & (\num{0.04}) & (\num{0.02})  & (\num{0.03}) \\
+Num.Obs.                     & \num{13908}  & \num{13664}  & \num{13908}   & \num{13908}  \\
+R2                           & \num{0.892}  & \num{0.898}  & \num{0.903}   & \num{0.925}  \\
+R2 Adj.                      & \num{0.641}  & \num{0.657}  & \num{0.678}   & \num{0.752}  \\
+\bottomrule
+\end{talltblr}
+\end{table}

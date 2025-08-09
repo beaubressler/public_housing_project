@@ -1,0 +1,103 @@
+\section{Site Selection}\label{sec:site_selection}
+
+In this section, I examine the characteristics and predictors of the neighborhoods in which public housing was built. This analysis will quantify some of the historical narratives about public housing discussed in Section \ref{sec:background}. 
+
+%TODO% 
+% Table \ref{tab:site_selection_descr} shows the characteristics of neighborhoods that received a public housing project by 1973.
+
+I estimate probit and linear probability models predicting whether public housing was ever built in a neighborhood, from 1951-1973, based on the initial characteristics of the neighborhood. The results of the probit and linear probability models are shown in Tables \ref{tab:site_selection_probit} and \ref{tab:site_selection_lpm}, respectively. Columns (1) includes only the Black population share, median income, and high school graduation rate, while Column (2) adds additional neighborhood characteristics, and Column (3) also includes variables relating to the local housing market. Standard errors are clustered at the tract level. 
+
+Both sets of models tell a consistent story that aligns with historical accounts. Public housing was significantly more likely to be built in previously redlined neighborhoods with higher Black population shares, lower median incomes, and higher unemployment rates. These patterns are consistent with both the "slum clearance" motivation for construction of public housing, as well as historical accounts of discriminatory site selection. 
+
+%The models also suggest that even conditional on median income and other socioeconomic measures, neighborhoods with a higher Black population share were more likely to receive public housing. This is also consistent with historical narratives that Black neighborhoods, which often faced housing shortages and poor housing conditions in the post-World War II period, were more likely to accept or advocate for public housing in their neighborhoods, while whiter neighborhoods often fought against it (\cite{hirschMakingSecondGhetto1998}).
+
+
+\begin{landscape}
+
+% INSERT PROBIT
+\begin{table}
+\centering
+\begin{talltblr}[         %% tabularray outer open
+caption={Probit: Likelihood of ever receiving a public housing project (1951-1973)},
+label={tab:site_selection_probit}
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]Q[]Q[]},
+column{1}={halign=l,},
+column{2}={halign=c,},
+column{3}={halign=c,},
+column{4}={halign=c,},
+hline{14}={1,2,3,4}{solid, 0.05em, black},
+}                     %% tabularray inner close
+\toprule
+& (1) & (2) & (3) \\ \midrule %% TinyTableHeader
+Black Share (1950)                 & \num{0.052} (\num{0.018})**   & \num{0.036} (\num{0.015})*    & \num{0.037} (\num{0.019})*   \\
+Median Income (1950)               & \num{-0.004} (\num{0.000})*** & \num{-0.003} (\num{0.001})*** & \num{-0.003} (\num{0.001})** \\
+High School Graduation Rate (1950) & \num{-0.090} (\num{0.022})*** & \num{-0.067} (\num{0.022})**  & \num{-0.046} (\num{0.029})   \\
+Redlined Indicator                 &                                 & \num{0.040} (\num{0.013})**   & \num{0.037} (\num{0.016})*   \\
+Population Density (1950)          &                                 & \num{-0.635} (\num{0.303})*   & \num{-0.609} (\num{0.367})+  \\
+(asinh) Distance from CBD          &                                 & \num{0.001} (\num{0.001})     & \num{0.001} (\num{0.001})    \\
+CBD Indicator                      &                                 & \num{-0.015} (\num{0.015})    & \num{-0.014} (\num{0.015})   \\
+Unemployment Rate (1950)           &                                 & \num{0.152} (\num{0.052})**   & \num{0.141} (\num{0.066})*   \\
+Share Needing Major Repairs (1940) &                                 &                                 & \num{0.006} (\num{0.022})    \\
+Median Home Value (1950)           &                                 &                                 & \num{0.000} (\num{0.000})    \\
+Median Rent (1950)                 &                                 &                                 & \num{0.000} (\num{0.000})    \\
+Median Housing Age (1950)          &                                 &                                 & \num{0.000} (\num{0.000})    \\
+CBSA fixed effects                 & Yes                             & Yes                             & Yes                            \\
+Num.Obs.                           & \num{9647}                     & \num{9647}                     & \num{9441}                    \\
+R2                                 & \num{0.134}                    & \num{0.149}                    & \num{0.151}                   \\
+R2 Adj.                            & \num{0.110}                    & \num{0.123}                    & \num{0.123}                   \\
+\bottomrule
+\end{talltblr}
+
+\end{table}
+
+
+
+% INSERT LPM
+\begin{table}
+\centering
+\begin{talltblr}[         %% tabularray outer open
+caption={Linear probability model: Likelihood of receiving a public housing project (1951-1973)},
+label={tab:site_selection_lpm}
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]Q[]Q[]},
+column{1}={halign=l,},
+column{2}={halign=c,},
+column{3}={halign=c,},
+column{4}={halign=c,},
+hline{14}={1,2,3,4}{solid, 0.05em, black},
+}                     %% tabularray inner close
+\toprule
+& (1) & (2) & (3) \\ \midrule %% TinyTableHeader
+Black Share (1950)                 & \num{0.142} (\num{0.022})***  & \num{0.111} (\num{0.023})***  & \num{0.109} (\num{0.023})*** \\
+Median Income (1950)               & \num{-0.002} (\num{0.000})*** & \num{-0.001} (\num{0.000})*** & \num{-0.001} (\num{0.000})** \\
+High School Graduation Rate (1950) & \num{-0.082} (\num{0.017})*** & \num{-0.061} (\num{0.018})*** & \num{-0.039} (\num{0.024})   \\
+Redlined Indicator                 &                                 & \num{0.046} (\num{0.009})***  & \num{0.044} (\num{0.009})*** \\
+Population Density (1950)          &                                 & \num{-0.571} (\num{0.445})    & \num{-0.510} (\num{0.463})   \\
+(asinh) Distance from CBD          &                                 & \num{-0.001} (\num{0.001})    & \num{-0.001} (\num{0.001})   \\
+CBD Indicator                      &                                 & \num{-0.023} (\num{0.021})    & \num{-0.023} (\num{0.022})   \\
+Unemployment Rate (1950)           &                                 & \num{0.191} (\num{0.040})***  & \num{0.179} (\num{0.041})*** \\
+Share Needing Major Repairs (1940) &                                 &                                 & \num{0.027} (\num{0.030})    \\
+Median Home Value (1950)           &                                 &                                 & \num{0.000} (\num{0.000})    \\
+Median Rent (1950)                 &                                 &                                 & \num{0.000} (\num{0.000})    \\
+Median Housing Age (1950)          &                                 &                                 & \num{0.000} (\num{0.000})    \\
+CBSA fixed effects                 & Yes                             & Yes                             & Yes                            \\
+Num.Obs.                           & \num{9770}                     & \num{9770}                     & \num{9519}                    \\
+R2                                 & \num{0.054}                    & \num{0.062}                    & \num{0.061}                   \\
+R2 Adj.                            & \num{0.049}                    & \num{0.057}                    & \num{0.056}                   \\
+\bottomrule
+\end{talltblr}
+\end{table}
+
+
+\end{landscape}
+
+
+These results provide quantitative support for several key historical arguments about public housing. First, they confirm that the program's "slum clearance" objectives translated into systematic targeting of the most disadvantaged neighborhoods. The strong relationships between poverty indicators (low income, high unemployment, low education) and public housing placement provide evidence that housing authorities did indeed focus on areas that could plausibly be characterized as "slums" requiring intervention.
+
+Second, the particularly strong effect of the redlining indicator reveals how public housing site selection layered new forms of federal intervention onto existing patterns of institutional discrimination. Neighborhoods that had been marked as "hazardous" due to their racial composition in the 1930s became the primary targets for public housing construction in the 1950s and 1960s. This created a feedback loop where federal policies reinforced each other in concentrating disadvantage.
+
+Third, the persistent effect of Black population share, even after controlling for income and other socioeconomic measures, suggests that race operated as an independent factor in site selection. This is consistent with historical narratives that Black neighborhoods, which often faced severe housing shortages and poor housing conditions in the post-World War II period, were more likely to accept or advocate for public housing in their neighborhoods, while whiter neighborhoods often successfully fought against it (\cite{hirschMakingSecondGhetto1998}).
+The negative coefficient on population density, while marginally significant, suggests that public housing was somewhat more likely to be built in less dense areas within cities. This may reflect the availability of larger parcels of land needed for public housing developments, or a preference for areas where land acquisition costs were lower.

@@ -1,0 +1,114 @@
+\section{Spatial Difference-in-Differences: Robustness Analysis}
+\label{sec:spatial_did_appendix}
+
+This appendix presents a spatial difference-in-differences analysis as a robustness check on our main matched DiD results. While our primary identification strategy relies on matching observationally similar neighborhoods, the spatial DiD approach exploits variation across concentric rings around public housing projects to identify treatment effects and potential spillovers.
+
+\subsection{Methodology}
+
+\subsubsection{Spatial Ring Construction}
+
+Our spatial DiD design follows recent advances in the place-based policy literature by constructing treatment and control areas based on geographic proximity to public housing projects. We define three types of spatial units for each public housing project:
+
+\begin{enumerate}
+    \item \textbf{Treated tracts}: Census tracts containing public housing projects
+    \item \textbf{Inner ring}: First-order adjacent tracts (immediate neighbors)  
+    \item \textbf{Outer ring}: Second-order adjacent tracts (neighbors of inner ring tracts)
+\end{enumerate}
+
+We construct these rings using tract contiguity rather than simple distance bands, following \citet{author_year} who argue that administrative boundaries better capture neighborhood economic geography. Specifically, we use the \texttt{poly2nb()} function to identify first-order neighbors and \texttt{nblag()} to extend to second-order neighbors, creating a contiguity-based neighbor structure that respects actual neighborhood boundaries.
+
+\subsubsection{Distance Filtering}
+
+To address potential issues with irregularly shaped census tracts that may be contiguous but geographically distant, we apply distance filters to exclude outliers:
+
+\begin{itemize}
+    \item \textbf{Inner ring}: Limited to tracts within 1km of the public housing project
+    \item \textbf{Outer ring}: Limited to tracts within 2km of the public housing project
+\end{itemize}
+
+These thresholds are motivated by the urban economics literature on neighborhood spillovers and ensure our spatial rings capture economically meaningful distances. The median distances in our final sample are 401 meters for inner ring tracts and 1,197 meters for outer ring tracts, consistent with typical neighborhood scales in urban areas.
+
+\subsubsection{Contamination Cleaning}
+
+A key challenge in spatial DiD designs is avoiding contamination of control groups. We implement two types of contamination cleaning:
+
+\begin{enumerate}
+    \item \textbf{Treatment contamination}: We exclude any tract that ever receives public housing from serving as a control for other projects
+    \item \textbf{Spillover contamination}: We exclude any tract that serves as an inner ring control from serving as an outer ring control, maintaining clean nested ring structure
+\end{enumerate}
+
+This approach ensures that our control groups represent genuinely untreated areas while preserving the spatial structure necessary for identification.
+
+\subsection{Econometric Specification}
+
+Our spatial DiD specification exploits variation in treatment timing across projects and spatial variation across rings within each project. For tract $i$ associated with project $p$ in year $t$, we estimate:
+
+\begin{align}
+y_{ipt} = &\alpha + \sum_{r \in \{inner, outer\}} \sum_{\tau \neq -10} \beta_{r\tau} \mathbf{1}[\text{Ring}_{ip} = r] \times \mathbf{1}[\text{EventTime}_{pt} = \tau] \nonumber \\
+&+ \gamma_{pt} + \delta_{pr} + \theta_{p,UR} \times t + \phi_{p,HWY} \times t + \varepsilon_{ipt}
+\end{align}
+
+where $y_{ipt}$ is the demographic outcome of interest, $\mathbf{1}[\text{Ring}_{ip} = r]$ indicates whether tract $i$ is in ring $r$ relative to project $p$, and $\mathbf{1}[\text{EventTime}_{pt} = \tau]$ indicates the number of decades relative to project $p$'s opening in year $t$. The coefficients $\beta_{r\tau}$ capture the effect of being in ring $r$ at event time $\tau$ relative to the treated tract at event time $-10$.
+
+\subsubsection{Fixed Effects Structure}
+
+Our specification includes an extensive set of fixed effects to address potential confounders:
+
+\begin{itemize}
+    \item $\gamma_{pt}$: \textbf{Project-by-year fixed effects} (221 FEs) control for project-specific time trends
+    \item $\delta_{pr}$: \textbf{Project-by-ring fixed effects} (91 FEs) allow for heterogeneous baseline differences across rings within each project
+    \item $\theta_{p,UR} \times t$: \textbf{Project-by-urban renewal-by-year interactions} (344 FEs) allow projects near urban renewal areas to have different time trends
+    \item $\phi_{p,HWY} \times t$: \textbf{Project-by-highway-by-year interactions} (273 FEs) control for differential trends near highway construction
+\end{itemize}
+
+This rich fixed effects structure addresses concerns about time-varying confounders that might differentially affect projects based on their local policy environment.
+
+\subsection{Identification Strategy}
+
+The spatial DiD design identifies treatment effects under the assumption that, absent public housing, the demographic trajectories of inner and outer ring tracts would have evolved similarly to treated tracts, conditional on our fixed effects structure. This approach has two key advantages:
+
+\begin{enumerate}
+    \item \textbf{Geographic proximity}: Inner and outer ring tracts are close enough to treated tracts to provide plausible counterfactuals for local economic and demographic conditions
+    \item \textbf{Policy isolation}: By focusing on spatial variation around individual projects, we can better isolate public housing effects from other neighborhood changes
+\end{enumerate}
+
+The identification assumption is most plausible for outer ring tracts, which are far enough from public housing projects (median 1.2km) to avoid direct spillovers while remaining in the same local economic environment.
+
+\subsection{Sample and Data Structure}
+
+Our spatial DiD analysis uses a stacked design that pools across all public housing projects and creates separate project-specific control groups. The final sample includes:
+
+\begin{itemize}
+    \item \textbf{Projects}: [X] public housing projects across [Y] metropolitan areas
+    \item \textbf{Treatment cohorts}: Projects opening in 1960, 1970, and 1980
+    \item \textbf{Time period}: 1930-1990 (7 census waves)
+    \item \textbf{Observations}: [Z] tract-year observations
+\end{itemize}
+
+Each project contributes a separate "experiment" to the stacked design, with treated tracts compared to their project-specific inner and outer rings over time.
+
+\subsection{Limitations and Caveats}
+
+We acknowledge several limitations of the spatial DiD approach:
+
+\begin{enumerate}
+    \item \textbf{Balance concerns}: Unlike our matched DiD approach, spatial rings are not selected based on observable similarity to treated tracts. This may lead to compositional differences that our fixed effects cannot fully address.
+    
+    \item \textbf{Spillover assumptions}: The approach assumes spillovers decay with distance, but the optimal ring definitions depend on the unknown spatial extent of spillovers.
+    
+    \item \textbf{Sample restrictions}: Distance filtering and contamination cleaning reduce sample size and may affect external validity if excluded projects differ systematically.
+    
+    \item \textbf{Administrative boundaries}: While contiguity-based rings respect neighborhood boundaries, these may not perfectly align with the economic geography of spillover effects.
+\end{enumerate}
+
+\subsection{Relationship to Main Results}
+
+The spatial DiD analysis serves as an important robustness check on our main matched DiD results by employing a fundamentally different identification strategy. While the matched DiD approach addresses selection bias through observable matching, the spatial DiD approach exploits geographic variation under different assumptions about neighborhood spillovers.
+
+Consistency between the two approaches would strengthen confidence in our findings, while differences might reveal heterogeneity in treatment effects or highlight the importance of specific identification assumptions. We view the spatial DiD results as complementary evidence rather than a replacement for our primary matched DiD analysis.
+
+\subsection{Results}
+
+[Tables and figures showing spatial DiD results would be inserted here, with event study plots for inner and outer rings, and comparison to main matched DiD results]
+
+The spatial DiD results [summarize key findings and how they relate to main results]. These findings [support/complement/differ from] our main matched DiD results in ways that [interpretation]. Overall, the spatial analysis provides [strong/moderate/limited] support for our main conclusions about public housing effects on neighborhood demographics.

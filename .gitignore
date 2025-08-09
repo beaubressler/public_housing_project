@@ -79,8 +79,21 @@
 ehthumbs.db
 Thumbs.db
 
-# Logs
+# Logs and LaTeX build files
 *.log
+*.aux
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.nav
+*.snm
+*.vrb
 
 # Packrat
 packrat/lib*/

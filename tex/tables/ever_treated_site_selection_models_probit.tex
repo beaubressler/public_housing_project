@@ -1,0 +1,34 @@
+\begin{table}
+\centering
+\begin{talltblr}[         %% tabularray outer open
+caption={Probit: Likelihood of ever receiving a public housing project (1951-1973)},
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]Q[]Q[]},
+column{1}={halign=l,},
+column{2}={halign=c,},
+column{3}={halign=c,},
+column{4}={halign=c,},
+hline{14}={1,2,3,4}{solid, 0.05em, black},
+}                     %% tabularray inner close
+\toprule
+& (1) & (2) & (3) \\ \midrule %% TinyTableHeader
+Black Share (1950)                 & \num{0.052} (\num{0.018})**   & \num{0.036} (\num{0.015})*    & \num{0.037} (\num{0.019})*   \\
+Median Income (1950)               & \num{-0.004} (\num{0.000})*** & \num{-0.003} (\num{0.001})*** & \num{-0.003} (\num{0.001})** \\
+High School Graduation Rate (1950) & \num{-0.090} (\num{0.022})*** & \num{-0.067} (\num{0.022})**  & \num{-0.046} (\num{0.029})   \\
+Redlined Indicator                 &                                 & \num{0.040} (\num{0.013})**   & \num{0.037} (\num{0.016})*   \\
+Population Density (1950)          &                                 & \num{-0.635} (\num{0.303})*   & \num{-0.609} (\num{0.367})+  \\
+(asinh) Distance from CBD          &                                 & \num{0.001} (\num{0.001})     & \num{0.001} (\num{0.001})    \\
+CBD Indicator                      &                                 & \num{-0.015} (\num{0.015})    & \num{-0.014} (\num{0.015})   \\
+Unemployment Rate (1950)           &                                 & \num{0.152} (\num{0.052})**   & \num{0.141} (\num{0.066})*   \\
+Share Needing Major Repairs (1940) &                                 &                                 & \num{0.006} (\num{0.022})    \\
+Median Home Value (1950)           &                                 &                                 & \num{0.000} (\num{0.000})    \\
+Median Rent (1950)                 &                                 &                                 & \num{0.000} (\num{0.000})    \\
+Median Housing Age (1950)          &                                 &                                 & \num{0.000} (\num{0.000})    \\
+CBSA fixed effects                 & Yes                             & Yes                             & Yes                            \\
+Num.Obs.                           & \num{9647}                     & \num{9647}                     & \num{9441}                    \\
+R2                                 & \num{0.134}                    & \num{0.149}                    & \num{0.151}                   \\
+R2 Adj.                            & \num{0.110}                    & \num{0.123}                    & \num{0.123}                   \\
+\bottomrule
+\end{talltblr}
+\end{table}

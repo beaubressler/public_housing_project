@@ -1,0 +1,36 @@
+\begin{table}
+\centering
+\begin{talltblr}[         %% tabularray outer open
+caption={},
+note{}={+ p \num{< 0.1}, * p \num{< 0.05}, ** p \num{< 0.01}, *** p \num{< 0.001}},
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]Q[]Q[]Q[]Q[]Q[]Q[]},
+column{1}={halign=l,},
+column{2}={halign=c,},
+column{3}={halign=c,},
+column{4}={halign=c,},
+column{5}={halign=c,},
+column{6}={halign=c,},
+column{7}={halign=c,},
+column{8}={halign=c,},
+hline{12}={1,2,3,4,5,6,7,8}{solid, 0.05em, black},
+}                     %% tabularray inner close
+\toprule
+& Log Black Population & Log White Population & Black Share & Log Median Income & HS Grad. Rate & LFP Rate & Unemp. Rate \\ \midrule %% TinyTableHeader
+event\_time = -20 × treated & \num{0.03}   & \num{0.02}   & \num{-0.01}  & \num{0.00}     & \num{0.01}** & \num{0.00}     & \num{0.00}   \\
+& (\num{0.06}) & (\num{0.02}) & (\num{0.01}) & (\num{0.01})   & (\num{0.00}) & (\num{0.00})   & (\num{0.00}) \\
+event\_time = 0 × treated   & \num{0.21}** & \num{-0.01}  & \num{0.00}   & \num{-0.03}*** & \num{0.00}   & \num{-0.01}**  & \num{0.00}   \\
+& (\num{0.07}) & (\num{0.03}) & (\num{0.01}) & (\num{0.01})   & (\num{0.00}) & (\num{0.00})   & (\num{0.00}) \\
+event\_time = 10 × treated  & \num{0.23}** & \num{-0.02}  & \num{0.01}   & \num{-0.05}*** & \num{-0.01}+ & \num{-0.01}*   & \num{0.00}   \\
+& (\num{0.07}) & (\num{0.04}) & (\num{0.01}) & (\num{0.01})   & (\num{0.00}) & (\num{0.00})   & (\num{0.00}) \\
+event\_time = 20 × treated  & \num{0.18}*  & \num{-0.05}  & \num{0.01}   & \num{-0.06}*** & \num{-0.01}+ & \num{-0.01}*** & \num{0.00}   \\
+& (\num{0.08}) & (\num{0.05}) & (\num{0.01}) & (\num{0.02})   & (\num{0.00}) & (\num{0.00})   & (\num{0.00}) \\
+event\_time = 30 × treated  & \num{0.29}** & \num{-0.14}+ & \num{0.03}*  & \num{-0.11}*** & \num{-0.02}* & \num{-0.02}*** & \num{0.00}   \\
+& (\num{0.10}) & (\num{0.07}) & (\num{0.01}) & (\num{0.02})   & (\num{0.01}) & (\num{0.01})   & (\num{0.00}) \\
+Num.Obs.                     & \num{13908}  & \num{13908}  & \num{13908}  & \num{13484}    & \num{13908}  & \num{13908}    & \num{13908}  \\
+R2                           & \num{0.923}  & \num{0.930}  & \num{0.933}  & \num{0.908}    & \num{0.961}  & \num{0.826}    & \num{0.856}  \\
+R2 Adj.                      & \num{0.745}  & \num{0.767}  & \num{0.776}  & \num{0.685}    & \num{0.869}  & \num{0.423}    & \num{0.522}  \\
+\bottomrule
+\end{talltblr}
+\end{table}
