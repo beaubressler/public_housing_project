@@ -99,11 +99,23 @@ census_tract_data_full_1930_and_1940 <-
   census_tract_data_full %>% 
   filter(YEAR %in% c(1930, 1940))
 
+# Now the anti_join will include NYC 1940 ED-derived data since NYC 1940 Health Areas were removed above
 additional_tracts_from_full_count_1930_1940 <- 
   census_tract_data_from_full_count %>% 
   anti_join(census_tract_data_full_1930_and_1940 %>% st_drop_geometry(),
             by = c("GISJOIN_1950", "YEAR"))
 
+# Checking NYC population data in full count and ED 
+census_tract_data_from_full_count %>% filter((YEAR == 1940 & STATE == "New York" &
+           COUNTY %in% c("Bronx", "Kings", "New York", "Queens", "Richmond"))) %>% 
+  pull(total_pop) %>% 
+  sum(na.rm= TRUE)
+
+census_tract_data_full %>%
+  filter(YEAR == 1940 & STATE == "New York" & 
+           COUNTY %in% c("Bronx", "Kings", "New York", "Queens", "Richmond")) %>% 
+  pull(total_pop) %>% 
+  sum(na.rm= TRUE)
 
 # Census tract data from full count - all variables that may need filling
 census_tract_data_from_full_count_supplement <- 
@@ -154,16 +166,13 @@ merged_fc_and_fc_tracts <-
          total_pop_fc = round(total_pop_fc,2))
 
 # Note: These are not equivalent, though they are extremely highly correlated
-# Population counts, in particular, are often off by a fair amount...
-# coefficient is only around .45, though very very significant
+# 7/2025: Now, high correlation between overlapping populations
 summary(lm(total_pop_fc ~ total_pop_orig, data = merged_fc_and_fc_tracts))
 summary(lm(black_pop_fc ~ black_pop_orig, data = merged_fc_and_fc_tracts))
 summary(lm(median_rent_calculated_fc ~ median_rent_calculated_orig, data = merged_fc_and_fc_tracts))
 summary(lm(median_home_value_calculated_fc ~ median_home_value_calculated_orig, data = merged_fc_and_fc_tracts))
 summary(lm(black_share_fc ~ black_share_orig, data = merged_fc_and_fc_tracts))
 summary(lm(pct_hs_grad_fc ~ pct_hs_grad_orig, data = merged_fc_and_fc_tracts))
-summary(lm(median_rent_calculated_fc ~ median_rent_calculated_orig, data = merged_fc_and_fc_tracts))
-summary(lm(median_home_value_calculated_fc ~ median_home_value_calculated_orig, data = merged_fc_and_fc_tracts))
 summary(lm(lfp_rate_fc ~ lfp_rate_orig, data = merged_fc_and_fc_tracts))
         
 
@@ -293,7 +302,6 @@ local_aspatial_di <- combined_data %>%
 # Join local dissimilarity index to combined data
 combined_data <- combined_data %>%
   left_join(local_aspatial_di, by = c("GISJOIN_1950", "YEAR"))
-
 
 # Output ----
 # output 

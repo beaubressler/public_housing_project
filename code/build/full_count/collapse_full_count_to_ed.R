@@ -18,15 +18,13 @@ library(haven)
 library(ipumsr)
 library(data.table)
 
-# parallel processing set-upo
+# parallel processing setup
 # library(parallel)
 # library(future)
 # library(furrr)  # For parallel processing
 # library(future.apply)
 
 #plan(multisession, workers = 8)  # Use 8 cores for parallel tasks, out of 10
-
-
 
 full_count_dir <- here("data", "raw", "ipums", "full_count")
 output_dir <- here("data", "derived", "census", "full_count", "ed_by_city")
@@ -57,6 +55,7 @@ cities <- c(
 )
 
 
+# Chunk size
 chunk_size_param <- 500000
 
 # Prep Saavedra and Twinam occscores ----
@@ -121,43 +120,57 @@ chunked_results_pop_1930 <-
   read_ipums_micro_chunked(ddi_file_path_1930, callback = cb_pop_1930, chunk_size = chunk_size_param)
 
 # Combine results
+# Convert to data.table for faster processing
+setDT(chunked_results_pop_1930)
+
+# Process population by race using data.table - much faster than dplyr
 population_by_race_city_ed_1930 <-
-  chunked_results_pop_1930 %>%
-  # drop missing CITY and b_ed
-  filter(CITY != 0, !is.na(b_ed)) %>% 
-  mutate(CITY_NAME = as.character(as_factor(CITY)),
-         race = as.character(as_factor(RACE))) %>% 
-  group_by(CITY_NAME, b_ed, b_city, race) %>%
-  summarize(population= sum(population), .groups = "drop") %>% 
-  pivot_wider(names_from = race, 
-              values_from = population,
-              values_fill =  0) %>% 
-  mutate(white_pop = White,
-         black_pop = `Black/African American`,
-         other_pop = Chinese + `American Indian or Alaska Native` + Japanese +`Other Asian or Pacific Islander`) %>% 
-  select(CITY_NAME, b_ed, b_city, white_pop, black_pop, other_pop) 
+  chunked_results_pop_1930[CITY != 0 & !is.na(b_ed), 
+    .(population = sum(population)), 
+    by = .(CITY_NAME = as.character(as_factor(CITY)),
+           b_ed, b_city, 
+           race = as.character(as_factor(RACE)))
+  ]
+
+# Convert to wide format using data.table's dcast
+population_by_race_city_ed_1930 <- dcast(population_by_race_city_ed_1930, 
+                                         CITY_NAME + b_ed + b_city ~ race, 
+                                         value.var = "population", 
+                                         fill = 0)
+
+# Create race columns using direct column references - the .SD logic was causing population loss
+population_by_race_city_ed_1930[, `:=`(
+  white_pop = White,
+  black_pop = `Black/African American`,
+  other_pop = Chinese + `American Indian or Alaska Native` + Japanese + `Other Asian or Pacific Islander`
+)]
+
+# Select only needed columns  
+population_by_race_city_ed_1930 <- population_by_race_city_ed_1930[, .(CITY_NAME, b_ed, b_city, white_pop, black_pop, other_pop)] 
 
 ## Literacy -----
 # Share of Age 25+ that is literate
 cb_function_literacy_1930 <- function(x, pos) {
   setDT(x)  # Ensure x is a data.table
   
-  # Merge with grf_1930
+  # Merge with grf_1930 to get ED info
   x <- merge(x, grf_1930, by = "HISTID", all.x = TRUE)
   
-  x <- as_tibble(x)
+  # REMOVED: as_tibble(x) conversion - keep as data.table for memory efficiency
   
-  # Filter for age 25+
-  x <- x %>%
-    filter(AGE >= 25) %>% 
-    # drop missing literacy
-    filter(!is.na(LIT), LIT != 0) %>% 
-    mutate(literate = ifelse(LIT == 4, 1, 0)) %>% 
-    group_by(CITY, b_city, b_ed) %>% 
-    summarize(total = n(), literate_count = sum(literate), .groups = "drop") %>% 
-    mutate(literacy_rate = literate_count / total)
+  # Filter for age 25+ and drop missing literacy values - data.table syntax
+  x <- x[AGE >= 25 & !is.na(LIT) & LIT != 0]
   
-  return(x)
+  # Create literacy indicator: 1 if literate (LIT==4), 0 otherwise
+  x[, literate := ifelse(LIT == 4, 1, 0)]
+  
+  # Aggregate by CITY, borough, and ED - count total people and literate people
+  result <- x[, .(total = .N, literate_count = sum(literate)), by = .(CITY, b_city, b_ed)]
+  
+  # Calculate literacy rate as proportion
+  result[, literacy_rate := literate_count / total]
+  
+  return(result)
 }
 
 cb_literacy_1930 <- IpumsDataFrameCallback$new(cb_function_literacy_1930)
@@ -180,42 +193,24 @@ head(literacy_by_city_ed_1930)
 cb_function_rent_1930 <- function(x, pos) {
   setDT(x)  # Ensure x is a data.table
   
-  # Merge with grf_1930
+  # Merge with grf_1930 to get ED info
   x <- merge(x, grf_1930, by = "HISTID", all.x = TRUE)
   
-  x <- as_tibble(x)
+  # REMOVED: as_tibble(x) conversion - keep as data.table for memory efficiency
   
-  # Create rent_groups
-  # These groups are based on X
-  x <- x %>%
-    dplyr::rename(rent = RENT30) %>% 
-    # Keep only the head of household 
-    filter(RELATE == 1) %>% 
-    # drop rent = 0 (NA) and rent == 9999 (missing) and rent == 9998 (no cash rent)
-    filter(rent != 0, rent != 9999, rent != 9998) %>% 
-    mutate(rent_group = case_when(
-      rent >= 0 & rent <= 5 ~ 1,
-      rent > 5 & rent <= 6 ~ 2,
-      rent > 6 & rent <= 9 ~ 3,
-      rent > 9 & rent <= 14 ~ 4,
-      rent > 14 & rent <= 19 ~ 5,
-      rent > 19 & rent <= 24 ~ 6,
-      rent > 24 & rent <= 29 ~ 7,
-      rent > 29 & rent <= 39 ~ 8,
-      rent > 39 & rent <= 49 ~ 9,
-      rent > 49 & rent <= 59 ~ 10,
-      rent > 59 & rent <= 74 ~ 11,
-      rent > 74 & rent <= 99 ~ 12,
-      rent > 99 & rent <= 149 ~ 13,
-      rent > 149 & rent <= 199 ~ 14,
-      rent > 199 ~ 15,
-      TRUE ~ NA_integer_
-    ))
+  # Rename RENT30 to rent for easier reference
+  setnames(x, "RENT30", "rent")
   
-  # Convert back to data.table
-  setDT(x)
+  # Keep only head of household and filter out missing/invalid rent values
+  # RELATE==1 is appropriate here since rent is a household-level variable
+  x <- x[RELATE == 1 & rent != 0 & rent != 9999 & rent != 9998]
   
-  # Group by CITY, b_ed, and rent_group and calculate population
+  # Create rent groups using cut function - cleaner than nested fifelse
+  rent_breaks <- c(0, 5, 6, 9, 14, 19, 24, 29, 39, 49, 59, 74, 99, 149, 199, Inf)
+  x[, rent_group := cut(rent, breaks = rent_breaks, labels = 1:15, right = TRUE, include.lowest = TRUE)]
+  x[, rent_group := as.integer(rent_group)]
+  
+  # Aggregate by CITY, borough, ED, and rent group - count households in each group
   result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, rent_group)]
   
   return(result)
@@ -230,17 +225,22 @@ chunked_results_rent_1930 <-
   read_ipums_micro_chunked(ddi_file_path_1930, callback = cb_rent_1930, chunk_size = chunk_size_param)
 
 # Combine results
+# Convert to data.table and process rent groups - much faster than dplyr
+setDT(chunked_results_rent_1930)
+
 rent_group_by_city_ed_1930 <-
-  chunked_results_rent_1930 %>%
-  # drop missing CITY and b_ed
-  filter(CITY != 0, !is.na(b_ed)) %>% 
-  mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, b_city, rent_group) %>%
-  summarize(population= sum(population), .groups = "drop") %>%
-  mutate(rent_group = paste0("rent_group_", rent_group)) %>% 
-  pivot_wider(names_from = rent_group, 
-              values_from = population,
-              values_fill =  0)
+  chunked_results_rent_1930[CITY != 0 & !is.na(b_ed), 
+    .(population = sum(population)), 
+    by = .(CITY_NAME = as.character(as_factor(CITY)), b_ed, b_city, rent_group)
+  ][,
+    rent_group := paste0("rent_group_", rent_group)
+  ]
+
+# Convert to wide format using data.table's dcast
+rent_group_by_city_ed_1930 <- dcast(rent_group_by_city_ed_1930, 
+                                    CITY_NAME + b_ed + b_city ~ rent_group, 
+                                    value.var = "population", 
+                                    fill = 0)
   
 
 
@@ -257,36 +257,20 @@ cb_function_home_value_1930 <- function(x, pos) {
   # merge Geographic Reference File info (ED number) onto full count
   x <- merge(x, grf_1930, by = "HISTID", all.x = TRUE)
   
-  x <- as_tibble(x)
+  # REMOVED: as_tibble(x) conversion - keep as data.table for memory efficiency
   
-  # create home value groups: Based on 1940 tract home value groups
-  x <- x %>%
-    dplyr::rename(valueh = VALUEH) %>%
-    # Keep only the head of household
-    filter(RELATE == 1) %>%
-    # Drop valueh = 0 (NA), valueh == 9999998 (missing), and valueh == 9999999 (N/A)
-    filter(valueh != 0, valueh != 9999998, valueh != 9999999) %>%
-    mutate(valueh_group = case_when(
-      valueh > 0 & valueh <= 500 ~ 1,          # 0 - 500
-      valueh > 500 & valueh <= 699 ~ 2,        # 500 - 699
-      valueh > 699 & valueh <= 999 ~ 3,        # 700 - 999
-      valueh > 999 & valueh <= 1499 ~ 4,       # 1000 - 1499
-      valueh > 1499 & valueh <= 1999 ~ 5,      # 1500 - 1999
-      valueh > 1999 & valueh <= 2499 ~ 6,      # 2000 - 2499
-      valueh > 2499 & valueh <= 2999 ~ 7,      # 2500 - 2999
-      valueh > 2999 & valueh <= 3999 ~ 8,      # 3000 - 3999
-      valueh > 3999 & valueh <= 4999 ~ 9,      # 4000 - 4999
-      valueh > 4999 & valueh <= 5999 ~ 10,     # 5000 - 5999
-      valueh > 5999 & valueh <= 7499 ~ 11,     # 6000 - 7499
-      valueh > 7499 & valueh <= 9999 ~ 12,     # 7500 - 9999
-      valueh > 9999 & valueh <= 14999 ~ 13,    # 10000 - 14999
-      valueh > 14999 & valueh <= 19999 ~ 14,   # 15000 - 19999
-      valueh > 19999 ~ 15,                     # 20000+
-      TRUE ~ NA_integer_
-    ))
+  # Rename VALUEH to valueh for easier reference
+  setnames(x, "VALUEH", "valueh")
   
-  # Convert back to data.table
-  setDT(x)
+  # Keep only head of household and filter out missing/invalid home values
+  # RELATE==1 is appropriate here since home value is a household-level variable
+  x <- x[RELATE == 1 & valueh != 0 & valueh != 9999998 & valueh != 9999999]
+  
+  # Create home value groups using cut function - cleaner than nested fifelse
+  # Home value ranges: 0-500, 501-699, 700-999, 1000-1499, 1500-1999, 2000-2499, 2500-2999, 3000-3999, 4000-4999, 5000-5999, 6000-7499, 7500-9999, 10000-14999, 15000-19999, 20000+
+  valueh_breaks <- c(0, 500, 699, 999, 1499, 1999, 2499, 2999, 3999, 4999, 5999, 7499, 9999, 14999, 19999, Inf)
+  x[, valueh_group := cut(valueh, breaks = valueh_breaks, labels = 1:15, right = TRUE, include.lowest = TRUE)]
+  x[, valueh_group := as.integer(valueh_group)]
   
   # Group by CITY, b_ed, and valueh_group and calculate population
   result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, valueh_group)]
@@ -322,18 +306,14 @@ cb_function_lf_1930 <- function(x, pos) {
   # set as data.table
   setDT(x)
   
-  # keep only individuals age 14 and up, following Census
-  x <- as.tibble(x)
-  
-  x <- x %>%
-    filter(AGE >= 14)
-  
-  x <- as.data.table(x)
+  # REMOVED: tibble conversions - keep as data.table for memory efficiency
+  # Keep only individuals age 14 and up, following Census definition of labor force
+  x <- x[AGE >= 14]
 
   # merge Geographic Reference File info (ED number) onto full count
   x <- merge(x, grf_1930, by = "HISTID", all.x = TRUE)
   
-  # collapse by City, ED #, Race
+  # Aggregate by CITY, borough, ED, and employment status - count people in each category
   result <- x[, .(population = .N) , by = .(CITY, b_ed, b_city, EMPSTAT)]
   
   return(result)
@@ -346,7 +326,7 @@ cb_lf_1930 <- IpumsDataFrameCallback$new(cb_function_lf_1930)
 
 # Read data in chunks
 chunked_results_lf_1930 <-
-  read_ipums_micro_chunked(ddi_file_path_1930, callback = cb_lf_1930, chunk_size = 500000)
+  read_ipums_micro_chunked(ddi_file_path_1930, callback = cb_lf_1930, chunk_size = chunk_size_param)
 
 # Combine results
 lf_status_by_city_ed_1930 <-
@@ -380,36 +360,25 @@ cb_function_lido_income_1930 <- function(x, pos) {
   # Merge with grf_1930
   x <- merge(x, grf_1930, by = "HISTID", all.x = TRUE)
   
-  x <- as_tibble(x)
+  # REMOVED: as_tibble(x) conversion - keep as data.table for memory efficiency
   
-  # Calculate family LIDO-based income
-  x <- x %>%
-    # Keep only individuals with valid LIDO scores
-    filter(!is.na(LIDO)) %>%
-    # Sum LIDO scores within each family
-    group_by(CITY, b_ed, b_city, SERIAL) %>%
-    summarise(family_wage = sum(LIDO), .groups = "drop") %>%
-    # Create income groups
-    # These are the 1950 tract-based income groups
-    mutate(family_wage = family_wage * 100,  # Convert to actual 1950 dollars
-           income_group = case_when(family_wage < 500 ~ 1, # 0-499
-                                           family_wage >= 500 & family_wage < 1000 ~ 2, # 500-999
-                                           family_wage >= 1000 & family_wage < 1500 ~ 3, # 1000-1499
-                                           family_wage >= 1500 & family_wage < 2000 ~ 4, # 1500-1999
-                                           family_wage >= 2000 & family_wage < 2500 ~ 5, # 2000-2499
-                                           family_wage >= 2500 & family_wage < 3000 ~ 6, # 2500-2999
-                                           family_wage >= 3000 & family_wage < 3500 ~ 7, # 3000-3499
-                                           family_wage >= 3500 & family_wage < 4000 ~ 8, # 3500-3999
-                                           family_wage >= 4000 & family_wage < 4500 ~ 9, # 4000-4999
-                                           family_wage >= 4500 & family_wage < 5000 ~ 10, # 4500-4999
-                                           family_wage >= 5000 & family_wage < 6000 ~ 11, # 5000-5999
-                                           family_wage >= 6000 & family_wage < 7000 ~ 12, # 6000-6999
-                                           family_wage >= 7000 & family_wage < 10000 ~ 13, # 7000-9999
-                                           family_wage >= 10000 ~ 14,
-                                           TRUE ~ NA_integer_))
+  # Filter for individuals with valid LIDO scores only
+  x <- x[!is.na(LIDO)]
   
-  setDT(x)
-  result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, income_group)]
+  # Calculate family LIDO-based income by summing LIDO scores within each family
+  family_income <- x[, .(family_wage_raw = sum(LIDO)), by = .(CITY, b_ed, b_city, SERIAL)]
+  
+  # Convert LIDO scores to actual 1950 dollars and create income groups
+  # These are the 1950 tract-based income groups
+  family_income[, family_wage := family_wage_raw * 100]  # Convert to actual 1950 dollars
+  
+  # Create income groups using data.table's cut function - cleaner than nested fifelse
+  breaks <- c(0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 10000, Inf)
+  family_income[, income_group := cut(family_wage, breaks = breaks, labels = 1:14, right = FALSE, include.lowest = TRUE)]
+  family_income[, income_group := as.integer(income_group)]
+  
+  # Return family-level data with income groups - each row represents one family
+  result <- family_income[, .(population = .N), by = .(CITY, b_ed, b_city, income_group)]
   return(result)
 }
 
@@ -420,7 +389,7 @@ cb_lido_1930 <- IpumsDataFrameCallback$new(cb_function_lido_income_1930)
 
 # Read data in chunks
 chunked_results_lido_1930 <-
-  read_ipums_micro_chunked(ddi_file_path_1930, callback = cb_lido_1930, chunk_size = 500000)
+  read_ipums_micro_chunked(ddi_file_path_1930, callback = cb_lido_1930, chunk_size = chunk_size_param)
 
 # Combine results
 lido_income_by_city_ed_1930 <-
@@ -439,18 +408,50 @@ lido_income_by_city_ed_1930 <-
 ## Combine and output -----
 
 # combine datasets
-city_ed_data_1930 <- 
-  left_join(population_by_race_city_ed_1930, literacy_by_city_ed_1930) %>% 
-  left_join(rent_group_by_city_ed_1930) %>% 
-  left_join(home_value_by_city_ed_1930) %>%
-  left_join(lf_status_by_city_ed_1930) %>% 
-  left_join(lido_income_by_city_ed_1930) 
+# Combine datasets using data.table merges - much faster than dplyr left_join
+# Convert all to data.table first
+setDT(population_by_race_city_ed_1930)
+setDT(literacy_by_city_ed_1930)
+setDT(rent_group_by_city_ed_1930)
+setDT(home_value_by_city_ed_1930)
+setDT(lf_status_by_city_ed_1930)
+setDT(lido_income_by_city_ed_1930)
+
+# Set keys for faster joins
+setkeyv(population_by_race_city_ed_1930, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(literacy_by_city_ed_1930, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(rent_group_by_city_ed_1930, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(home_value_by_city_ed_1930, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(lf_status_by_city_ed_1930, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(lido_income_by_city_ed_1930, c("CITY_NAME", "b_ed", "b_city"))
+
+# Perform left joins to preserve all population records
+city_ed_data_1930 <- merge(population_by_race_city_ed_1930, literacy_by_city_ed_1930,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE)
+city_ed_data_1930 <- merge(city_ed_data_1930, rent_group_by_city_ed_1930,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE)
+city_ed_data_1930 <- merge(city_ed_data_1930, home_value_by_city_ed_1930,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE)
+city_ed_data_1930 <- merge(city_ed_data_1930, lf_status_by_city_ed_1930,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE)
+city_ed_data_1930 <- merge(city_ed_data_1930, lido_income_by_city_ed_1930,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE) 
   
 # output csv
 write_csv(city_ed_data_1930, here(output_dir, "city_ed_data_1930.csv"))
 
-# drop anything with 1930 in it 
-rm(list = ls(pattern = "1930"))
+# Memory cleanup after 1930 processing - explicit object removal for safety
+rm(population_by_race_city_ed_1930, literacy_by_city_ed_1930, 
+   rent_group_by_city_ed_1930, home_value_by_city_ed_1930,
+   lf_status_by_city_ed_1930, lido_income_by_city_ed_1930,
+   chunked_results_pop_1930, chunked_results_literacy_1930,
+   chunked_results_rent_1930, chunked_results_home_value_1930,
+   chunked_results_lf_1930, chunked_results_lido_1930,
+   cb_pop_1930, cb_literacy_1930, cb_rent_1930, cb_home_value_1930, cb_lf_1930, cb_lido_1930,
+   grf_1930, st_occscores, city_ed_data_1930, ddi_1930, sample_1930)
+
+# Force garbage collection 
+gc()
 
 
 # 1940 -----
@@ -478,13 +479,10 @@ cb_function_pop_1940 <- function(x, pos) {
   # set as data.table
   setDT(x)
   
-  # keep only if RELATE == 1 (head of household)
-  x <- x[RELATE == 1]
-  
   # merge Geographic Reference File info (ED number) onto full count
   x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
   
-  # collapse by City,
+  # Aggregate by CITY, borough, ED, and race - count people in each category
   result <- x[, .(population = .N) , by = .(CITY, b_ed, b_city, RACE)]
   
   return(result)
@@ -500,21 +498,37 @@ chunked_results_pop_1940 <-
   read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_pop_1940, chunk_size = chunk_size_param)
 
 # Combine results
+# Convert to data.table for faster processing
+setDT(chunked_results_pop_1940)
+
+# Process population by race using data.table - much faster than dplyr
 pop_by_race_by_city_ed_1940 <-
-  chunked_results_pop_1940 %>%
-  # drop missing CITY and b_ed
-  filter(CITY != 0, !is.na(b_ed)) %>% 
-  mutate(CITY_NAME = as.character(as_factor(CITY)),
-         race = as.character(as_factor(RACE))) %>% 
-  group_by(CITY_NAME, b_ed, b_city, race) %>%
-  summarize(population= sum(population), .groups = "drop") %>% 
-  pivot_wider(names_from = race, 
-              values_from = population,
-              values_fill =  0) %>% 
-  mutate(white_pop = White,
-         black_pop = `Black/African American`,
-         other_pop = Chinese + `American Indian or Alaska Native` + Japanese +`Other Asian or Pacific Islander`) %>% 
-  select(CITY_NAME, b_ed, b_city, white_pop, black_pop, other_pop) 
+  chunked_results_pop_1940[CITY != 0 & !is.na(b_ed), 
+    .(population = sum(population)), 
+    by = .(CITY_NAME = as.character(as_factor(CITY)),
+           b_ed, b_city, 
+           race = as.character(as_factor(RACE)))
+  ]
+
+# Convert to wide format using data.table's dcast
+pop_by_race_by_city_ed_1940 <- dcast(pop_by_race_by_city_ed_1940, 
+                                     CITY_NAME + b_ed + b_city ~ race, 
+                                     value.var = "population", 
+                                     fill = 0)
+
+# Create race columns using direct column references - the .SD logic was causing population loss
+pop_by_race_by_city_ed_1940[, `:=`(
+  white_pop = White,
+  black_pop = `Black/African American`,
+  other_pop = Chinese + `American Indian or Alaska Native` + Japanese + `Other Asian or Pacific Islander`
+)]
+
+# Select only needed columns
+pop_by_race_by_city_ed_1940 <- pop_by_race_by_city_ed_1940[, .(CITY_NAME, b_ed, b_city, white_pop, black_pop, other_pop)]
+
+# Clean up chunked results to free memory
+rm(chunked_results_pop_1940)
+gc() 
 
 ## Education -----
 # Following 1940 tract data: Persons 25 years and older by years of school completed
@@ -522,22 +536,16 @@ pop_by_race_by_city_ed_1940 <-
 cb_function_educ_1940 <- function(x, pos) {
   setDT(x)  # Ensure x is a data.table
   
-  # Merge with grf_1930
+  # Merge with grf_1940 to get ED info
   x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
   
-  x <- as_tibble(x)
+  # REMOVED: as_tibble(x) conversion - keep as data.table for memory efficiency
   
-  # Create educ attainment
-  x <- x %>%
-    # Keep only persons 25 years and older
-    filter(AGE >= 25) %>% 
-    # drop NA, missing, or no schooling
-    filter(EDUC != 0, EDUC != 99)
+  # Filter for education analysis: persons 25+ with valid education data
+  # Keep only persons 25 years and older, drop missing/invalid education codes
+  x <- x[AGE >= 25 & EDUC != 0 & EDUC != 99]
   
-  # Convert back to data.table
-  setDT(x)
-  
-  # Group by CITY, b_ed, and rent_group and calculate population
+  # Aggregate by CITY, borough, ED, and education level - count people by education
   result <- x[, .(population = .N), by = .(CITY, b_city, b_ed, EDUC)]
   
   return(result)
@@ -549,24 +557,26 @@ chunked_results_educ_1940 <-
   read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_education_1940, chunk_size = chunk_size_param)
 
 
+# Convert to data.table and process education data - much faster than dplyr  
+setDT(chunked_results_educ_1940)
+
 pop_by_educ_by_city_ed_1940 <-
-  chunked_results_educ_1940 %>%
-  # drop missing CITY and b_ed
-  filter(CITY != 0, !is.na(b_ed)) %>% 
-  mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, b_city, EDUC) %>%
-  summarize(population= sum(population), .groups = "drop") %>% 
-  # create education binary variables
-  mutate(hs_grad = ifelse(EDUC >= 6, population, 0),
-         some_college = ifelse(EDUC >= 7, population, 0)) %>% 
-  group_by(CITY_NAME, b_city, b_ed) %>%
-  # total pop (of the subgroup)
-  summarize(total_educ_pop = sum(population),
-            hs_grad_pop = sum(hs_grad),
-            some_college_pop = sum(some_college),
-            .groups = "drop") %>% 
-  select(CITY_NAME, b_ed, b_city,
-         total_educ_pop, hs_grad_pop, some_college_pop) 
+  chunked_results_educ_1940[CITY != 0 & !is.na(b_ed), 
+    .(population = sum(population)), 
+    by = .(CITY_NAME = as.character(as_factor(CITY)), b_ed, b_city, EDUC)
+  ][,
+    `:=`(hs_grad = ifelse(EDUC >= 6, population, 0),
+         some_college = ifelse(EDUC >= 7, population, 0))
+  ][,
+    .(total_educ_pop = sum(population),
+      hs_grad_pop = sum(hs_grad),
+      some_college_pop = sum(some_college)), 
+    by = .(CITY_NAME, b_ed, b_city)
+  ]
+
+# Clean up chunked results to free memory
+rm(chunked_results_educ_1940)
+gc() 
 
 
 ## Income (INCWAGE) ----
@@ -582,51 +592,28 @@ pop_by_educ_by_city_ed_1940 <-
 
 cb_function_income_1940 <- function(x, pos) {
 
-    setDT(x)  # Ensure x is a data.table
+  setDT(x)  # Ensure x is a data.table
   
-  # x <- sample_1940
-  # Merge with grf_1930
+  # Merge with grf_1940 to get ED info
   x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
   
-  x <- as_tibble(x)
-
-  # Create family (wage) income
-  x <- x %>%
-    # Drop income == 0 or missing ()
-    filter(INCWAGE != 999998, INCWAGE != 999999, INCW) %>% 
-    group_by(CITY, b_ed, b_city, SERIAL) %>% 
-    summarise(family_wage = sum(INCWAGE), .groups = "drop") %>%   # %>% 
-    # create wage income group
-    # These are the 1950 tract-level income groups
-    # TODO: This is fine... but maybe I would want to convert this to 1950 dollars before
-    # grouping it as I do in 1950 for a bit more consistency
-    mutate(income_group = case_when(family_wage < 500 ~ 1, # 0-499
-                                    family_wage >= 500 & family_wage < 1000 ~ 2, # 500-999
-                                    family_wage >= 1000 & family_wage < 1500 ~ 3, # 1000-1499
-                                    family_wage >= 1500 & family_wage < 2000 ~ 4, # 1500-1999
-                                    family_wage >= 2000 & family_wage < 2500 ~ 5, # 2000-2499
-                                    family_wage >= 2500 & family_wage < 3000 ~ 6, # 2500-2999
-                                    family_wage >= 3000 & family_wage < 3500 ~ 7, # 3000-3499
-                                    family_wage >= 3500 & family_wage < 4000 ~ 8, # 3500-3999
-                                    family_wage >= 4000 & family_wage < 4500 ~ 9, # 4000-4999
-                                    family_wage >= 4500 & family_wage < 5000 ~ 10, # 4500-4999
-                                    family_wage >= 5000 & family_wage < 6000 ~ 11, # 5000-5999
-                                    family_wage >= 6000 & family_wage < 7000 ~ 12, # 6000-6999
-                                    family_wage >= 7000 & family_wage < 10000 ~ 13, # 7000-9999
-                                    family_wage >= 10000 ~ 14,
-                                    TRUE ~ NA_integer_))
-
-
+  # REMOVED: as_tibble(x) conversion - keep as data.table for memory efficiency
   
-  # Convert back to data.table
-  setDT(x)
+  # Filter out missing/invalid wage income values
+  x <- x[INCWAGE != 999998 & INCWAGE != 999999 & INCWAGE != 0]
   
-  # Group by CITY, b_ed, and rent_group and calculate population
-  #result <- x[, .(population = .N), by = .(CITY, b_ed, SERIAL)]
-  # result <- x[, .(population = .N), by = .(CITY, b_ed, income_group)]
-  result <- x
+  # Calculate family wage income by summing individual wages within each family (SERIAL)
+  family_income <- x[, .(family_wage = sum(INCWAGE)), by = .(CITY, b_ed, b_city, SERIAL)]
   
-  return(result)
+  # Create income groups using cut function - cleaner than nested fifelse
+  # Income ranges: 0-499, 500-999, 1000-1499, 1500-1999, 2000-2499, 2500-2999, 3000-3499, 3500-3999, 4000-4499, 4500-4999, 5000-5999, 6000-6999, 7000-9999, 10000+
+  # TODO: Consider converting to 1950 dollars before grouping for consistency
+  income_breaks <- c(0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 10000, Inf)
+  family_income[, income_group := cut(family_wage, breaks = income_breaks, labels = 1:14, right = FALSE, include.lowest = TRUE)]
+  family_income[, income_group := as.integer(income_group)]
+  
+  # Return family-level data with income groups
+  return(family_income)
   
 }
 
@@ -637,40 +624,44 @@ cb_income_1940 <- IpumsDataFrameCallback$new(cb_function_income_1940)
 chunked_results_income_1940 <- 
   read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_income_1940, chunk_size = chunk_size_param)
 
+# Convert to data.table for faster processing
+setDT(chunked_results_income_1940)
+
+# Create income groups using data.table operations - much faster than dplyr
 income_group_by_city_ed_1940 <-
-  chunked_results_income_1940 %>% 
-  filter(CITY != 0, !is.na(b_ed)) %>% 
-  group_by(CITY, b_ed, b_city, SERIAL) %>%
-  summarise(family_wage = sum(family_wage), .groups = "drop") %>%
-  # create wage income group
-  mutate(income_group = case_when(family_wage < 500 ~ 1, # 0-499
-                                  family_wage >= 500 & family_wage < 1000 ~ 2, # 500-999
-                                  family_wage >= 1000 & family_wage < 1500 ~ 3, # 1000-1499
-                                  family_wage >= 1500 & family_wage < 2000 ~ 4, # 1500-1999
-                                  family_wage >= 2000 & family_wage < 2500 ~ 5, # 2000-2499
-                                  family_wage >= 2500 & family_wage < 3000 ~ 6, # 2500-2999
-                                  family_wage >= 3000 & family_wage < 3500 ~ 7, # 3000-3499
-                                  family_wage >= 3500 & family_wage < 4000 ~ 8, # 3500-3999
-                                  family_wage >= 4000 & family_wage < 4500 ~ 9, # 4000-4999
-                                  family_wage >= 4500 & family_wage < 5000 ~ 10, # 4500-4999
-                                  family_wage >= 5000 & family_wage < 6000 ~ 11, # 5000-5999
-                                  family_wage >= 6000 & family_wage < 7000 ~ 12, # 6000-6999
-                                  family_wage >= 7000 & family_wage < 10000 ~ 13, # 7000-9999
-                                  family_wage >= 10000 ~ 14,
-                                  TRUE ~ NA_integer_)) %>% 
-  # get population per income group
-  group_by(CITY, b_ed, b_city, income_group) %>%
-  summarise(population = n(), .groups = "drop") %>% 
-  mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, b_city, income_group) %>%
-  summarize(population= sum(population), .groups = "drop") %>%
-  mutate(income_group = paste0("income_group_", income_group)) %>% 
-  pivot_wider(names_from = income_group, 
-              values_from = population,
-              values_fill =  0)
+  chunked_results_income_1940[CITY != 0 & !is.na(b_ed), 
+    .(family_wage = sum(family_wage)), 
+    by = .(CITY, b_ed, b_city, SERIAL)
+  ][, 
+    # Create income groups using cut function - cleaner and faster than case_when
+    income_group := cut(family_wage, 
+                       breaks = c(0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 10000, Inf),
+                       labels = 1:14, 
+                       right = FALSE, 
+                       include.lowest = TRUE)
+  ][, 
+    income_group := as.integer(income_group)
+  ][,
+    .(population = .N), 
+    by = .(CITY, b_ed, b_city, income_group)
+  ][,
+    CITY_NAME := as.character(as_factor(CITY))
+  ][,
+    .(population = sum(population)), 
+    by = .(CITY_NAME, b_ed, b_city, income_group)
+  ][,
+    income_group := paste0("income_group_", income_group)
+  ]
 
+# Convert to wide format using data.table's dcast - much faster than pivot_wider
+income_group_by_city_ed_1940 <- dcast(income_group_by_city_ed_1940, 
+                                      CITY_NAME + b_ed + b_city ~ income_group, 
+                                      value.var = "population", 
+                                      fill = 0)
 
-
+# Drop chunked reuslts income, as it's quite large
+rm(chunked_results_income_1940)
+gc()
 
 ## Housing ----
 ### Rent (RENT) ----
@@ -680,38 +671,19 @@ cb_function_rent_1940 <- function(x, pos) {
   # Merge with grf_1930
   x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
   
-  x <- as_tibble(x)
+  # Rename RENT to rent for easier reference  
+  setnames(x, "RENT", "rent")
   
-  # Create rent_group
-  x <- x %>%
-    dplyr::rename(rent = RENT) %>% 
-    # Keep only the head of household 
-    filter(RELATE == 1) %>% 
-    # drop rent = 0 (NA) and rent == 9999 (missing) and rent == 9998 (no cash rent)
-    filter(rent != 0, rent != 9999, rent != 9998) %>% 
-    mutate(rent_group = case_when(
-      rent >= 0 & rent <= 5 ~ 1,
-      rent > 5 & rent <= 6 ~ 2,
-      rent > 6 & rent <= 9 ~ 3,
-      rent > 9 & rent <= 14 ~ 4,
-      rent > 14 & rent <= 19 ~ 5,
-      rent > 19 & rent <= 24 ~ 6,
-      rent > 24 & rent <= 29 ~ 7,
-      rent > 29 & rent <= 39 ~ 8,
-      rent > 39 & rent <= 49 ~ 9,
-      rent > 49 & rent <= 59 ~ 10,
-      rent > 59 & rent <= 74 ~ 11,
-      rent > 74 & rent <= 99 ~ 12,
-      rent > 99 & rent <= 149 ~ 13,
-      rent > 149 & rent <= 199 ~ 14,
-      rent > 199 ~ 15,
-      TRUE ~ NA_integer_
-    ))
+  # Keep only head of household and filter out missing/invalid rent values
+  # RELATE==1 is appropriate here since rent is a household-level variable
+  x <- x[RELATE == 1 & rent != 0 & rent != 9999 & rent != 9998]
   
-  # Convert back to data.table
-  setDT(x)
+  # Create rent groups using cut function - cleaner than nested fifelse
+  rent_breaks <- c(0, 5, 6, 9, 14, 19, 24, 29, 39, 49, 59, 74, 99, 149, 199, Inf)
+  x[, rent_group := cut(rent, breaks = rent_breaks, labels = 1:15, right = TRUE, include.lowest = TRUE)]
+  x[, rent_group := as.integer(rent_group)]
   
-  # Group by CITY, b_ed, and rent_group and calculate population
+  # Aggregate by CITY, borough, ED, and rent group - count households in each group
   result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, rent_group)]
   
   return(result)
@@ -724,17 +696,26 @@ cb_rent_1940 <- IpumsDataFrameCallback$new(cb_function_rent_1940)
 chunked_results_rent_1940 <-
   read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_rent_1940, chunk_size = chunk_size_param)
 
+# Convert to data.table and process rent groups - much faster than dplyr
+setDT(chunked_results_rent_1940)
+
 rent_group_by_city_ed_1940 <-
-  chunked_results_rent_1940 %>%
-  # drop missing CITY and b_ed
-  filter(CITY != 0, !is.na(b_ed)) %>% 
-  mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, b_city, rent_group) %>%
-  summarize(population= sum(population), .groups = "drop") %>%
-  mutate(rent_group = paste0("rent_group_", rent_group)) %>% 
-  pivot_wider(names_from = rent_group, 
-              values_from = population,
-              values_fill =  0)
+  chunked_results_rent_1940[CITY != 0 & !is.na(b_ed), 
+    .(population = sum(population)), 
+    by = .(CITY_NAME = as.character(as_factor(CITY)), b_ed, b_city, rent_group)
+  ][,
+    rent_group := paste0("rent_group_", rent_group)
+  ]
+
+# Convert to wide format using data.table's dcast
+rent_group_by_city_ed_1940 <- dcast(rent_group_by_city_ed_1940, 
+                                    CITY_NAME + b_ed + b_city ~ rent_group, 
+                                    value.var = "population", 
+                                    fill = 0)
+
+# Clean up chunked results to free memory
+rm(chunked_results_rent_1940)
+gc()
 
 ### Value of home (VALUEH) ----
 cb_function_valueh_1940 <- function(x, pos) {
@@ -743,36 +724,20 @@ cb_function_valueh_1940 <- function(x, pos) {
   # Merge with grf_1930
   x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
   
-  x <- as_tibble(x)
+  # REMOVED: as_tibble(x) conversion - keep as data.table for memory efficiency
   
-  # Create valueh_group
-  x <- x %>%
-    dplyr::rename(valueh = VALUEH) %>%
-    # Keep only the head of household
-    filter(RELATE == 1) %>%
-    # Drop valueh = 0 (NA), valueh == 9999998 (missing), and valueh == 9999999 (N/A)
-    filter(valueh != 0, valueh != 9999998, valueh != 9999999) %>%
-    mutate(valueh_group = case_when(
-      valueh > 0 & valueh <= 500 ~ 1,          # 0 - 500
-      valueh > 500 & valueh <= 699 ~ 2,        # 500 - 699
-      valueh > 699 & valueh <= 999 ~ 3,        # 700 - 999
-      valueh > 999 & valueh <= 1499 ~ 4,       # 1000 - 1499
-      valueh > 1499 & valueh <= 1999 ~ 5,      # 1500 - 1999
-      valueh > 1999 & valueh <= 2499 ~ 6,      # 2000 - 2499
-      valueh > 2499 & valueh <= 2999 ~ 7,      # 2500 - 2999
-      valueh > 2999 & valueh <= 3999 ~ 8,      # 3000 - 3999
-      valueh > 3999 & valueh <= 4999 ~ 9,      # 4000 - 4999
-      valueh > 4999 & valueh <= 5999 ~ 10,     # 5000 - 5999
-      valueh > 5999 & valueh <= 7499 ~ 11,     # 6000 - 7499
-      valueh > 7499 & valueh <= 9999 ~ 12,     # 7500 - 9999
-      valueh > 9999 & valueh <= 14999 ~ 13,    # 10000 - 14999
-      valueh > 14999 & valueh <= 19999 ~ 14,   # 15000 - 19999
-      valueh > 19999 ~ 15,                     # 20000+
-      TRUE ~ NA_integer_
-    ))
+  # Rename VALUEH to valueh for easier reference
+  setnames(x, "VALUEH", "valueh")
   
-  # Convert back to data.table
-  setDT(x)
+  # Keep only head of household and filter out missing/invalid home values
+  # RELATE==1 is appropriate here since home value is a household-level variable
+  x <- x[RELATE == 1 & valueh != 0 & valueh != 9999998 & valueh != 9999999]
+  
+  # Create home value groups using cut function - cleaner than nested fifelse  
+  # Home value ranges: 0-500, 501-699, 700-999, 1000-1499, 1500-1999, 2000-2499, 2500-2999, 3000-3999, 4000-4999, 5000-5999, 6000-7499, 7500-9999, 10000-14999, 15000-19999, 20000+
+  valueh_breaks <- c(0, 500, 699, 999, 1499, 1999, 2499, 2999, 3999, 4999, 5999, 7499, 9999, 14999, 19999, Inf)
+  x[, valueh_group := cut(valueh, breaks = valueh_breaks, labels = 1:15, right = TRUE, include.lowest = TRUE)]
+  x[, valueh_group := as.integer(valueh_group)]
   
   # Group by CITY, b_ed, and valueh_group and calculate population
   result <- x[, .(population = .N), by = .(CITY, b_ed, b_city, valueh_group)]
@@ -787,17 +752,26 @@ cb_valueh_1940 <- IpumsDataFrameCallback$new(cb_function_valueh_1940)
 chunked_results_valueh_1940 <-
   read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_valueh_1940, chunk_size = chunk_size_param)
 
+# Convert to data.table and process home value groups - much faster than dplyr
+setDT(chunked_results_valueh_1940)
+
 valueh_group_by_city_ed_1940 <-
-  chunked_results_valueh_1940 %>%
-  # drop missing CITY and b_ed
-  filter(CITY != 0, !is.na(b_ed)) %>% 
-  mutate(CITY_NAME = as.character(as_factor(CITY))) %>% 
-  group_by(CITY_NAME, b_ed, b_city, valueh_group) %>%
-  summarize(population= sum(population), .groups = "drop") %>%
-  mutate(valueh_group = paste0("valueh_group_", valueh_group)) %>% 
-  pivot_wider(names_from = valueh_group, 
-              values_from = population,
-              values_fill =  0)
+  chunked_results_valueh_1940[CITY != 0 & !is.na(b_ed), 
+    .(population = sum(population)), 
+    by = .(CITY_NAME = as.character(as_factor(CITY)), b_ed, b_city, valueh_group)
+  ][,
+    valueh_group := paste0("valueh_group_", valueh_group)
+  ]
+
+# Convert to wide format using data.table's dcast
+valueh_group_by_city_ed_1940 <- dcast(valueh_group_by_city_ed_1940, 
+                                      CITY_NAME + b_ed + b_city ~ valueh_group, 
+                                      value.var = "population", 
+                                      fill = 0)
+
+# Clean up chunked results to free memory
+rm(chunked_results_valueh_1940)
+gc()
 
 ## Labor force and unemployment -----
 cb_function_lf_1940 <- function(x, pos) {
@@ -805,13 +779,8 @@ cb_function_lf_1940 <- function(x, pos) {
   # set as data.table
   setDT(x)
   
-  # keep only individuals age 14 and up, following Census
-  x <- as.tibble(x)
-  
-  x <- x %>%
-    filter(AGE >= 14)
-  
-  x <- as.data.table(x)
+  # Keep only individuals age 14 and up, following Census - data.table syntax
+  x <- x[AGE >= 14]
   
   # merge Geographic Reference File info (ED number) onto full count
   x <- merge(x, grf_1940, by = "HISTID", all.x = TRUE)
@@ -832,33 +801,73 @@ chunked_results_lf_1940 <-
   read_ipums_micro_chunked(ddi_file_path_1940, callback = cb_lf_1940, chunk_size = chunk_size_param)
 
 # Combine results
+# Convert to data.table and process labor force data - much faster than dplyr
+setDT(chunked_results_lf_1940)
+
 lf_status_by_city_ed_1940 <-
-  chunked_results_lf_1940 %>%
-  # drop missing CITY and b_ed
-  filter(CITY != 0, !is.na(b_ed)) %>% 
-  # drop if EMPSTAT is 0 or 9 (unknown)
-  filter(EMPSTAT != 0, EMPSTAT != 9) %>%
-  mutate(CITY_NAME = as.character(as_factor(CITY)),
-         employment_status = case_when(
-           EMPSTAT == 1 ~ "employed",
-           EMPSTAT == 2 ~ "unemployed",
-           EMPSTAT == 3 ~ "not_in_lf"
-         )) %>% 
-  group_by(CITY_NAME, b_ed, b_city, employment_status) %>%
-  summarize(population= sum(population), .groups = "drop") %>% 
-  pivot_wider(names_from = employment_status, 
-              values_from = population,
-              values_fill =  0) %>%
-  select(CITY_NAME, b_ed, b_city, employed, unemployed, not_in_lf) 
+  chunked_results_lf_1940[CITY != 0 & !is.na(b_ed) & EMPSTAT != 0 & EMPSTAT != 9, 
+    .(population = sum(population)), 
+    by = .(CITY_NAME = as.character(as_factor(CITY)), 
+           b_ed, b_city, 
+           employment_status = fcase(
+             EMPSTAT == 1, "employed",
+             EMPSTAT == 2, "unemployed", 
+             EMPSTAT == 3, "not_in_lf",
+             default = NA_character_
+           ))
+  ]
+
+# Convert to wide format using data.table's dcast
+lf_status_by_city_ed_1940 <- dcast(lf_status_by_city_ed_1940, 
+                                   CITY_NAME + b_ed + b_city ~ employment_status, 
+                                   value.var = "population", 
+                                   fill = 0)
+
+# Select only needed columns
+lf_status_by_city_ed_1940 <- lf_status_by_city_ed_1940[, .(CITY_NAME, b_ed, b_city, employed, unemployed, not_in_lf)]
+
+# Clean up chunked results to free memory
+rm(chunked_results_lf_1940)
+gc() 
 
 ## Combine and output -----
 
-city_ed_data_1940 <- 
-  left_join(pop_by_race_by_city_ed_1940, rent_group_by_city_ed_1940) %>% 
-  left_join(valueh_group_by_city_ed_1940) %>%
-  left_join(lf_status_by_city_ed_1940) %>% 
-  left_join(pop_by_educ_by_city_ed_1940) %>% 
-  left_join(income_group_by_city_ed_1940)
+# Combine datasets using data.table merges - much faster than dplyr left_join
+# Convert all to data.table first
+setDT(pop_by_race_by_city_ed_1940)
+setDT(rent_group_by_city_ed_1940)
+setDT(valueh_group_by_city_ed_1940)
+setDT(lf_status_by_city_ed_1940)
+setDT(pop_by_educ_by_city_ed_1940)
+setDT(income_group_by_city_ed_1940)
+
+# Set keys for faster joins
+setkeyv(pop_by_race_by_city_ed_1940, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(rent_group_by_city_ed_1940, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(valueh_group_by_city_ed_1940, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(lf_status_by_city_ed_1940, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(pop_by_educ_by_city_ed_1940, c("CITY_NAME", "b_ed", "b_city"))
+setkeyv(income_group_by_city_ed_1940, c("CITY_NAME", "b_ed", "b_city"))
+
+# Perform data.table merges
+city_ed_data_1940 <- pop_by_race_by_city_ed_1940[
+  rent_group_by_city_ed_1940, on = c("CITY_NAME", "b_ed", "b_city")][
+  valueh_group_by_city_ed_1940, on = c("CITY_NAME", "b_ed", "b_city")][
+  lf_status_by_city_ed_1940, on = c("CITY_NAME", "b_ed", "b_city")][
+  pop_by_educ_by_city_ed_1940, on = c("CITY_NAME", "b_ed", "b_city")][
+  income_group_by_city_ed_1940, on = c("CITY_NAME", "b_ed", "b_city")]
+
+# alternatively:
+city_ed_data_1940 <- merge(pop_by_race_by_city_ed_1940, rent_group_by_city_ed_1940,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE)
+city_ed_data_1940 <- merge(city_ed_data_1940, valueh_group_by_city_ed_1940,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE)
+city_ed_data_1940 <- merge(city_ed_data_1940, lf_status_by_city_ed_1940,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE)
+city_ed_data_1940 <- merge(city_ed_data_1940, pop_by_educ_by_city_ed_1940,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE)
+city_ed_data_1940 <- merge(city_ed_data_1940, income_group_by_city_ed_1940,
+                           by = c("CITY_NAME", "b_ed", "b_city"), all.x = TRUE)
 
 # output csv
 write_csv(city_ed_data_1940, here(output_dir, "city_ed_data_1940.csv"))

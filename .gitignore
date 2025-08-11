@@ -127,3 +127,14 @@ grants/
 replications/
 tenant_project/data/
 tenant_project/regression_results/
+
+# Archive folders
+*/archive/
+
+# Temporary analysis files
+temp_*.R
+compare_*.R
+*_check.R
+diagnostic_*.R
+quick_*.R
+test_*.R

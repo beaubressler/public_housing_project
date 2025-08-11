@@ -128,7 +128,7 @@ census_tract_sample_with_treatment_status_balanced <-
 # Core variables available in all years including 1930
 balance_vars_core <- c("total_pop", "black_share",
                       "median_income",
-                      "median_rent_calculated", "median_home_value_calculated",
+                      "median_rent_calculated",
                       "lfp_rate", "unemp_rate")
 # Additional variables only available from 1940+
 balance_vars_1940_plus <- c("total_units")
@@ -144,7 +144,7 @@ tracts_with_complete_vars <-
       !is.na(black_share[YEAR %in% years_range]) &
       !is.na(median_income[YEAR %in% years_range]) &
       !is.na(median_rent_calculated[YEAR %in% years_range]) &
-      !is.na(median_home_value_calculated[YEAR %in% years_range]) &
+    #  !is.na(median_home_value_calculated[YEAR %in% years_range]) &
       !is.na(lfp_rate[YEAR %in% years_range]) &
       !is.na(unemp_rate[YEAR %in% years_range])
     )) %>% 
@@ -395,10 +395,10 @@ public_housing_in_sample <-
 
 
 # Numbers (Updated 7/24/2025)
-# 229163
+# 294316
 sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE)
 
-# Number of projects: 599 (7/30)
+# Number of projects: 690 (7/30)
 nrow(public_housing_in_sample %>% filter(!is.na(total_public_housing_units)))
 
 # projects per city
@@ -407,55 +407,55 @@ projects_per_city <-
   pull(locality) %>% 
   table()
 
-# number of treated tracts: 545 
+# number of treated tracts: 629 
 nrow(treated_tracts_with_projects %>% select(GISJOIN_1950) %>% distinct())
 
 
 
 # CHECKING BOSTON
-#   library(sf)
-# library(ggplot2)
-# library(dplyr)
-# 
-# # Get Boston CBSA data for mapping
-# boston_tracts <- census_tract_sample_with_treatment_status_balanced %>%
-#   filter(YEAR == 1990, str_detect(cbsa_title, "Atlanta"))
-# 
-# # Create the map
-# boston_map <- ggplot(boston_tracts) +
-#   geom_sf(aes(fill = factor(treated)), color = "white", size = 0.1) +
-#   scale_fill_manual(
-#     values = c("0" = "lightgray", "1" = "red"),
-#     labels = c("0" = "Control", "1" = "Treated"),
-#     name = "Treatment Status"
-#   ) +
-#   labs(
-#     title = "Public Housing Treatment Status - Boston-Cambridge-Quincy CBSA",
-#     subtitle = paste0("Total tracts: ", nrow(boston_tracts),
-#                       " | Treated: ", sum(boston_tracts$treated),
-#                       " (", round(mean(boston_tracts$treated)*100, 1), "%)")
-#   ) +
-#   theme_void() +
-#   theme(
-#     plot.title = element_text(size = 14, hjust = 0.5),
-#     plot.subtitle = element_text(size = 12, hjust = 0.5),
-#     legend.position = "bottom"
-#   )
-# 
-# print(boston_map)
-# 
-# # County-level breakdown
-# boston_by_county <- boston_tracts %>%
-#   st_drop_geometry() %>%
-#   group_by(COUNTY) %>%
-#   summarise(
-#     total_tracts = n(),
-#     treated_tracts = sum(treated),
-#     pct_treated = round(mean(treated) * 100, 1)
-#   ) %>%
-#   arrange(-pct_treated)
-# 
-# print(boston_by_county)
+  library(sf)
+library(ggplot2)
+library(dplyr)
+
+# Get Boston CBSA data for mapping
+boston_tracts <- census_tract_sample_with_treatment_status_balanced %>%
+  filter(YEAR == 1990, str_detect(cbsa_title, "Chicago"))
+
+# Create the map
+boston_map <- ggplot(boston_tracts) +
+  geom_sf(aes(fill = factor(treated)), color = "white", size = 0.1) +
+  scale_fill_manual(
+    values = c("0" = "lightgray", "1" = "red"),
+    labels = c("0" = "Control", "1" = "Treated"),
+    name = "Treatment Status"
+  ) +
+  labs(
+    title = "Public Housing Treatment Status - Boston-Cambridge-Quincy CBSA",
+    subtitle = paste0("Total tracts: ", nrow(boston_tracts),
+                      " | Treated: ", sum(boston_tracts$treated),
+                      " (", round(mean(boston_tracts$treated)*100, 1), "%)")
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5),
+    legend.position = "bottom"
+  )
+
+print(boston_map)
+
+# County-level breakdown
+boston_by_county <- boston_tracts %>%
+  st_drop_geometry() %>%
+  group_by(COUNTY) %>%
+  summarise(
+    total_tracts = n(),
+    treated_tracts = sum(treated),
+    pct_treated = round(mean(treated) * 100, 1)
+  ) %>%
+  arrange(-pct_treated)
+
+print(boston_by_county)
 # 
 # # Treatment year breakdown
 # treatment_years <- boston_tracts %>%
@@ -598,4 +598,4 @@ st_write(public_housing_in_sample, public_housing_sample_filepath,
 #          append = FALSE, layer = "tracts", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
 # 
 # st_write(treated_tracts_panel_balanced_1950, balanced_treated_panel_filepath_1950,
-#          append = FALSE, layer = "tracts", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
+#          append = FALSE, layer = "tracts", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)\
