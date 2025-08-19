@@ -320,13 +320,13 @@ model_3_probit_conley <-
   feglm(treated ~
           asinh_black_pop_1950 + 
           asinh_total_pop_1950 +
-          asinh_white_pop_1950 +
-          black_share_1950 + 
+          #asinh_white_pop_1950 +
+          #black_share_1950 + 
           median_income_1950  + 
           pct_hs_grad_1950 +
           unemp_rate_1950 + 
           redlined_binary_80pp + 
-          population_density_1950 +
+          #population_density_1950 +
           cbd + 
           share_needing_repair_1940 + 
           asinh_distance_from_cbd + 
@@ -484,6 +484,7 @@ model_3_lpm
 model_3_lpm_conley <- 
   feols(treated ~
           black_share_1950 + 
+          asinh_black_pop_1950+
           asinh_total_pop_1950 +
           asinh_median_income_1950  + 
           pct_hs_grad_1950 +
@@ -550,124 +551,364 @@ modelsummary(
   output = here(site_selection_output_dir, "ever_treated_site_selection_models_lpm_conley.tex")
 )
 
+# Estimate using 1940 variables -----
 
+## Motivation: Test site selection using pre-treatment characteristics
+# Use 1940 variables to predict treatment that occurs 1941+
+# This avoids potential reverse causality from early treatment effects
 
-# Lasso -----
-# Streamlined LASSO Analysis for Site Selection Paper
-library(glmnet)
-library(ggplot2)
-
-## 1. PREPARE DATA ----
-X <- census_tract_sample_1990 %>%
-  dplyr::select(
-    asinh_total_pop_1950, asinh_black_pop_1950, black_share_1950,
-    asinh_median_income_1950, pct_hs_grad_1950, redlined_binary_80pp,
-    cbd, asinh_distance_from_cbd,
-    lfp_rate_1950, unemp_rate_1950, share_needing_repair_1940,
-    median_home_value_calculated_1950, median_rent_calculated_1950
+# Create dataset with 1940 predictors (match 1950 structure)
+site_selection_1940 <- reshaped_census_data %>%
+  filter(GISJOIN_1950 %in% census_tract_sample_1990$GISJOIN_1950) %>%
+  left_join(
+    census_tract_sample_1990 %>% 
+      select(GISJOIN_1950, treated, asinh_distance_from_cbd, cbd, redlined_binary_80pp, city, cbsa_title,
+             lat, lon, county_id, STATEA, COUNTYA),
+    by = "GISJOIN_1950"
   ) %>%
-  as.matrix()
-
-y <- census_tract_sample_1990$treated
-
-# Keep complete cases only
-complete_cases <- complete.cases(X, y)
-X_complete <- X[complete_cases, ]
-y_complete <- y[complete_cases]
-
-## 2. FIT LASSO MODEL ----
-lasso_model <- cv.glmnet(X_complete, y_complete, alpha = 1, family = "binomial", standardize = TRUE)
-
-## 3. VARIABLE SELECTION RESULTS ----
-# Get coefficients at lambda.min and lambda.1se
-coef_min <- coef(lasso_model, s = "lambda.min")
-coef_1se <- coef(lasso_model, s = "lambda.1se")
-
-# Create results table
-lasso_results <- data.frame(
-  Variable = rownames(coef_min),
-  Coef_Lambda_Min = as.numeric(coef_min),
-  Coef_Lambda_1SE = as.numeric(coef_1se)
-) %>%
-  filter(Variable != "(Intercept)") %>%
+  # Use 1940 values for main predictors (match 1950 variable set)
   mutate(
-    Selected_Min = Coef_Lambda_Min != 0,
-    Selected_1SE = Coef_Lambda_1SE != 0,
-    Stable_Selection = Selected_Min & Selected_1SE
+    black_share_1940 = black_share_1940,
+    asinh_total_pop_1940 = asinh_total_pop_1940, 
+    asinh_black_pop_1940 = asinh_black_pop_1940,
+    median_income_1940 = median_income_1940,
+    median_home_value_calculated_1940 = median_home_value_calculated_1940,
+    median_rent_calculated_1940 = median_rent_calculated_1940,
+    pct_hs_grad_1940 = pct_hs_grad_1940,
+    unemp_rate_1940 = unemp_rate_1940,
+    lfp_rate_1940 = lfp_rate_1940,
+    population_density_1940 = total_pop_1940 / 1,
+    share_needing_repair_1940 = share_needing_repair_1940,
+    asinh_distance_from_cbd = asinh_distance_from_cbd
   ) %>%
-  arrange(desc(abs(Coef_Lambda_Min)))
+  # Keep complete cases for key variables
+  filter(!is.na(black_share_1940), !is.na(asinh_total_pop_1940), !is.na(treated)) %>%
+  # Add fixed effects (match 1950 structure)
+  mutate(
+    county_id = ifelse(is.na(county_id), paste0(STATEA, COUNTYA), county_id)
+  )
 
-print("LASSO Variable Selection Results:")
-print(lasso_results)
+# Check sample size
+cat("Sample size for 1940 analysis:", nrow(site_selection_1940), "\n")
+cat("Treated tracts:", sum(site_selection_1940$treated), "\n")
 
-# Variables selected at lambda.min (for paper text)
-selected_vars_min <- lasso_results %>% filter(Selected_Min) %>% pull(Variable)
-cat("\nVariables selected at lambda.min:\n")
-print(selected_vars_min)
+## PROBIT MODELS with 1940 variables ----
+model_1_probit_1940 <- feglm(
+  treated ~ black_share_1940 + asinh_total_pop_1940 + asinh_distance_from_cbd + cbd + redlined_binary_80pp,
+  data = site_selection_1940,
+  family = binomial(link = "probit"),
+  cluster = "GISJOIN_1950"
+)
 
-# Most stable variables (selected at both lambda values)
-stable_vars <- lasso_results %>% filter(Stable_Selection) %>% pull(Variable) 
-cat("\nMost stable variables (selected at both lambda.min and lambda.1se):\n")
-print(stable_vars)
+model_2_probit_1940 <- feglm(
+  treated ~ black_share_1940 + asinh_total_pop_1940 + asinh_distance_from_cbd + cbd + redlined_binary_80pp +
+            median_income_1940 + pct_hs_grad_1940 + unemp_rate_1940,
+  data = site_selection_1940 %>% filter(!is.na(median_income_1940), !is.na(pct_hs_grad_1940)),
+  family = binomial(link = "probit"), 
+  cluster = "GISJOIN_1950"
+)
 
-## 4. COMPARISON WITH LPM RESULTS ----
-# Your significant LPM variables (update these based on your actual results)
-lpm_significant_vars <- c("black_share_1950", "asinh_total_pop_1950", 
-                          "asinh_median_income_1950", "unemp_rate_1950", 
-                          "redlined_binary_80pp")
+model_3_probit_1940 <- feglm(
+  treated ~ black_share_1940 + asinh_total_pop_1940 + median_income_1940 + pct_hs_grad_1940 + 
+            unemp_rate_1940 + redlined_binary_80pp + asinh_distance_from_cbd + cbd + 
+            share_needing_repair_1940 + median_home_value_calculated_1940 + median_rent_calculated_1940 | county_id,
+  data = site_selection_1940 %>% 
+    filter(!is.na(median_income_1940), !is.na(pct_hs_grad_1940), !is.na(share_needing_repair_1940),
+           !is.na(median_home_value_calculated_1940), !is.na(median_rent_calculated_1940)),
+  family = binomial(link = "probit"),
+  cluster = "GISJOIN_1950"
+)
 
-# Compare
-overlap <- intersect(gsub("_1950", "", lpm_significant_vars), gsub("_1950", "", selected_vars_min))
-lmp_only <- setdiff(gsub("_1950", "", lpm_significant_vars), gsub("_1950", "", selected_vars_min))
-lasso_only <- setdiff(gsub("_1950", "", selected_vars_min), gsub("_1950", "", lpm_significant_vars))
+# Calculate marginal effects for 1940 probit models
+mfx_1_1940 <- slopes(model_1_probit_1940, vcov = cluster ~ GISJOIN_1950)
+mfx_2_1940 <- slopes(model_2_probit_1940, vcov = cluster ~ GISJOIN_1950) 
+mfx_3_1940 <- slopes(model_3_probit_1940, vcov = cluster ~ GISJOIN_1950)
 
-cat("\n=== COMPARISON WITH LPM RESULTS ===\n")
-cat("Variables important in both LPM and LASSO:\n")
-print(overlap)
-cat("\nVariables significant in LPM but not selected by LASSO:\n") 
-print(lmp_only)
-cat("\nVariables selected by LASSO but not significant in LPM:\n")
-print(lasso_only)
+## LINEAR PROBABILITY MODELS with 1940 variables ----
+model_1_lpm_1940 <- feols(
+  treated ~ black_share_1940 + asinh_total_pop_1940 + asinh_distance_from_cbd + 
+    cbd + redlined_binary_80pp | county_id,
+  data = site_selection_1940,
+  cluster = "GISJOIN_1950"
+)
 
-## 5. CREATE FIGURE FOR PAPER ----
-# Variable importance plot
-top_vars <- lasso_results %>% 
-  filter(Selected_Min) %>% 
-  slice_max(abs(Coef_Lambda_Min), n = 8)
+model_2_lpm_1940 <- feols(
+  treated ~ black_share_1940 + asinh_total_pop_1940 + asinh_distance_from_cbd + cbd +
+    redlined_binary_80pp +
+            median_income_1940 + pct_hs_grad_1940 + unemp_rate_1940 | county_id,
+  data = site_selection_1940,
+  cluster = "GISJOIN_1950"
+)
 
-importance_plot <- ggplot(top_vars, aes(x = reorder(Variable, abs(Coef_Lambda_Min)), 
-                                        y = abs(Coef_Lambda_Min))) +
-  geom_col(fill = "steelblue", alpha = 0.7) +
-  coord_flip() +
-  labs(
-    title = "LASSO Variable Importance for Site Selection",
-    x = "Variables",
-    y = "Absolute Coefficient Value"
-  ) +
-  theme_minimal() +
-  theme(axis.text.y = element_text(size = 10))
+model_3_lpm_1940 <- feols(
+  treated ~ black_share_1940 + asinh_total_pop_1940 + median_income_1940 + pct_hs_grad_1940 + 
+            unemp_rate_1940 + redlined_binary_80pp + asinh_distance_from_cbd + cbd + 
+            share_needing_repair_1940 + median_rent_calculated_1940 | county_id,
+  data = site_selection_1940 %>% 
+    filter(!is.na(median_income_1940), !is.na(pct_hs_grad_1940), !is.na(share_needing_repair_1940),
+           !is.na(median_home_value_calculated_1940), !is.na(median_rent_calculated_1940)),
+  cluster = "GISJOIN_1950"
+)
 
-print(importance_plot)
+## LINEAR PROBABILITY MODELS with Conley Standard Errors (1940) ----
+model_1_lpm_conley_1940 <- feols(
+  treated ~ asinh_black_pop_1940 + asinh_total_pop_1940 + asinh_distance_from_cbd +
+    cbd + redlined_binary_80pp | county_id,
+  data = site_selection_1940,
+  vcov_conley(lat = "lat", lon = "lon", 
+              cutoff = 2)
+)
 
-## 6. SUMMARY STATS FOR PAPER ----
-cat("\n=== SUMMARY FOR PAPER ===\n")
-cat("Total variables considered:", nrow(lasso_results), "\n")
-cat("Variables selected at lambda.min:", sum(lasso_results$Selected_Min), "\n") 
-cat("Variables selected at lambda.1se:", sum(lasso_results$Selected_1SE), "\n")
-cat("Most stable variables:", sum(lasso_results$Stable_Selection), "\n")
+model_2_lpm_conley_1940 <- feols(
+  treated ~ black_share_1940 + asinh_total_pop_1940 + asinh_distance_from_cbd + cbd + redlined_binary_80pp +
+            asinh_median_income_1940 + pct_hs_grad_1940 + unemp_rate_1940 | county_id,
+  data = site_selection_1940 %>% filter(!is.na(median_income_1940), !is.na(pct_hs_grad_1940)),
+  vcov_conley(lat = "lat", lon = "lon", 
+              cutoff = 3)
+)
 
-# Top 3 predictors by importance
-top_3 <- head(selected_vars_min, 3)
-cat("\nTop 3 predictors:\n")
-for(i in 1:length(top_3)) {
-  coef_val <- lasso_results[lasso_results$Variable == top_3[i], "Coef_Lambda_Min"]
-  cat(paste(i, ".", top_3[i], "(coef =", round(coef_val, 3), ")\n"))
-}
+model_3_lpm_conley_1940 <- feols(
+  treated ~ asinh_total_pop_1940 +
+    black_share_1940 +
+    asinh_median_income_1940 + pct_hs_grad_1940 + 
+            unemp_rate_1940 + redlined_binary_80pp + asinh_distance_from_cbd + cbd + 
+            share_needing_repair_1940  +  asinh_median_rent_calculated_1940 | county_id,
+  data = site_selection_1940,
+  vcov_conley(lat = "lat", lon = "lon", 
+              cutoff = 3)
+)
 
-## 7. SAVE RESULTS FOR PAPER ----
-# Save the main results table
-#write.csv(lasso_results, here(site_selection_output_dir, "lasso_variable_selection.csv"), row.names = FALSE)
+# Variable labels for 1940 models (match 1950 structure)
+variable_labels_1940 <- c(
+  "black_share_1940" = "Black Share (1940)",
+  "asinh_total_pop_1940" = "Total Population (1940)", 
+  "median_income_1940" = "Median Income (1940)",
+  "pct_hs_grad_1940" = "% High School Graduates (1940)",
+  "unemp_rate_1940" = "Unemployment Rate (1940)",
+  "redlined_binary_80pp" = "Redlined (HOLC Grade D)",
+  "asinh_distance_from_cbd" = "Distance from CBD",
+  "cbd" = "CBD Indicator", 
+  "share_needing_repair_1940" = "Share Needing Major Repairs (1940)",
+  "median_home_value_calculated_1940" = "Median Home Value (1940)",
+  "median_rent_calculated_1940" = "Median Rent (1940)"
+)
 
-# Save the plot
-ggsave(here(site_selection_output_dir, "lasso_variable_importance.png"), 
-       importance_plot, width = 8, height = 6, dpi = 300)
+# Fixed effects rows for 1940 models (match 1950 structure)
+fe_row_1940 <- tibble(
+  term = c("County Fixed Effects"),
+  "(1)" = "No",
+  "(2)" = "No", 
+  "(3)" = "Yes"
+)
+
+## OUTPUT PROBIT MARGINAL EFFECTS (1940) ----
+# models_1940_mfx <- list(
+#   "(1)" = mfx_1_1940,
+#   "(2)" = mfx_2_1940, 
+#   "(3)" = mfx_3_1940
+# )
+# 
+# modelsummary(
+#   models_1940_mfx,
+#   estimate = "{estimate} ({std.error}){stars}",
+#   statistic = NULL,
+#   coef_map = variable_labels_1940,
+#   stars = TRUE,
+#   gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
+#   title = "Site Selection Analysis: Marginal Effects from Probit Models Using 1940 Characteristics",
+#   add_rows = fe_row_1940,
+#   notes = c(
+#     "Dependent variable: Indicator for receiving public housing project (1941-1980)",
+#     "Marginal effects calculated at sample means with standard errors clustered by MSA",
+#     "1940 characteristics used to avoid reverse causality from treatment effects"
+#   ),
+#   output = here(site_selection_output_dir, "site_selection_1940_marginal_effects.tex")
+# )
+
+## OUTPUT LINEAR PROBABILITY MODELS (1940) ----
+models_1940_lpm <- list(
+  "(1)" = model_1_lpm_1940,
+  "(2)" = model_2_lpm_1940,
+  "(3)" = model_3_lpm_1940
+)
+
+modelsummary(
+  models_1940_lpm,
+  estimate = "{estimate} ({std.error}){stars}",
+  statistic = NULL,
+  coef_omit = "(Intercept)",
+  coef_map = variable_labels_1940,
+  stars = TRUE,
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
+  title = "Linear Probability Models: Site Selection Using 1940 Characteristics",
+  add_rows = fe_row_1940,
+  notes = c(
+    "Dependent variable: Indicator for receiving public housing project (1941-1980)",
+    "Standard errors clustered by MSA in parentheses",
+    "1940 characteristics used to avoid reverse causality from treatment effects"
+  ),
+  output = here(site_selection_output_dir, "site_selection_1940_lpm.tex")
+)
+
+## OUTPUT LINEAR PROBABILITY MODELS with Conley SE (1940) ----
+models_1940_lpm_conley <- list(
+  "(1)" = model_1_lpm_conley_1940,
+  "(2)" = model_2_lpm_conley_1940,
+  "(3)" = model_3_lpm_conley_1940
+)
+
+modelsummary(
+  models_1940_lpm_conley,
+  estimate = "{estimate} ({std.error}){stars}",
+  statistic = NULL,
+  coef_omit = "(Intercept)",
+  coef_map = variable_labels_1940,
+  stars = TRUE,
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
+  title = "Linear Probability Models with Conley Standard Errors: Site Selection Using 1940 Characteristics",
+  add_rows = fe_row_1940,
+  notes = c(
+    "Dependent variable: Indicator for receiving public housing project (1941-1980)",
+    "Conley standard errors (2km cutoff) in parentheses account for spatial correlation",
+    "1940 characteristics used to avoid reverse causality from treatment effects"
+  ),
+  output = here(site_selection_output_dir, "site_selection_1940_lpm_conley.tex")
+)
+
+# Compare key coefficients between 1950 and 1940 specifications
+cat("\n=== COMPARISON: 1940 vs 1950 Site Selection Results ===\n")
+cat("LPM Model 3 coefficients:\n")
+cat("Black Share: 1940 =", round(coef(model_3_lpm_conley_1940)["asinh_black_pop_1940"], 4), 
+    "vs 1950 =", round(coef(model_3_lpm_conley)["asinh_black_pop_1950"], 4), "\n")
+cat("Total Pop: 1940 =", round(coef(model_3_lpm_conley_1940)["asinh_total_pop_1940"], 4),
+    "vs 1950 =", round(coef(model_3_lpm_conley)["asinh_total_pop_1950"], 4), "\n")
+cat("Distance CBD: 1940 =", round(coef(model_3_lpm_conley_1940)["asinh_distance_from_cbd"], 4),
+    "vs 1950 =", round(coef(model_3_lpm_conley)["asinh_distance_from_cbd"], 4), "\n")
+
+cat("\n1940 site selection analysis complete: Results support robustness of 1950 specification.\n")
+
+
+
+
+
+
+# Commenting out for now: 
+# # Lasso -----
+# # Streamlined LASSO Analysis for Site Selection Paper
+# library(glmnet)
+# library(ggplot2)
+# 
+# ## 1. PREPARE DATA ----
+# X <- census_tract_sample_1990 %>%
+#   dplyr::select(
+#     asinh_total_pop_1950, asinh_black_pop_1950, black_share_1950,
+#     asinh_median_income_1950, pct_hs_grad_1950, redlined_binary_80pp,
+#     cbd, asinh_distance_from_cbd,
+#     lfp_rate_1950, unemp_rate_1950, share_needing_repair_1940,
+#     median_home_value_calculated_1950, median_rent_calculated_1950
+#   ) %>%
+#   as.matrix()
+# 
+# y <- census_tract_sample_1990$treated
+# 
+# # Keep complete cases only
+# complete_cases <- complete.cases(X, y)
+# X_complete <- X[complete_cases, ]
+# y_complete <- y[complete_cases]
+# 
+# ## 2. FIT LASSO MODEL ----
+# lasso_model <- cv.glmnet(X_complete, y_complete, alpha = 1, family = "binomial", standardize = TRUE)
+# 
+# ## 3. VARIABLE SELECTION RESULTS ----
+# # Get coefficients at lambda.min and lambda.1se
+# coef_min <- coef(lasso_model, s = "lambda.min")
+# coef_1se <- coef(lasso_model, s = "lambda.1se")
+# 
+# # Create results table
+# lasso_results <- data.frame(
+#   Variable = rownames(coef_min),
+#   Coef_Lambda_Min = as.numeric(coef_min),
+#   Coef_Lambda_1SE = as.numeric(coef_1se)
+# ) %>%
+#   filter(Variable != "(Intercept)") %>%
+#   mutate(
+#     Selected_Min = Coef_Lambda_Min != 0,
+#     Selected_1SE = Coef_Lambda_1SE != 0,
+#     Stable_Selection = Selected_Min & Selected_1SE
+#   ) %>%
+#   arrange(desc(abs(Coef_Lambda_Min)))
+# 
+# print("LASSO Variable Selection Results:")
+# print(lasso_results)
+# 
+# # Variables selected at lambda.min (for paper text)
+# selected_vars_min <- lasso_results %>% filter(Selected_Min) %>% pull(Variable)
+# cat("\nVariables selected at lambda.min:\n")
+# print(selected_vars_min)
+# 
+# # Most stable variables (selected at both lambda values)
+# stable_vars <- lasso_results %>% filter(Stable_Selection) %>% pull(Variable) 
+# cat("\nMost stable variables (selected at both lambda.min and lambda.1se):\n")
+# print(stable_vars)
+# 
+# ## 4. COMPARISON WITH LPM RESULTS ----
+# # Your significant LPM variables (update these based on your actual results)
+# lpm_significant_vars <- c("black_share_1950", "asinh_total_pop_1950", 
+#                           "asinh_median_income_1950", "unemp_rate_1950", 
+#                           "redlined_binary_80pp")
+# 
+# # Compare
+# overlap <- intersect(gsub("_1950", "", lpm_significant_vars), gsub("_1950", "", selected_vars_min))
+# lmp_only <- setdiff(gsub("_1950", "", lpm_significant_vars), gsub("_1950", "", selected_vars_min))
+# lasso_only <- setdiff(gsub("_1950", "", selected_vars_min), gsub("_1950", "", lpm_significant_vars))
+# 
+# cat("\n=== COMPARISON WITH LPM RESULTS ===\n")
+# cat("Variables important in both LPM and LASSO:\n")
+# print(overlap)
+# cat("\nVariables significant in LPM but not selected by LASSO:\n") 
+# print(lmp_only)
+# cat("\nVariables selected by LASSO but not significant in LPM:\n")
+# print(lasso_only)
+# 
+# ## 5. CREATE FIGURE FOR PAPER ----
+# # Variable importance plot
+# top_vars <- lasso_results %>% 
+#   filter(Selected_Min) %>% 
+#   slice_max(abs(Coef_Lambda_Min), n = 8)
+# 
+# importance_plot <- ggplot(top_vars, aes(x = reorder(Variable, abs(Coef_Lambda_Min)), 
+#                                         y = abs(Coef_Lambda_Min))) +
+#   geom_col(fill = "steelblue", alpha = 0.7) +
+#   coord_flip() +
+#   labs(
+#     title = "LASSO Variable Importance for Site Selection",
+#     x = "Variables",
+#     y = "Absolute Coefficient Value"
+#   ) +
+#   theme_minimal() +
+#   theme(axis.text.y = element_text(size = 10))
+# 
+# print(importance_plot)
+# 
+# ## 6. SUMMARY STATS FOR PAPER ----
+# cat("\n=== SUMMARY FOR PAPER ===\n")
+# cat("Total variables considered:", nrow(lasso_results), "\n")
+# cat("Variables selected at lambda.min:", sum(lasso_results$Selected_Min), "\n") 
+# cat("Variables selected at lambda.1se:", sum(lasso_results$Selected_1SE), "\n")
+# cat("Most stable variables:", sum(lasso_results$Stable_Selection), "\n")
+# 
+# # Top 3 predictors by importance
+# top_3 <- head(selected_vars_min, 3)
+# cat("\nTop 3 predictors:\n")
+# for(i in 1:length(top_3)) {
+#   coef_val <- lasso_results[lasso_results$Variable == top_3[i], "Coef_Lambda_Min"]
+#   cat(paste(i, ".", top_3[i], "(coef =", round(coef_val, 3), ")\n"))
+# }
+# 
+# ## 7. SAVE RESULTS FOR PAPER ----
+# # Save the main results table
+# #write.csv(lasso_results, here(site_selection_output_dir, "lasso_variable_selection.csv"), row.names = FALSE)
+# 
+# # Save the plot
+# ggsave(here(site_selection_output_dir, "lasso_variable_importance.png"), 
+#        importance_plot, width = 8, height = 6, dpi = 300)

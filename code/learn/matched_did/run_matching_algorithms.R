@@ -1,11 +1,10 @@
 ####
-# 
-# Here, I run various forms of matching and inverse propensity score weighting
-
-###
+# Matching Algorithms with Replacement
+# This script runs propensity score matching WITH replacement to maximize sample size
+# while maintaining strong identification through better individual matches
+####
 
 library(MatchIt)
-#library(Matching)
 library(sf)
 library(lmtest)
 library(fixest)
@@ -13,18 +12,10 @@ library(here)
 library(RColorBrewer)
 library(tidyverse)
 
-
 # libraries for covariate testing
 library(cobalt)
 library(tableone)
 library(kableExtra)
-#library for Sant'Anna and Zhou (2020)
-library(DRDID)
-# library for Callaway and Sant'Anna (2021)
-library(did)
-
-library(splines)
-
 
 rm(list=ls())
 
@@ -38,20 +29,11 @@ set.seed(123456L)
 # set number of nearest neighbors for KNN matching
 knn_neighbors <- 1
 
-# Notes: With CDD large, KNN = 2 seems to work well
-# with the smaller dataset, KNN = 3 work
-
 # define directories
 merged_data_dir <- here("data", "derived", "merged", data_type)
 map_output_dir <- here("output", "figures", "matched_did", data_type)
 balance_table_dir <- here("output", "balance_tables", "matched_did", data_type)
-holc_data_dir <- here("data", "derived", "holc")
 
-map_dir <- here("output", "figures", "matched_did", data_type, "with_rings")
-results_dir <- here("output", "regression_results", "matched_did", data_type)
-balance_table_dir <- here("output", "balance_tables", "matched_did", data_type)
-
-# directory to 
 output_data_dir <- here("data", "derived", "merged", data_type, "matched_dataset")
 
 # define file paths
@@ -73,8 +55,6 @@ treated_tracts_panel_raw <-
   st_drop_geometry()
 
 # read in unique rings and tracts
-# These are the tracts that are treated, the ring of tracts touching those, and the ring of tracts
-# touching the inner ring tracts
 tracts_and_rings <-
   read_csv(event_study_rings_filepath) %>% 
   # exclude "outer ring"
@@ -100,7 +80,7 @@ census_tract_data <-
   left_join(tracts_and_rings) %>% 
   # set location_type = "donor_pool" if it's NA
   mutate(location_type = if_else(is.na(location_type), "donor_pool", location_type)) %>%
-  # # select relevant columns
+  # create transformed variables
   mutate(asinh_pop_total = asinh(total_pop),
          asinh_pop_white = asinh(white_pop),
          asinh_pop_black = asinh(black_pop),
@@ -120,147 +100,84 @@ census_tract_data <-
   st_drop_geometry() %>% 
   # Ensure data is sorted by tract_id and year
   arrange(GISJOIN_1950, year)  %>% 
-  # for HOLC variables (grade and category) if category is missing ,set to "missing"
+  # for HOLC variables (grade and category) if category is missing, set to "missing"
   mutate(category_most_overlap = ifelse(is.na(category_most_overlap), "missing", category_most_overlap),
          grade_most_overlap = ifelse(is.na(grade_most_overlap), "missing", grade_most_overlap))
 
-# check category by city
-# census_tract_data %>% 
-#   group_by(city) %>% 
-#   count(category_most_overlap) %>% 
-#   # calculate share of missing by city
-#   summarise(share_missing = n / sum(n)) %>%
-#   View()
-
-# check if education share is missing
-# census_tract_data %>%
-#   filter(year != 1930, is.na(pct_some_college)) %>% 
-#   dplyr::select(tract_id, year, city, COUNTY, pct_some_college) %>% 
-#   View()
-
-# Set up matching algorithm ------
-# Because of my data structure, it makes sense to do the propensity score matching 
-# separately for each treatment year, then combine
-# Define group types and treatment years and matching variables
-
-
+# Define group types and matching variables -----
 group_types <- c("treated", "inner")
 
-# Current matching algorithm: Seems to work best in terms of pretrends 
-# in my DiDs
+# Matching variables based on site selection analysis and theoretical importance
 matching_vars <- c(
-                   #"population_density",
-                   "asinh_distance_from_cbd",
-                   # population by race
-                   "asinh_pop_total",
-                   "asinh_pop_black",
-                   # "asinh_pop_white",
-                   # "total_pop",
-                   # "black_pop",
-                   # "white_pop",
-                   "black_share",
-                   # SES
-                   "unemp_rate", 
-                   # "pct_hs_grad",
-                   "asinh_median_income"
-                   # housing
-                 #  "median_home_value_calculated"
-               #    "median_rent_calculated" # non-asinh is actually more normal looking distribution
-                   )
+  "asinh_distance_from_cbd",     # Geographic/transportation access
+  "asinh_pop_total",             # Neighborhood size
+  "black_share",                 # Racial composition (key outcome driver)
+  "unemp_rate",                  # Economic conditions
+  "asinh_median_income",         # Socioeconomic status
+  "median_rent_calculated"       # Housing market conditions
+  )
 
-# In this version, I am picking variables that were significant in the site selection analysis 
-# + adding median rent (as I want some housing variable)
-
-matching_vars <- c(
-  #"population_density",
-  "asinh_distance_from_cbd",
-  # population by race
-  "asinh_pop_total",
-#  "asinh_pop_black",
-  # "asinh_pop_white",
-  # "total_pop",
-  # "black_pop",
-  # "white_pop",
-  "black_share",
-  # SES
-  "unemp_rate", 
-  # "pct_hs_grad",
-  "asinh_median_income",
-  # housing
-  #  "median_home_value_calculated"
-     "median_rent_calculated" # non-asinh is actually more normal looking distribution
-)
-
-
-# function for plotting density plots
-plot_matching_density_plots <- function(m.out, vars, type = "density") {
-  var_formula <- as.formula(paste("~", paste(vars, collapse = " + ")))
-  plot(m.out, type = type, interactive = FALSE, which.xs = var_formula)
-}
-
-
-
-# Function to perform matching
-perform_matching_for_year <- function(data, treatment_year, match_vars, nearest_neighbors, group_type,
-                                      match_type = "nearest", distance_option = "glm",
-                                      match_link = "probit", # logit or probit
-                                      pre_treatment_decades = 2, caliper = FALSE,
-                                      caliper_cutoff = 0.2, exact_match_vars = c("cbsa_title"),
-                                      with_replacement = FALSE) {
+# Function to perform matching WITH REPLACEMENT
+perform_matching_with_replacement <- function(data, treatment_year, match_vars, nearest_neighbors, group_type,
+                                             match_type = "nearest", distance_option = "glm",
+                                             match_link = "logit", 
+                                             pre_treatment_decades = 2,
+                                             exact_match_vars = c("cbsa_title", "redlined_binary_80pp", "ur_binary_5pp", "has_highway_1km")) {
   
-  # testing
+  # for testing
   # data <- census_tract_data
-  # treatment_year <- 1970
+  # treatment_year <- 1970  # or 1960, 1980 - pick one to test
   # match_vars <- matching_vars
-  # nearest_neighbors <- 1
-  # group_type <- "inner"
+  # nearest_neighbors <- knn_neighbors
+  # distance_option <- "glm"
+  # match_link <- "logit"
+  # group_type <- "treated"  # test treated group first
   # match_type <- "nearest"
-  # caliper = FALSE
-  # pre_treatment_decades <- 1
-  # exact_match_vars = c("cbsa_title", "redlined_binary_80pp")
-
-  # Determine how many years of pretreatment data i match on
+  # pre_treatment_decades <- 2
+  # exact_match_vars <- c("cbsa_title", "redlined_binary_80pp")
+  
+  
+  
+  # Determine pre-treatment years
   if (pre_treatment_decades == 1) {
     pre_treatment_years <- c(treatment_year - 10)
   } else if (pre_treatment_decades == 2) {
     pre_treatment_years <- c(treatment_year - 10, treatment_year - 20)
   }
   
-  # Separate time-invariant variables
+  # Separate time-invariant and time-varying variables
   time_invariant_vars <- c("asinh_distance_from_cbd")
   time_varying_vars <- setdiff(match_vars, time_invariant_vars)
   
-  
-  # Filter data based on group_type and include appropriate pre-treatment years
+  # Filter data for matching
   matching_data <- data %>%
     filter(
-      (location_type == group_type & treatment_year == !!treatment_year) | # group of interest, treated in the treatment year, all years of data
-        (location_type == "donor_pool" & year %in% pre_treatment_years))   # control group, data only from pre-treatment years
+      (location_type == group_type & treatment_year == !!treatment_year) | # Treatment group
+      (location_type == "donor_pool" & year %in% pre_treatment_years))     # Control pool
   
-  # Ensure category is character type across all years
+  # Convert category to character
   matching_data <- matching_data %>%
     mutate(category_most_overlap = as.character(category_most_overlap))
   
-  # Reshape the data to wide format with corrected variable names
+  # Reshape to wide format
   matching_data_wide <- matching_data %>%
     dplyr::select(GISJOIN_1950, city, cbd, cbsa_title,
-                  redlined_binary_80pp,
-                  category_most_overlap, location_type, 
-           year, all_of(c(time_varying_vars, time_invariant_vars))) %>%
+                  redlined_binary_80pp, category_most_overlap, location_type, 
+                  year, all_of(c(time_varying_vars, time_invariant_vars))) %>%
     pivot_wider(
       names_from = year,
       values_from = all_of(time_varying_vars),
       names_glue = "year_{year}_{.value}"
     )
   
-  # Determine relevant variables based on pre-treatment years
+  # Get relevant variables for matching
   relevant_vars <- c(
     paste0("year_", rep(pre_treatment_years, each = length(time_varying_vars)),
            "_", rep(time_varying_vars, times = length(pre_treatment_years))),
     time_invariant_vars
   )
   
-  # Filter for complete cases only for the specific years we're working with
+  # Filter complete cases
   complete_cases <- matching_data_wide %>%
     dplyr::select(all_of(relevant_vars)) %>%
     complete.cases()
@@ -268,87 +185,44 @@ perform_matching_for_year <- function(data, treatment_year, match_vars, nearest_
   matching_data_wide <- matching_data_wide %>%
     filter(complete_cases)
   
-  category_vars <- relevant_vars[grep("category", relevant_vars)]
-  non_category_vars <- setdiff(relevant_vars, category_vars)
-  
-  matching_data_wide <- matching_data_wide %>%
-    mutate(across(all_of(category_vars)))
-
-  # Create a binary "treatment" indicator for matching
+  # Create treatment indicator
   matching_data_wide <- matching_data_wide %>%
     mutate(treatment_group = as.factor(ifelse(location_type == group_type, 1, 0)))
   
-
-  formula_str <- paste(paste("treatment_group ~", paste(relevant_vars, collapse = " + ")))
+  # Create matching formula
+  formula_str <- paste("treatment_group ~", paste(relevant_vars, collapse = " + "))
   match_formula <- as.formula(formula_str)
-  ## Try full matching 
-  # m.out4 <- matchit(match_formula, data = matching_data_wide,
-  #                   exact = c("city", "cbd", "category_most_overlap"),
-  #                   method = "full",
-  #                   distance = "glm", link = "probit"
-  # )
-  # 
-  # summary(m.out4)
   
-  if (match_type == "nearest") {
-    
-    if (caliper == TRUE) {
-    # Perform matching
-        m.out <- matchit(match_formula,
+  cat("Matching with replacement for", group_type, "tracts treated in", treatment_year, "\n")
+  cat("Treatment units:", sum(matching_data_wide$treatment_group == 1), "\n")
+  cat("Control units:", sum(matching_data_wide$treatment_group == 0), "\n")
+  
+  # Perform matching WITH REPLACEMENT
+  m.out <- matchit(match_formula,
                    data = matching_data_wide,
-                   #exact = c("city", "cbd", "category_most_overlap"),
                    exact = exact_match_vars,
-                   method = "nearest",
+                   method = match_type,
                    distance = distance_option,
                    ratio = nearest_neighbors,
                    link = match_link,
-                   caliper = caliper_cutoff,
-                   std.caliper = TRUE,
-                   replace = with_replacement)
+                   replace = TRUE)  # KEY CHANGE: WITH REPLACEMENT
   
-    } else {
-      m.out <- matchit(match_formula,
-                   data = matching_data_wide,
-                   #exact = c("city", "cbd", "category_most_overlap"),
-                   exact = exact_match_vars,
-                   method = "nearest",
-                   distance = distance_option,
-                   ratio = nearest_neighbors,
-                   link = match_link,
-                   replace = with_replacement)
-    }
+  # Print matching summary
+  cat("Matched units:", sum(m.out$weights[m.out$weights > 0]), "\n")
+  cat("Control units used:", sum(m.out$weights[matching_data_wide$treatment_group == 0] > 0), "\n")
+  cat("Controls used multiple times:", 
+      sum(m.out$weights[matching_data_wide$treatment_group == 0] > 1), "\n\n")
   
-  
-  } else if (match_type == "full") {
-         m.out <- matchit(match_formula,
-                     data = matching_data_wide,
-                     exact = exact_match_vars,
-                     method = "full",
-                     distance = distance_option,
-                     link = match_link,
-                     replace = with_replacement)
-  } else if (match_type == "genetic") {
-    m.out <- matchit(match_formula,
-                     data = matching_data_wide,
-                     exact = exact_match_vars,
-                     method = "genetic",
-                     distance = distance_option,
-                     link = match_link,
-                     replace = with_replacement)
-  }
-  
-    
-  
-  # Get matched data
-  matched_data <- match.data(m.out)
+  # Get matched data using get_matches() for replacement matching
+  matched_data <- get_matches(m.out, data = matching_data_wide)
   
   # Add treatment year and group type information
   matched_data$matched_treatment_year <- treatment_year
   matched_data$group_type <- group_type
   matched_data$match_type <- match_type
   
-  
-  year_vars <- grep("^(normalized_)?year_", names(matched_data), value = TRUE)
+  # Get variable names for reshaping
+  year_vars <- grep("^year_", names(matched_data), value = TRUE)
   
   # Reshape back to long format
   matched_data_long <- matched_data %>%
@@ -363,198 +237,12 @@ perform_matching_for_year <- function(data, treatment_year, match_vars, nearest_
   return(list(matched_data = matched_data_long, m.out = m.out))
 }
 
-
-# Run matching -----
+# Run matching WITH REPLACEMENT -----
 treatment_years <- unique(census_tract_data %>%
                             filter(!is.na(treatment_year)) %>%
                             pull(treatment_year))
 
 # Initialize lists to store results
-matched_datasets <- list()
-m_out_objects <- list()
-
-# Perform matching for each group and year
-for (group in group_types) {
-  for (year in treatment_years) {
-    for (nyear in c(1, 2)) {
-      df_name <- paste0("matched_data_", group, "_", nyear, "pretreatment_", year)
-      m_out_name <- paste0("m_out_", group, "_", nyear, "pretreatment_", year)
-      
-      # display which group and year we are working on
-      print(paste0("Matching for group: ", group, " and year: ", year))
-      
-      # baseline 
-      result <- perform_matching_for_year(census_tract_data, year, matching_vars,
-                                          nearest_neighbors = knn_neighbors, group_type = group,
-                                          pre_treatment_decades = nyear,
-                                          distance_option = "glm",
-                                          match_type = "nearest",
-                                          match_link = "logit",
-                                          exact_match_vars = c("cbsa_title", "redlined_binary_80pp"),
-                                          caliper = FALSE)
-                                         # caliper = TRUE, caliper_cutoff = 0.35)
-      
-      matched_datasets[[df_name]] <- result[["matched_data"]]
-      m_out_objects[[m_out_name]] <- result[["m.out"]]
-    }
-  }
-}
-
-
-# Create matched datasets -----
-
-## Matched dataset: Treated and inner rings ----
-
-## matched data, 1 year of pretreatment 
-# Combine all matched datasets
-all_matched_data_1_year <- bind_rows(matched_datasets$matched_data_treated_1pretreatment_1960,
-                              matched_datasets$matched_data_treated_1pretreatment_1970,
-                              matched_datasets$matched_data_treated_1pretreatment_1980,
-                              matched_datasets$matched_data_inner_1pretreatment_1960,
-                              matched_datasets$matched_data_inner_1pretreatment_1970,
-                              matched_datasets$matched_data_inner_1pretreatment_1980)
-
-all_matched_data_2_year <- 
-  bind_rows(matched_datasets$matched_data_treated_2pretreatment_1960,
-            matched_datasets$matched_data_treated_2pretreatment_1970,
-            matched_datasets$matched_data_treated_2pretreatment_1980,
-            matched_datasets$matched_data_inner_2pretreatment_1960,
-            matched_datasets$matched_data_inner_2pretreatment_1970,
-            matched_datasets$matched_data_inner_2pretreatment_1980)
-
-# Merge matching information back to the original dataset
-
-
-# 1 years of matching
-tract_data_matched_1_year <- census_tract_data %>%
-  # note: there can be multiple matches, because a control tract can be a control for multiple tracts
-  left_join(all_matched_data_1_year %>% 
-              dplyr::select(GISJOIN_1950, weights, matched_treatment_year, subclass, group_type) %>% 
-              distinct(),
-            by = c("GISJOIN_1950")) %>% 
-  # Replace NA weights with 0 (for unmatched observations)
-  mutate(weights = ifelse(is.na(weights), 0, weights)) %>% 
-  #  create a match_group, which is a unique identifier for each match
-  mutate(
-    match_group = ifelse(!is.na(matched_treatment_year),
-                         paste(cbsa_title, matched_treatment_year, subclass, sep = "_"),
-                         NA)
-  ) %>% 
-  # drop unmatched observations
-  filter(!is.na(match_group))
-
-
-# 2 years of matching
-tract_data_matched_2_year <- census_tract_data %>%
-  # note: there can be multiple matches, because a control tract can be a control for multiple tracts
-  left_join(all_matched_data_2_year %>% 
-              dplyr::select(GISJOIN_1950, weights, matched_treatment_year, subclass, group_type) %>% 
-              distinct(),
-            by = c("GISJOIN_1950")) %>% 
-  # Replace NA weights with 0 (for unmatched observations)
-  mutate(weights = ifelse(is.na(weights), 0, weights)) %>% 
-  #  create a match_group, which is a unique identifer for each match
-  mutate(
-    match_group = ifelse(!is.na(matched_treatment_year),
-                         paste(cbsa_title, matched_treatment_year, subclass, sep = "_"),
-                         NA)
-  ) %>% 
-  # drop unmatched observations
-  filter(!is.na(match_group))
-
-
-# check balance of covariates ----
-
-
-## 1. Compare means of full dataset ----
-# Assuming 'matched_data' is your dataset with both treated and matched control units
-# dataset of just matched units at pre-treatment period
-balanced_data_1_year <- tract_data_matched_1_year %>%
-  group_by(match_group) %>%
-  mutate(group_treatment_year = min(matched_treatment_year, na.rm = TRUE)) %>%
-  filter(year == group_treatment_year - 10) %>%
-  ungroup()
-
-balanced_data_2_year <-
-  tract_data_matched_2_year %>%
-  group_by(match_group) %>%
-  mutate(group_treatment_year = min(matched_treatment_year, na.rm = TRUE)) %>%
-  filter(year == group_treatment_year - 10) %>%
-  ungroup()
-
-# List of covariates to check balance
-covariates <- c("black_share", "white_share",  "asinh_median_income", "median_income",
-                "median_home_value_calculated", "asinh_median_home_value_calculated", "median_rent_calculated","asinh_median_rent_calculated", 
-                "distance_from_cbd", "population_density", "housing_density", "total_pop", "black_pop",
-                "white_pop", "pct_hs_grad", "pct_some_college",
-                "asinh_pop_black", "asinh_pop_white", "asinh_pop_total",
-                "total_units", "vacancy_rate", "high_skill_share", "low_skill_share")  
-
-# Create tables for each group_type
-datasets <- list(balanced_data_1_year = balanced_data_1_year, balanced_data_2_year = balanced_data_2_year)
-
-
-for (dataset_name in names(datasets)) {
-  dataset <- datasets[[dataset_name]]  # Access each dataset by name
-  
-  for (group in group_types ) {
-    cat(paste("Processing group:", group, "in dataset", dataset_name, "\n"))
-    
-    balance_table <- CreateTableOne(vars = covariates,
-                                    strata = "location_type",
-                                    data = dataset %>% filter(group_type == group),
-                                    test = TRUE)
-    
-    # Print the table
-    print(balance_table, smd = TRUE)
-  }
-}
-
-## 2. Use m.out objects in each year  -----
-summary(m_out_objects$m_out_treated_1pretreatment_1960)
-summary(m_out_objects$m_out_treated_1pretreatment_1970)
-summary(m_out_objects$m_out_treated_1pretreatment_1980)
-
-summary(m_out_objects$m_out_inner_1pretreatment_1960)
-summary(m_out_objects$m_out_inner_1pretreatment_1970)
-summary(m_out_objects$m_out_inner_1pretreatment_1980)
-
-# plot(m_out_objects$m_out_treated_1pretreatment_1970, type = "density")
-
-# Loop over the covariates and plot density plots
-covariate_balance_plots <- list()
-
-for (covariate in covariates) {
-  covariate <- "black_share"
-  data <-  balanced_data_1_year %>% filter(group_type == "inner",
-                      !is.infinite(!!sym(covariate)))
-  
-  p <- ggplot(data,
-              aes(x = !!sym(covariate), fill = location_type)) +
-    geom_density(alpha = 0.5) +  # Add transparency to see both densities
-    labs(title = paste("Density plot of", covariate),
-         x = covariate,
-         y = "Density",) +
-    theme_minimal() +
-    scale_fill_manual(values = c("treated" = "blue", inner = "green", "donor_pool" = "red"))  # Choose colors as needed
-  
-  # Print each plot
-  print(p)
-  
-  # add plot to list
-  covariate_balance_plots[[covariate]] <- p
-}
-
-
-# Output datasets -----
-write_csv(tract_data_matched_1_year, here(output_data_dir, "tract_data_matched_1_year.csv"))
-write_csv(tract_data_matched_2_year, here(output_data_dir, "tract_data_matched_2_year.csv"))
-          
-
-# Matching with replacement -----
-# 11/14/2024: I am not sure it's better... balance tables don't look signfiicantly better
-
-## Run matching -----
 matched_datasets_replacement <- list()
 m_out_objects_replacement <- list()
 
@@ -562,21 +250,24 @@ m_out_objects_replacement <- list()
 for (group in group_types) {
   for (year in treatment_years) {
     for (nyear in c(1, 2)) {
-      df_name <- paste0("matched_data_", group, "_", nyear, "pretreatment_", year)
-      m_out_name <- paste0("m_out_", group, "_", nyear, "pretreatment_", year)
+      df_name <- paste0("matched_data_", group, "_", nyear, "pretreatment_", year, "_replacement")
+      m_out_name <- paste0("m_out_", group, "_", nyear, "pretreatment_", year, "_replacement")
       
-      # display which group and year we are working on
-      print(paste0("Matching for group: ", group, " and year: ", year))
+      cat("=== Matching with replacement ===\n")
+      cat("Group:", group, "| Year:", year, "| Pre-treatment decades:", nyear, "\n")
       
-      # baseline 
-      result <- perform_matching_for_year(census_tract_data, year, matching_vars,
-                                          nearest_neighbors = knn_neighbors, group_type = group,
-                                          pre_treatment_decades = nyear, match_type = "nearest",
-                                          distance_option = "glm",
-                                          match_link = "logit",
-                                          exact_match_vars = c("cbsa_title", "redlined_binary_80pp"),
-                                          caliper = FALSE, with_replacement = TRUE)
-      #   caliper = TRUE, caliper_cutoff = 0.5)
+      result <- perform_matching_with_replacement(
+        data = census_tract_data, 
+        treatment_year = year, 
+        match_vars = matching_vars,
+        nearest_neighbors = knn_neighbors, 
+        group_type = group,
+        pre_treatment_decades = nyear,
+        distance_option = "glm",
+        match_type = "nearest",
+        match_link = "logit",
+        exact_match_vars = c("cbsa_title", "redlined_binary_80pp")
+      )
       
       matched_datasets_replacement[[df_name]] <- result[["matched_data"]]
       m_out_objects_replacement[[m_out_name]] <- result[["m.out"]]
@@ -584,83 +275,114 @@ for (group in group_types) {
   }
 }
 
-## create matched datasets ----
-all_matched_data_1_year_replacement <- bind_rows(matched_datasets_replacement$matched_data_treated_1pretreatment_1960,
-                                     matched_datasets_replacement$matched_data_treated_1pretreatment_1970,
-                                     matched_datasets_replacement$matched_data_treated_1pretreatment_1980,
-                                     matched_datasets_replacement$matched_data_inner_1pretreatment_1960,
-                                     matched_datasets_replacement$matched_data_inner_1pretreatment_1970,
-                                     matched_datasets_replacement$matched_data_inner_1pretreatment_1980)
+# Create combined matched datasets -----
 
+# Combine 2-year pretreatment matching (primary specification)
 all_matched_data_2_year_replacement <- 
-  bind_rows(matched_datasets_replacement$matched_data_treated_2pretreatment_1960,
-            matched_datasets_replacement$matched_data_treated_2pretreatment_1970,
-            matched_datasets_replacement$matched_data_treated_2pretreatment_1980,
-            matched_datasets_replacement$matched_data_inner_2pretreatment_1960,
-            matched_datasets_replacement$matched_data_inner_2pretreatment_1970,
-            matched_datasets_replacement$matched_data_inner_2pretreatment_1980)
+  bind_rows(matched_datasets_replacement$matched_data_treated_2pretreatment_1950_replacement,
+            matched_datasets_replacement$matched_data_treated_2pretreatment_1960_replacement,
+            matched_datasets_replacement$matched_data_treated_2pretreatment_1970_replacement,
+            matched_datasets_replacement$matched_data_treated_2pretreatment_1980_replacement,
+            matched_datasets_replacement$matched_data_inner_1pretreatment_1950_replacement,
+            matched_datasets_replacement$matched_data_inner_1pretreatment_1960_replacement,
+            matched_datasets_replacement$matched_data_inner_1pretreatment_1970_replacement,
+            matched_datasets_replacement$matched_data_inner_1pretreatment_1980_replacement
+            ) %>% 
+  # calculate weights based on number of unique matches
+  select(GISJOIN_1950, matched_treatment_year, subclass, group_type) %>%
+  distinct() %>% 
+  mutate(weights = 1)
+# %>%
+#   # 8/11/2025: Do NOT use these weights. Just set weights equal to 1
+#   group_by(GISJOIN_1950) %>%
+#   mutate(
+#     times_matched = n(),                    # How many unique matches this tract has
+#     weights = 1/times_matched,    # for controls that matched k times, weight = 1/k
+#   ) %>%
+#   ungroup()
 
-# Merge matching information back to the original dataset
 
-# 1 years of matching
-tract_data_matched_1_year_replacement <- census_tract_data %>%
-  # note: there can be multiple matches, because a control tract can be a control for multiple tracts
-  left_join(all_matched_data_1_year_replacement %>% 
-              dplyr::select(GISJOIN_1950, weights, matched_treatment_year, group_type) %>% 
-              distinct(),
-            by = c("GISJOIN_1950")) %>% 
-  # drop unmatched observations (i.e. those with NA in weights)
-  filter(!is.na(weights))
-
-# 2 years of matching
+# Merge matching information back to original dataset
 tract_data_matched_2_year_replacement <- census_tract_data %>%
-  # note: there can be multiple matches, because a control tract can be a control for multiple tracts
-  left_join(all_matched_data_2_year_replacement %>% 
-              dplyr::select(GISJOIN_1950, weights, distance, matched_treatment_year, group_type) %>% 
-              distinct(),
-            by = c("GISJOIN_1950")) %>% 
-  # drop unmatched observations (i.e. those with NA in weights)
-  filter(!is.na(weights))
+  left_join(all_matched_data_2_year_replacement,
+            by = "GISJOIN_1950",
+            relationship = "many-to-many") %>% 
+  # Create match group identifier
+  mutate(
+    match_group = ifelse(!is.na(matched_treatment_year),
+                         paste(cbsa_title, matched_treatment_year, subclass, sep = "_"),
+                         NA)
+  ) %>% 
+  # Keep only matched observations
+  filter(!is.na(match_group))
 
-## check balance ---- 
-CreateTableOne(vars = covariates,
-               strata = "location_type",
-               data = tract_data_matched_2_year %>%
-                 filter(year == 1950) %>% 
-                 filter(group_type == "treated"),
-               test = TRUE)
+# Summary statistics -----
+cat("\n=== MATCHING WITH REPLACEMENT SUMMARY ===\n")
+cat("Original treated tracts (all years):", 
+    nrow(census_tract_data %>% filter(location_type == "treated") %>% distinct(GISJOIN_1950)), "\n")
 
+matched_summary <- tract_data_matched_2_year_replacement %>%
+  group_by(group_type, location_type) %>%
+  summarise(
+    n_obs = n(),
+    n_tracts = n_distinct(GISJOIN_1950),
+    n_match_groups = n_distinct(match_group),
+    .groups = 'drop'
+  )
 
-CreateTableOne(vars = covariates,
-                                strata = "location_type",
-                                data = tract_data_matched_2_year_replacement %>%
-                                  filter(year == 1950) %>% 
-                                  filter(group_type == "treated"),
-                                test = TRUE)
+print(matched_summary)
 
+# Check balance -----
+cat("\n=== BALANCE CHECK ===\n")
 
-CreateTableOne(vars = covariates,
-                                strata = "location_type",
-                                data = tract_data_matched_2_year %>%
-                                  filter(year == 1950) %>% 
-                                  filter(group_type == "inner"),
-                                test = TRUE)
+# Covariates for balance checking
+covariates <- c("black_share", "white_share", "asinh_median_income", 
+                "median_rent_calculated", "distance_from_cbd", 
+                "total_pop", "asinh_pop_total", "unemp_rate")
 
-CreateTableOne(vars = covariates,
-                                strata = "location_type",
-                                data = tract_data_matched_2_year_replacement %>%
-                                  filter(year == 1950) %>% 
-                                  filter(group_type == "inner"),
-                                test = TRUE)
+# Balance for treated group
+balance_data_treated <- tract_data_matched_2_year_replacement %>%
+  filter(group_type == "treated", year == 1940) # Pre-treatment year
 
-# density plots
-ggplot(tract_data_matched_2_year_replacement %>%
-         filter(year == 1950) %>% 
-         filter(group_type == "inner"),
-       aes(x = median_home_value_calculated, color = location_type), alpha = 0.5) +
-  geom_density() +
-  ggtitle("Density of black share for treated tracts (2 year matching)")
+if (nrow(balance_data_treated) > 0) {
+  balance_table_treated <- CreateTableOne(
+    vars = covariates,
+    strata = "location_type",
+    data = balance_data_treated,
+    test = TRUE
+  )
+  
+  cat("Balance for TREATED group matching:\n")
+  print(balance_table_treated, smd = TRUE)
+}
 
-## output datasets----
-write_csv(tract_data_matched_1_year_replacement, here(output_data_dir, "tract_data_matched_1_year_with_replacement.csv"))
-write_csv(tract_data_matched_2_year_replacement, here(output_data_dir, "tract_data_matched_2_year_with_replacement.csv"))
+# Balance for inner gorup
+balance_data_inner <- tract_data_matched_2_year_replacement %>%
+  filter(group_type == "inner", year == 1940) # Pre-treatment year
+
+if (nrow(balance_data_inner) > 0) {
+  balance_table_inner <- CreateTableOne(
+    vars = covariates,
+    strata = "location_type",
+    data = balance_data_inner,
+    test = TRUE
+  )
+  
+  cat("Balance for INNER group matching:\n")
+  print(balance_table_inner, smd = TRUE)
+}
+
+# Save datasets -----
+cat("\n=== SAVING DATASETS ===\n")
+
+write_csv(tract_data_matched_2_year_replacement, 
+          here(output_data_dir, "tract_data_matched_2_year_replacement.csv"))
+
+cat("Dataset saved to:", here(output_data_dir, "tract_data_matched_2_year_replacement.csv"), "\n")
+
+# Save matching objects for diagnostics
+# saveRDS(m_out_objects_replacement, 
+#         here(output_data_dir, "m_out_objects_replacement.rds"))
+
+cat("\n=== MATCHING WITH REPLACEMENT COMPLETE ===\n")
+

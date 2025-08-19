@@ -12,11 +12,11 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   # For testing, comment out otherwise
   # input_data <- tract_data_matched_2_year
   # outcome_var <- "black_share"
-  # treatment_group <- "inner"
+  # treatment_group <- "treated"
   # size = NULL
   # city_filter = NULL
   # initial_share = NULL
-  
+  # 
   # -----------------------------
   # Filter Data
   # -----------------------------

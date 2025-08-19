@@ -125,7 +125,7 @@ determine_clusters <- function(n_tracts, factor = 0.5, min_clusters = 5, max_clu
 # Perform clustering for each city
 clustered_tracts <- 
   census_tract_sample_indexed_unique %>%
-  group_by(city) %>%
+  group_by(cbsa_title) %>%
   group_modify(~ {
     city_centroids <- get_centroids(.x)
     n_clusters <- determine_clusters(nrow(.x))
@@ -364,21 +364,32 @@ event_study_data_full<-
     by = "treated_id"
   )
 
+#### merge on relevant variables -----
 # Prepare census data
 census_data_for_event_study <- census_tract_sample %>% 
   dplyr::select(GISJOIN_1950, STATE, COUNTY, TRACTA, YEAR, city, cbsa_title,
+        # population by race
          black_share, white_share, white_pop, black_pop, total_pop, 
-         median_income, median_rent_calculated, median_home_value_calculated, median_educ_years_25plus,
-         pct_hs_grad, pct_some_college,
-         population_density, distance_from_cbd, distance_from_project, 
-         housing_density,
-         employment_pop_ratio, unemp_rate, lfp_rate) %>%
+        # private population 
+        private_population_estimate, private_black_population_estimate, private_white_population_estimate,
+        # income and housing
+         median_income, median_rent_calculated, median_home_value_calculated, 
+        # SES measures
+         pct_hs_grad, unemp_rate, lfp_rate,
+         population_density,
+        # other controls 
+         distance_from_cbd, ur_binary_10pp, ur_binary_5pp, ur_intensity,
+         has_highway_1km, has_highway_2km,
+         distance_from_project) %>%
   st_drop_geometry() %>% 
   # Inverse hyperbolic sine transformations
   mutate(
     asinh_pop_total = asinh(total_pop),
     asinh_pop_white = asinh(white_pop),
     asinh_pop_black = asinh(black_pop),
+    asinh_private_pop = asinh(private_population_estimate),
+    asinh_private_black_pop = asinh(private_black_population_estimate),
+    asinh_private_white_pop = asinh(private_white_population_estimate),
     asinh_median_income = asinh(median_income),
     asinh_median_rent_calculated = asinh(median_rent_calculated),
     asinh_median_home_value_calculated = asinh(median_home_value_calculated)
@@ -386,10 +397,19 @@ census_data_for_event_study <- census_tract_sample %>%
   # Join on clusters if applicable
   left_join(clustered_tracts_panel, by = c("GISJOIN_1950", "city"))
 
+# Prepare total public housing units for each project, merged onto 
+# Create mapping from treated_id (tract_index) to total_public_housing_units
+treated_id_to_units <- treated_indices %>%
+  left_join(total_ph_units_per_tract, by = "GISJOIN_1950") %>%
+  select(treated_id = tract_index, total_public_housing_units)
+
+
 # Merge on census variables
 event_study_final <-
   left_join(event_study_data_full, census_data_for_event_study, 
             by = c("GISJOIN_1950", "YEAR")) %>% 
+  # merge in public housing units
+  left_join(treated_id_to_units, by = "treated_id") %>% 
   # Define treated variable equal to 1 if YEAR >= treatment_year and location_type == treated
   mutate(
     treated = ifelse(YEAR >= treatment_year & location_type == "treated", TRUE, FALSE),
@@ -399,6 +419,7 @@ event_study_final <-
   ) %>% 
   # Keep distinct observations: One observation per treated_id-tract-year
   distinct()
+
 
 # Create ring variable for ring fixed effects
 event_study_data_rings <- 
@@ -432,15 +453,11 @@ event_study_data_rings <-
 
 # Define distance thresholds (in meters, same units as distance_from_project)
 
-max_dist_outer <- 1000    # and within 1000 meters (following Blanco and Neri)
-                          # This is approximately 0.6 miles
-max_dist_inner <- 500     # and within 500 meters
-                          # This is approximately 0.3 miles
+max_dist_outer <- 2000    # and within 2k,
+max_dist_inner <- 1000     # and within 1 km
 
 # No minimum distance thresholds - trust the contiguity-based ring definitions
 # Only use maximum distance to exclude tracts that are unreasonably far due to odd boundaries
-
-
 
 # look at distributions of distance_from_project
 inner_dist_summary <- event_study_data_rings %>%
@@ -459,16 +476,14 @@ cat("\nOuter ring distances (contiguity-based):\n")
 print(outer_dist_summary)
 
 # Based on these distributions, we can choose distance thresholds for distance-based rings
-# Common choices in urban economics literature:
-# - 0.25 miles (≈400m) for immediate spillovers
-# - 0.5 miles (≈800m) for broader neighborhood effects
-# - 1 km for extended effects (as in Blanco and Neri)
+
 
 # Filter - only maximum distance thresholds to exclude unreasonably distant tracts
 event_study_data_rings_filtered <- event_study_data_rings %>%
   filter(
     (location_type == "treated") |
       (location_type == "inner" & distance_from_project <= max_dist_inner) |
+      # (location_type == "inner" & distance_from_project <= max_dist_outer) |
       (location_type == "outer" & distance_from_project <= max_dist_outer)
   )
 
@@ -479,6 +494,25 @@ event_study_data_rings <- event_study_data_rings_filtered
 write_csv(event_study_data_rings, event_study_rings_output_path)
 
 ## Visualize ring structure -----
+
+### Find projects with no outer controls
+# Find projects with no outer controls
+projects_with_controls <- event_study_data_rings %>%
+  filter(location_type == 'outer') %>%
+  select(treated_id) %>%
+  distinct()
+
+all_projects <- event_study_data_rings %>%
+  select(treated_id) %>%
+  distinct()
+
+projects_with_no_controls <- anti_join(all_projects, projects_with_controls, by = 'treated_id')
+
+# Vector of treated_ids with no controls
+no_control_ids <- projects_with_no_controls$treated_id
+
+
+
 # Function to visualize rings for a specific treated tract
 visualize_rings_for_treated_tract <- function(treated_tract_id, year = 1970) {
   
@@ -556,7 +590,7 @@ investigate_zero_distance <- function() {
 }
 
 # Example usage (uncomment to run):
-#visualize_rings_for_treated_tract(1)  # Replace 1 with actual treated_id
+# visualize_rings_for_treated_tract(1812)  # Replace 1 with actual treated_id
 #investigate_zero_distance()
 
 # Output unique tracts and ring status, and their associated treated tract ----
@@ -614,6 +648,7 @@ inner_ring_tracts_first_treated_collapsed <- inner_ring_tracts_first_treated %>%
 
 # output 
 write_csv(inner_ring_tracts_first_treated_collapsed, inner_ring_tracts_first_treated_output_path)
+
 
 
 

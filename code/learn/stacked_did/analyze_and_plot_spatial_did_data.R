@@ -195,3 +195,51 @@ balance_table <- CreateTableOne(vars = covariates,
 print(balance_table, smd = TRUE)
 
 create_balance_tables(balanced_data, covariates, balance_table_dir)
+
+## Interactive mapview for city rings -----
+library(mapview)
+
+# Function to create interactive map of rings for a specific city
+mapview_city_rings <- function(city_name) {
+  
+  # Get tracts for the specified city
+  city_tracts <- census_tract_sample_indexed_unique %>%
+    filter(city == city_name)
+  
+  # Get ring assignments for this city
+  city_rings <- unique_tracts_and_rings %>%
+    inner_join(city_tracts %>% st_drop_geometry() %>% select(GISJOIN_1950, city), 
+               by = "GISJOIN_1950")
+  
+  # Merge with tract geometries
+  city_rings_with_geom <- city_tracts %>%
+    left_join(city_rings, by = "GISJOIN_1950") %>%
+    mutate(location_type = ifelse(is.na(location_type), "excluded", location_type))
+  
+  # Color scheme
+  colors <- c("treated" = "#FF0000",     # Red
+              "inner" = "#FFA500",       # Orange  
+              "outer" = "#87CEEB",       # Sky blue
+              "excluded" = "#D3D3D3")    # Light gray
+  
+  # Create mapview
+  map <- mapview(city_rings_with_geom, 
+                 zcol = "location_type",
+                 col.regions = colors,
+                 layer.name = paste("Rings for", city_name))
+  
+  return(map)
+}
+
+# Function to see available cities
+list_available_cities <- function() {
+  cities <- unique(census_tract_sample_indexed_unique$city)
+  cities <- cities[!is.na(cities)]
+  return(sort(cities))
+}
+
+# Example usage (uncomment to run):
+# list_available_cities()
+# mapview_city_rings("Chicago")
+mapview_city_rings("New York City")
+# mapview_city_rings("San Francisco")

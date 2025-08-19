@@ -1,0 +1,42 @@
+% Spillover Heterogeneity Results Section
+% For inclusion in main paper
+
+\subsection{Heterogeneous Spillover Effects}\label{sec:spillover_heterogeneity}
+
+While our main spillover analysis reveals modest average effects on neighboring areas, these aggregate estimates may mask important heterogeneity. To explore this possibility, we examine how spillover effects vary along three key dimensions: public housing project size, baseline neighborhood racial composition, and baseline neighborhood income. We implement this analysis using our inherited spillover approach, where inner rings of treated tracts are compared to inner rings of matched control tracts, with heterogeneity measured using baseline ($t = -10$) characteristics of the treated tracts.
+
+\subsubsection{Heterogeneity by Project Size}
+
+Table \ref{tab:spillover_het_size} presents spillover effects stratified by the size of public housing projects. We divide projects into terciles based on total units (ranging from 50 to 3,501 units) and find modest heterogeneity across the size distribution. Contrary to expectations from threshold models of neighborhood change, we find no clear monotonic relationship between project size and spillover effects on racial composition. Small projects (bottom tercile, 50-131 units) generate minimal spillover effects on Black population share (0.08 percentage points, not significant). Medium projects show slightly larger but still modest effects (2.7 percentage points, $p = 0.14$), while large projects (top tercile, 537-3,501 units) show small negative spillovers (-1.4 percentage points, not significant).
+
+The most consistent pattern emerges for income effects, where small projects generate significant negative spillovers on median income (-5.2 log points, $p < 0.05$), while medium and large projects show similar but statistically insignificant effects. This suggests that smaller public housing developments may have been more likely to be sited in economically marginal areas where even modest affordable housing provision triggered income declines in surrounding neighborhoods, possibly through changes in property values or resident composition.
+
+\subsubsection{Heterogeneity by Baseline Racial Composition}
+
+Perhaps our most theoretically informative results emerge from examining heterogeneity by baseline neighborhood racial composition (Table \ref{tab:spillover_het_race}). Areas with low baseline Black population shares (bottom tercile, typically under 5\% Black) experience \textit{negative} spillovers, with Black population share declining by 5.0 percentage points ($p < 0.001$) in areas neighboring public housing relative to control areas. This counterintuitive result suggests that in predominantly White neighborhoods, public housing placement may have triggered defensive responses that actually reduced Black population in surrounding areas.
+
+In contrast, areas with medium and high baseline Black shares show positive spillovers of 2.8 and 3.5 percentage points respectively (both $p < 0.001$). These neighborhoods, already having established Black populations, appear to have experienced public housing as an expansion of existing residential patterns rather than a disruption. The mirror image appears for White population shares, with positive spillovers in low-baseline-Black areas becoming increasingly negative as baseline Black share rises.
+
+This heterogeneity pattern has important implications for understanding the political economy of public housing siting. The stronger positive spillovers in areas with existing Black populations suggest that public housing authorities, whether through explicit policy or political pressure, tended to site projects where they would reinforce rather than disrupt existing racial boundaries. This finding provides quantitative support for historical accounts of how public housing ``gilded the ghetto'' rather than promoting integration \citep{vale2000reclaiming}.
+
+The income spillover effects reinforce this interpretation. Areas with higher baseline Black shares experience significant negative income spillovers of -8.9 to -12.0 log points ($p < 0.01$), suggesting that public housing spillovers contributed to concentrated disadvantage in already-minority neighborhoods while having minimal income effects in whiter areas.
+
+\subsubsection{Heterogeneity by Baseline Income}
+
+Baseline neighborhood income also mediates spillover effects, though in more complex ways (Table \ref{tab:spillover_het_income}). Low-income areas experience strong negative population spillovers of -21.6 log points ($p < 0.01$), while middle-income areas see positive spillovers of +8.4 log points (net effect of $-0.216 + 0.300 = 0.084$, $p < 0.001$). This suggests that public housing in already-disadvantaged areas may have accelerated neighborhood decline, while placement in more stable neighborhoods generated different dynamics, possibly through gentrification pressure or complementary investments.
+
+Interestingly, the racial composition spillovers show less variation by baseline income than by baseline racial composition, suggesting that income and race operate through distinct mechanisms in shaping neighborhood responses to public housing.
+
+\subsubsection{Mechanisms and Interpretation}
+
+These heterogeneous spillover effects are consistent with models of neighborhood tipping points and residential sorting \citep{schelling1971dynamic, card2008tipping}. Small projects and those in already-integrated areas generate modest spillovers because they do not fundamentally alter neighborhood trajectories. Large projects and those in predominantly White areas, however, appear to trigger threshold effects that reshape residential patterns.
+
+The heterogeneity by baseline characteristics also suggests important feedback effects. Public housing sited in minority neighborhoods reinforces segregation through spillover effects that further concentrate Black populations and reduce incomes in surrounding areas. Meanwhile, the negative spillovers on Black population in White neighborhoods suggest that even indirect exposure to public housing through proximity triggered exclusionary responses.
+
+Our findings contribute to understanding why public housing, despite intentions to provide quality affordable housing, became associated with concentrated poverty and racial segregation. The spillover effects we document suggest that beyond direct impacts on residents, public housing shaped broader neighborhood dynamics in ways that depended critically on project scale and neighborhood context. These indirect effects may help explain both the political opposition to public housing in White neighborhoods and its ultimate concentration in minority areas.
+
+\subsubsection{Robustness and Limitations}
+
+Several caveats warrant mention. First, the heterogeneity by baseline characteristics could partly reflect endogenous siting decisions rather than pure treatment effect heterogeneity. Public housing authorities likely considered neighborhood characteristics when selecting sites, potentially confounding our heterogeneity estimates. Second, our spillover definitions (inner rings of adjacent tracts) may not capture the full spatial extent of effects, particularly for large projects. Third, we cannot definitively separate spillovers from direct treatment effects for residents who may move between neighboring tracts.
+
+Despite these limitations, the systematic patterns across multiple dimensions of heterogeneity, their consistency with theoretical predictions and historical accounts, and their economic magnitudes suggest these spillover effects represent real neighborhood responses to public housing development. Future work examining longer-run dynamics and exploring alternative spillover definitions would be valuable.

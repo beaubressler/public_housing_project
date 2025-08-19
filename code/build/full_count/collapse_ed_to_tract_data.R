@@ -12,7 +12,7 @@ city_ed_dir <- here(census_data_dir, "full_count", "ed_by_city")
 ed_tract_crosswalk_dir <- here("data", "derived", "geographic_crosswalks", "ed_to_tract")
 
 tract_output_dir <- here(census_data_dir, "full_count", "tract")
-  
+
 # Read and clean data before merge -----
 
 # City-ED data
