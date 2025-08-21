@@ -89,7 +89,7 @@ spillover_analysis_base <- spillover_data_raw %>%
     treated_spillover = ifelse(location_type == "treated_spillover", 1, 0)
   ) %>%
   # Filter to reasonable event time window
-  filter(event_time > -30, event_time <= 40) %>%
+  filter(event_time > -30, event_time <= 30) %>%
   # Compute Wing et al (2024) stacked DiD weights
   compute_weights(
     treatedVar = "treated_spillover", 
@@ -338,7 +338,7 @@ run_spillover_heterogeneity <- function(input_data, outcome_var, het_var, binnin
     filter(!is.na(match_group),
            !is.na(!!sym(het_var)),
            event_time > -30,
-           event_time < 50)
+           event_time <= 30)
   
   # Use ntile binning (same as baseline)
   bin_var <- paste0(het_var, "_bin")

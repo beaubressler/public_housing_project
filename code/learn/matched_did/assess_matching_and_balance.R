@@ -95,9 +95,9 @@ for (group in group_types ) {
 # # Switch from 1990 to just all unique tracts
 all_tracts_with_status <-
   census_tract_sample_all %>%
-  filter(YEAR == 1990) %>%
+  filter(YEAR == 2000) %>%
   left_join(tract_data_matched_2_year %>%
-              filter(year == 1990) %>%
+              filter(year == 2000) %>%
               dplyr::select(STATE, COUNTY, TRACTA, location_type, weights, matched_treatment_year, group_type),
             by = c("STATE", "COUNTY", "TRACTA")) %>%
   group_by(STATE, COUNTY, TRACTA) %>%

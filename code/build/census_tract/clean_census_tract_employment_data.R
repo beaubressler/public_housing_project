@@ -44,6 +44,7 @@ tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concord
 tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1950.csv"))
 tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
 tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
+tract_crosswalk_2000 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights2000_to_1950.csv"))
 
 
 # Compile tract-level Census employment data ----
@@ -339,8 +340,34 @@ tract_employment_data_1990 <-
          lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
   select(any_of(tract_background_variables), contains("rate"), contains("pop"))
 
+### 2000 -----
 
+full_tract_data_2000 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/2000/nhgis0051_ds151_2000_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_2000/US_tract_2000.shp",
+      file_select = starts_with("US_tract_2000")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
 
+#### harmonization -----
+
+tract_employment_data_2000 <- 
+  full_tract_data_2000 %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), contains("GLP"), contains("GLR")) %>% 
+  mutate(employed_pop = GLR001 + GLR003,  # Male employed + Female employed
+         unemployed_pop = GLR002 + GLR004,  # Male unemployed + Female unemployed
+         not_in_lf_pop = GLP002 + GLP004,  # Male not in LF + Female not in LF
+         armed_forces_pop = NA_real_,  # Not available in 2000 data
+         unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
+         lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
+  select(any_of(tract_background_variables), contains("rate"), contains("pop"))
 
 # Concord datasets to 1950 Census tracts ----
 # 1. Join on crosswalk to get GISJOIN_1950 and weights
@@ -348,7 +375,7 @@ tract_employment_data_1990 <-
 # 3. Merge geography information from 1950 NHGIS file
 
 ## Loop for 1930-1990-----
-years <- c(1930, 1940, 1960, 1970, 1980, 1990)
+years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000)
 
 for (year in years) {
   # Construct variable names and file names dynamically based on the year
@@ -387,7 +414,7 @@ tract_employment_data_concorded <-
   bind_rows(tract_employment_data_1930_concorded, tract_employment_data_1940_concorded,
             tract_employment_data_1950_concorded, tract_employment_data_1960_concorded,
             tract_employment_data_1970_concorded, tract_employment_data_1980_concorded,
-            tract_employment_data_1990_concorded) %>%
+            tract_employment_data_1990_concorded, tract_employment_data_2000_concorded) %>%
   # calculate unemployment rate, lfp rate
   mutate(unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
          lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%

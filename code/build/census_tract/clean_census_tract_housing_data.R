@@ -50,6 +50,7 @@ tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concord
 tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1950.csv"))
 tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
 tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
+tract_crosswalk_2000 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights2000_to_1950.csv"))
 # Compile tract-level Census housing data ----
 
 # shared variables we want to keep
@@ -366,6 +367,21 @@ tract_info_1950_gisjoin <-
 
 ### 1960 -----
 
+# Contract rent data (new file)
+full_tract_data_1960_rent <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/housing/1960/nhgis0050_ds92_1960_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_1960/US_tract_1960.shp",
+      file_select = starts_with("US_tract_1960")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+# Home value data (original file)  
 full_tract_data_1960 <-
   ipums_shape_full_join(
     read_nhgis(
@@ -395,14 +411,29 @@ full_tract_data_1960_add <-
 #### harmonization -----
 # 1960 and 1970: I have to calculate medians from the grouped data after concordances
 
-tract_housing_data_1960 <-
+# Home value groups from original file
+tract_housing_data_1960_home <-
   full_tract_data_1960 %>% 
-  select(any_of(tract_background_variables), contains("CAR"), contains("CAO"))
+  select(any_of(tract_background_variables), contains("CAO"))
 
-var_names <- names(tract_housing_data_1960)
-var_names[startsWith(var_names, "CAR")] <- sub("^CAR", "rent_group", var_names[startsWith(var_names, "CAR")])
-var_names[startsWith(var_names, "CAO")] <- sub("^CAO", "home_value_group", var_names[startsWith(var_names, "CAO")])
-names(tract_housing_data_1960) <- var_names
+var_names_home <- names(tract_housing_data_1960_home)
+var_names_home[startsWith(var_names_home, "CAO")] <- sub("^CAO", "home_value_group", var_names_home[startsWith(var_names_home, "CAO")])
+names(tract_housing_data_1960_home) <- var_names_home
+
+# Contract rent groups from new file
+tract_housing_data_1960_rent_only <-
+  full_tract_data_1960_rent %>% 
+  select(GISJOIN, contains("CAV")) %>%
+  st_drop_geometry()
+
+var_names_rent <- names(tract_housing_data_1960_rent_only)
+var_names_rent[startsWith(var_names_rent, "CAV")] <- sub("^CAV", "rent_group", var_names_rent[startsWith(var_names_rent, "CAV")])
+names(tract_housing_data_1960_rent_only) <- var_names_rent
+
+# Merge contract rent with home values
+tract_housing_data_1960 <-
+  tract_housing_data_1960_home %>%
+  left_join(tract_housing_data_1960_rent_only, by = "GISJOIN")
 
 
 # vacant units, units by age, and units by condition
@@ -667,6 +698,55 @@ tract_housing_data_1990 <-
   tract_housing_data_1990 %>% 
   left_join(tract_housing_data_1990_add1)
 
+### 2000 ----
+
+# Home value data
+full_tract_data_2000_home_value <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/housing/2000/nhgis0044_ds151_2000_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_2000/US_tract_2000.shp",
+      file_select = starts_with("US_tract_2000")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+# Contract rent data
+full_tract_data_2000_rent <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/housing/2000/nhgis0050_ds151_2000_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_2000/US_tract_2000.shp",
+      file_select = starts_with("US_tract_2000")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+#### harmonization -----
+
+tract_housing_data_2000 <- 
+  full_tract_data_2000_home_value %>% 
+  dplyr::rename(median_home_value_reported = GB7001) %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), median_home_value_reported) %>%
+  # Join rent data
+  left_join(
+    full_tract_data_2000_rent %>%
+      dplyr::rename(median_rent_reported = GBG001) %>%
+      select(GISJOIN, median_rent_reported) %>%
+      st_drop_geometry(),
+    by = "GISJOIN"
+  ) %>%
+  # Add missing variables as NA to maintain consistency with other years
+  mutate(vacant_units = NA_real_,
+         total_units = NA_real_)
+
 
 # Concord datasets to 1950 Census tracts ----
 # Have to do this separately for years for which we are given medians for rents and housing values (1940, 1950, 1980) 
@@ -681,7 +761,7 @@ tract_housing_data_1990 <-
 # 2. Weight medians (or group values) by "weight" and collapse to GISJOIN_2000
 # 3. Merge geography information from 1950 NHGIS file
 
-years <- c(1930, 1940, 1960, 1970, 1980, 1990)
+years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000)
 
 for (year in years) {
   # Construct variable names and file names dynamically based on the year
@@ -875,19 +955,18 @@ tract_housing_data_1960_concorded <-
                      median_home_value_group == "home_value_group009" ~ 30000, # 25000 - 35000
                      median_home_value_group == "home_value_group010" ~ 35000), # 35000+
          median_rent_calculated = 
-           case_when(median_rent_group == "rent_group001" ~ 10, # 0-20
-                     median_rent_group == "rent_group002" ~ 25, # 20-30
-                     median_rent_group == "rent_group003" ~ 35, # 30-40
-                     median_rent_group == "rent_group004" ~ 45, # 40-50
-                     median_rent_group == "rent_group005" ~ 55, # 50-60
-                     median_rent_group == "rent_group006" ~ 65, # 60-70
-                     median_rent_group == "rent_group007" ~ 75, # 70-80
-                     median_rent_group == "rent_group008" ~ 85, # 80-90
-                     median_rent_group == "rent_group009" ~ 95, # 90-100
-                     median_rent_group == "rent_group010" ~ 110, # 100-120
-                     median_rent_group == "rent_group011" ~ 135, # 120-150
-                     median_rent_group == "rent_group012" ~ 175, # 150-200
-                     median_rent_group == "rent_group013" ~ 200)) # 200+
+           case_when(median_rent_group == "rent_group001" ~ 10, # Less than $20 (CAV001)
+                     median_rent_group == "rent_group002" ~ 24.5, # $20-29 (CAV002)
+                     median_rent_group == "rent_group003" ~ 34.5, # $30-39 (CAV003)
+                     median_rent_group == "rent_group004" ~ 44.5, # $40-49 (CAV004)
+                     median_rent_group == "rent_group005" ~ 54.5, # $50-59 (CAV005)
+                     median_rent_group == "rent_group006" ~ 64.5, # $60-69 (CAV006)
+                     median_rent_group == "rent_group007" ~ 74.5, # $70-79 (CAV007)
+                     median_rent_group == "rent_group008" ~ 84.5, # $80-89 (CAV008)
+                     median_rent_group == "rent_group009" ~ 94.5, # $90-99 (CAV009)
+                     median_rent_group == "rent_group010" ~ 109.5, # $100-119 (CAV010)
+                     median_rent_group == "rent_group011" ~ 134.5, # $120-149 (CAV011)
+                     median_rent_group == "rent_group012" ~ 175)) # $150 or more (CAV012)
 
 ## 1970 -----
 median_rent_1970 <- 
@@ -1177,7 +1256,7 @@ tract_housing_data_1990_concorded <-
 tract_housing_data_original_tracts <-
   bind_rows(tract_housing_data_1930, tract_housing_data_1940,
             tract_housing_data_1950, tract_housing_data_1960, tract_housing_data_1970, 
-            tract_housing_data_1980, tract_housing_data_1990) %>%
+            tract_housing_data_1980, tract_housing_data_1990, tract_housing_data_2000) %>%
   select(any_of(tract_background_variables), contains("median")) %>% 
   # drop rows with missing geometry
   filter(!st_is_empty(geometry))
@@ -1187,7 +1266,7 @@ tract_housing_data_concorded <-
   bind_rows(tract_housing_data_1930_concorded, tract_housing_data_1940_concorded,
             tract_housing_data_1950_concorded, tract_housing_data_1960_concorded,
             tract_housing_data_1970_concorded, tract_housing_data_1980_concorded,
-            tract_housing_data_1990_concorded) %>%
+            tract_housing_data_1990_concorded, tract_housing_data_2000_concorded) %>%
   select(GISJOIN_1950, YEAR, contains("median"), total_units, total_units, vacancy_rate,
          share_needing_repair, share_no_water, housing_density, geometry) %>% 
   # create median_rent and median_home_value composite variables

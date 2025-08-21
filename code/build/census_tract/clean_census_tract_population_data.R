@@ -624,7 +624,7 @@ tract_population_data_2000 <-
 # 2. Weight populations by "weight" and collapse to GISJOIN_1950
 # 3. Merge geography information from 1990 NHGIS file
 
-## Loop for 1930-2000 -----
+## Loop for 1930-2000 ----- 
 years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000)
 
 for (year in years) {

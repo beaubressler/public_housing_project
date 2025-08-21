@@ -187,17 +187,17 @@ summary(lm(lfp_rate_fc ~ lfp_rate_orig, data = merged_fc_and_fc_tracts))
 
 ### calculate deflator for monetary values -----
 # read in cpi data
-cpi_data_raw <- read_csv(here(cpi_data_path, "USCPI_1930-1990.csv"), skip = 3, 
+cpi_data_raw <- read_csv(here(cpi_data_path, "USCPI_1930-2010.csv"), skip = 3, 
                      col_names = c("year", "cpi"))
 
-# keep only relevant years, calculate deflator to 1990
+# keep only relevant years, calculate deflator to 2000
 cpi_data <- cpi_data_raw %>% 
-  filter(year %in% seq(1930, 1990, 10)) %>% 
-  mutate(deflator = cpi[year ==1990] / cpi)
+  filter(year %in% seq(1930, 2000, 10)) %>% 
+  mutate(deflator = cpi[year == 2000] / cpi)
 
-# Calculate the 1950 to 1990 deflator for 1930 income data
-deflator_1950_to_1990 <- 
-  cpi_data$cpi[cpi_data$year == 1990] / cpi_data$cpi[cpi_data$year == 1950]
+# Calculate the 1950 to 2000 deflator for 1930 income data
+deflator_1950_to_2000 <- 
+  cpi_data$cpi[cpi_data$year == 2000] / cpi_data$cpi[cpi_data$year == 1950]
 
 # join to census data, apply deflator to monetary values of median home value and median rent
 census_tract_data_full <- census_tract_data_full %>% 
@@ -209,7 +209,7 @@ census_tract_data_full <- census_tract_data_full %>%
             ~ . * deflator) %>%
   # Special handling for median_income: 1930 data is already in 1950 dollars
   mutate(median_income = case_when(
-    YEAR == 1930 ~ median_income * deflator_1950_to_1990,
+    YEAR == 1930 ~ median_income * deflator_1950_to_2000,
     TRUE ~ median_income * deflator
   )) %>%
   dplyr::select(-deflator) %>% 

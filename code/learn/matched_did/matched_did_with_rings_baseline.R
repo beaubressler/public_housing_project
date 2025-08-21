@@ -461,6 +461,76 @@ ggsave(file.path(results_dir, "event_study_population_demographics_treated.pdf")
 ggsave(file.path(results_dir, "event_study_population_demographics_treated.png"),
        p1, width = 8.5, height = 7.5, dpi = 320)
 
+# Plot 3: Single-panel population plot - Private vs Total populations
+p3_outcomes <- c(
+  "asinh_private_population_estimate",
+  "asinh_private_white_population_estimate",
+  "asinh_private_black_population_estimate"
+)
+
+# Pretty labels for p3
+p3_labels <- c(
+  "asinh_private_population_estimate" = "Private Population",
+  "asinh_private_white_population_estimate" = "Private White Population",
+  "asinh_private_black_population_estimate" = "Private Black Population"
+)
+
+# Create data for p3
+p3_data <- coefs_clean %>%
+  filter(group == "treated", outcome_clean %in% p3_outcomes) %>%
+  mutate(
+    clean_label = p3_labels[outcome_clean],
+    clean_label = factor(clean_label, levels = p3_labels[p3_outcomes]),
+    event_time = as.numeric(term)
+  )
+
+# Add reference points at event_time = -10
+p3_ref_rows <- p3_data %>%
+  distinct(outcome_clean, clean_label) %>%
+  mutate(event_time = -10, estimate = 0, std.error = 0)
+
+p3_data <- bind_rows(p3_data, p3_ref_rows) %>%
+  arrange(clean_label, event_time)
+
+# Create p3 plot
+p3 <- ggplot(p3_data, aes(x = event_time, y = estimate, 
+                          color = clean_label, fill = clean_label)) +
+  # CI ribbons
+  geom_ribbon(aes(ymin = estimate - 1.96*std.error,
+                  ymax = estimate + 1.96*std.error),
+              alpha = 0.15, linewidth = 0) +
+  # Lines and points  
+  geom_line(aes(group = clean_label), linewidth = 0.9) +
+  geom_point(size = 1.8, stroke = 0) +
+  # Reference lines
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4, color = "grey50") +
+  geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.4, color = "grey50") +
+  # Labels and formatting
+  labs(
+    title = "Effects on Estimated Private Population, Treated Neighborhoods",
+    x = "Years Relative to Construction", 
+    y = "Difference-in-Differences Estimate (Log Points)",
+    color = "",
+    fill = ""
+  ) +
+  scale_x_continuous(breaks = seq(-30, 30, 10)) +
+  scale_color_brewer(type = "qual", palette = "Dark2") +
+  scale_fill_brewer(type = "qual", palette = "Dark2") +
+  theme_classic(base_size = 14) +
+  theme(
+    plot.title.position = "plot",
+    legend.position = "bottom",
+    legend.margin = margin(t = 10),
+    axis.title.x = element_text(margin = margin(t = 8)),
+    axis.title.y = element_text(margin = margin(r = 8))
+  )
+
+# Export p3
+ggsave(file.path(results_dir, "event_study_population_private_treated.pdf"),
+       p3, width = 9, height = 6.5, device = cairo_pdf)
+ggsave(file.path(results_dir, "event_study_population_private_treated.png"),
+       p3, width = 9, height = 6.5, dpi = 320)
+
 # Plot 2: Economic and housing outcomes
 plot2_outcomes <- c(
   "asinh_median_rent_calculated",
@@ -493,14 +563,6 @@ spillover_plot1_outcomes <- c(
   "asinh_pop_black"
 )
 
-p3 <- make_event_facets(
-  df = coefs_clean,
-  outcomes = spillover_plot1_outcomes,
-  title_text = "Spillover Effects: Population and Racial Composition, 
-  Adjacent Neighborhoods"
-) %>%
-  # Filter for inner group instead of treated
-  + facet_wrap(~ clean_label, ncol = 2, scales = "free_y")
 
 # Need to modify the function call to use inner group
 spillover_p1_data <- coefs_clean %>%
@@ -759,7 +821,7 @@ matched_did_pre_post <- function(input_data, outcome_var, treatment_group,
       post = ifelse(event_time >= 0, 1, 0)
     ) %>%
     ungroup() %>%
-    filter(event_time > -40, event_time < 50, event_time > -30)
+    filter(event_time > -40, event_time <= 30, event_time > -30)
   
   # Basic DiD interaction model: post × treated
   formula <- as.formula(paste0(
@@ -848,7 +910,7 @@ run_heterogeneity_did_ph <- function(input_data, outcome_var, treatment_group, h
       post = ifelse(event_time >= 0, 1, 0)
     ) %>%
     ungroup() %>%
-    filter(event_time > -40, event_time < 50, event_time > -30)
+    filter(event_time > -40, event_time <= 30, event_time > -30)
   
   # Triple interaction: treated x post x log_total_units
   formula <- as.formula(paste0(
@@ -931,10 +993,6 @@ for (outcome in outcome_variables) {
   }
 }
 
-### Create table -----
-# variables: 
-# dissimilarity 
-# 
 
 
 ## Heterogeneity by t=-10 neighborhood characteristics -----
@@ -950,7 +1008,7 @@ run_heterogeneity_did <- function(input_data,
                                   use_bspline = FALSE,
                                   bs_df = 3,
                                   event_time_min = -30,
-                                  event_time_max = 50) {
+                                  event_time_max = 30) {
   
   # Pull the initial value of the heterogeneity variable
   het_var_tminus <- paste0(het_var, "_tminus10")
@@ -1021,7 +1079,7 @@ run_heterogeneity_did <- function(input_data,
                                   binning_ntile = NULL,
                                   bs_df = 3,
                                   event_time_min = -30,
-                                  event_time_max = 50) {
+                                  event_time_max = 30) {
   
   het_var_tminus <- paste0(het_var, "_tminus10")
   
@@ -1110,7 +1168,6 @@ for (het_var in names(heterogeneity_specs)) {
 models_black_share <- results_heterogeneity[grepl("_het_by_initial_black_share", names(results_heterogeneity))]
 models_median_income <- results_heterogeneity[grepl("_het_by_initial_asinh_median_income", names(results_heterogeneity))]
 models_unemp_rate <- results_heterogeneity[grepl("_het_by_initial_unemp_rate", names(results_heterogeneity))]
-models_dissimilarity <- results_heterogeneity[grepl("_het_by_initial_local_dissimilarity_index", names(results_heterogeneity))]
 
 
 # Individual Treatment effects ---------

@@ -50,6 +50,7 @@ tract_crosswalk_1960 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concord
 tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1970_to_1950.csv"))
 tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
 tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
+tract_crosswalk_2000 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights2000_to_1950.csv"))
 
 # Compile tract-level Census income data ----
 
@@ -204,6 +205,30 @@ tract_income_data_1990 <-
   mutate(median_income = E4U001) %>% 
   select(any_of(tract_background_variables), median_income)
 
+### 2000 -----
+
+full_tract_data_2000 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/income/2000/nhgis0051_ds151_2000_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2000_us_tract_2000/US_tract_2000.shp",
+      file_select = starts_with("US_tract_2000")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR))
+
+#### harmonization -----
+
+tract_income_data_2000 <- 
+  full_tract_data_2000 %>% 
+  # keep only variables of interest
+  select(any_of(tract_background_variables), GMY001) %>% 
+  mutate(median_income = GMY001) %>% 
+  select(any_of(tract_background_variables), median_income)
+
 
 
 # Concord datasets to 1950 Census tracts ----
@@ -217,7 +242,7 @@ tract_income_data_1990 <-
 # 2. Weight medians (or group values) by "weight" and collapse to GISJOIN_1950
 # 3. Merge geography information from 1950 NHGIS file
 
-years <- c(1960, 1970, 1980, 1990)
+years <- c(1960, 1970, 1980, 1990, 2000)
 
 for (year in years) {
   # Construct variable names and file names dynamically based on the year
@@ -360,7 +385,7 @@ tract_income_data_1970_concorded <-
 # might use this to compare at some point
 tract_income_data_original_tracts <-
   bind_rows(tract_income_data_1950, tract_income_data_1960, tract_income_data_1970, 
-            tract_income_data_1980, tract_income_data_1990) %>%
+            tract_income_data_1980, tract_income_data_1990, tract_income_data_2000) %>%
   select(any_of(tract_background_variables), contains("median_income")) %>% 
   # drop rows with missing geometry
   filter(!st_is_empty(geometry))
@@ -369,7 +394,7 @@ tract_income_data_original_tracts <-
 tract_income_data_concorded <-
   bind_rows(tract_income_data_1950_concorded, tract_income_data_1960_concorded,
             tract_income_data_1970_concorded, tract_income_data_1980_concorded,
-            tract_income_data_1990_concorded) %>%
+            tract_income_data_1990_concorded, tract_income_data_2000_concorded) %>%
   # drop rows with missing geometry
   filter(!st_is_empty(geometry))
 

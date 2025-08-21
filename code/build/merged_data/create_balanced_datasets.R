@@ -64,7 +64,7 @@ census_tract_sample_with_treatment_status <-
 # > View(tracts_in_original_not_balanced %>% filter(city == "Richmond", TRACTA  == "0411"))
 
 ## Balance across years -----
-# Only keep tracts that are available from 1930-1990
+# Only keep tracts that are available from 1930-2000
 
 # counties in 1930
 counties_1930 <-
@@ -87,11 +87,11 @@ counties_1950 <-
   pull(state_county) %>% 
   unique()
 
-# tracts that exist in all years, 1930-1990 (need 1930 for pre-treatment of 1941-1950 projects)
+# tracts that exist in all years, 1930-2000 (need 1930 for pre-treatment of 1941-1950 projects)
 
-years_range <- seq(1930,1990, 10)
+years_range <- seq(1930,2000, 10)
 
-# get distinct tracts for each year, 1930-1990
+# get distinct tracts for each year, 1930-2000
 tracts_by_year <- 
   census_tract_sample_with_treatment_status %>% 
   filter(YEAR %in% years_range) %>% 
@@ -123,7 +123,7 @@ census_tract_sample_with_treatment_status_balanced <-
   filter(exists_all_years == 1) %>% 
   dplyr::select(-exists_all_years)
 
-## Balance on availability of variables, 1930-1990 ----
+## Balance on availability of variables, 1930-2000 ----
 # Variables to balance on 
 # Core variables available in all years including 1930
 balance_vars_core <- c("total_pop", "black_share",
@@ -138,7 +138,7 @@ tracts_with_complete_vars <-
   st_drop_geometry() %>%
   group_by(GISJOIN_1950) %>%
   summarise(
-    # Check completeness for core variables across all years (1930-1990)
+    # Check completeness for core variables across all years (1930-2000)
     core_complete = all(
       !is.na(total_pop[YEAR %in% years_range]) & 
       !is.na(black_share[YEAR %in% years_range]) &
@@ -309,8 +309,8 @@ balanced_sample <-
 ## filter out cities with too high a share of treated tracts ----
 share_of_treated_tracts <- 
   balanced_sample %>% 
-  # use 1990 tracts (end of period)
-  filter(YEAR == 1990) %>% 
+  # use 2000 tracts (end of period)
+  filter(YEAR == 2000) %>% 
   st_drop_geometry() %>% 
   group_by(cbsa_title) %>% 
   summarise(share_treated = sum(treated) / n()) %>% 
@@ -344,7 +344,7 @@ table(unique_treated_tracts$treatment_year)
 # cities in balanced sample: 44
 cities_in_balanced_sample <- 
   balanced_sample %>% 
-  filter(YEAR == 1990) %>% 
+  filter(YEAR == 2000) %>% 
   st_drop_geometry() %>% 
   pull(cbsa_title) %>% 
   unique()
@@ -354,7 +354,7 @@ length(cities_in_balanced_sample)
 # cities in original sample: 62
 cities_in_original_sample <- 
   census_tract_sample_with_treatment_status %>% 
-  filter(YEAR == 1990) %>% 
+  filter(YEAR == 2000) %>% 
   st_drop_geometry() %>% 
   pull(cbsa_title) %>% 
   unique()
@@ -395,10 +395,10 @@ public_housing_in_sample <-
 
 
 # Numbers (Updated 7/24/2025)
-# 294316
+# 294694
 sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE)
 
-# Number of projects: 690 (7/30)
+# Number of projects: 688 (8/19)
 nrow(public_housing_in_sample %>% filter(!is.na(total_public_housing_units)))
 
 # projects per city
@@ -407,7 +407,7 @@ projects_per_city <-
   pull(locality) %>% 
   table()
 
-# number of treated tracts: 629 
+# number of treated tracts: 627
 nrow(treated_tracts_with_projects %>% select(GISJOIN_1950) %>% distinct())
 
 
@@ -419,7 +419,7 @@ library(dplyr)
 
 # Get Boston CBSA data for mapping
 boston_tracts <- census_tract_sample_with_treatment_status_balanced %>%
-  filter(YEAR == 1990, str_detect(cbsa_title, "Chicago"))
+  filter(YEAR == 2000, str_detect(cbsa_title, "Chicago"))
 
 # Create the map
 boston_map <- ggplot(boston_tracts) +
