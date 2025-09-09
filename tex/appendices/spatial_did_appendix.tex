@@ -15,7 +15,7 @@ Our spatial DiD design follows recent advances in the place-based policy literat
     \item \textbf{Outer ring}: Second-order adjacent tracts (neighbors of inner ring tracts)
 \end{enumerate}
 
-We construct these rings using tract contiguity rather than simple distance bands, following \citet{author_year} who argue that administrative boundaries better capture neighborhood economic geography. Specifically, we use the \texttt{poly2nb()} function to identify first-order neighbors and \texttt{nblag()} to extend to second-order neighbors, creating a contiguity-based neighbor structure that respects actual neighborhood boundaries.
+We construct these rings using tract contiguity rather than simple distance bands, as administrative boundaries better capture neighborhood economic geography. Specifically, we use the \texttt{poly2nb()} function to identify first-order neighbors and \texttt{nblag()} to extend to second-order neighbors, creating a contiguity-based neighbor structure that respects actual neighborhood boundaries.
 
 \subsubsection{Distance Filtering}
 

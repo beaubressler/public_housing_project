@@ -77,7 +77,7 @@ holc_data <-
 # get treated tracts, unique, and merge onto census tract sample
 treated_tracts_panel <-
   treated_tracts_panel_raw %>% 
-  distinct(STATE, COUNTY, TRACTA, total_public_housing_units)
+  distinct(GISJOIN_1950, total_public_housing_units)
 
 census_tract_data_geo <-
   #left_join(census_tract_sample_raw, treated_tracts_panel) %>% 
@@ -267,7 +267,9 @@ ggplot() +
   # Add CBSA locations, with size by population
   geom_sf(data = cbsa_circles, size = cbsa_circles$buffer_size, color = "dodgerblue", fill = "dodgerblue", alpha = 0.6) +
   
-  geom_text_repel(data = cbsa_centroids, aes(label = label, geometry = geometry), stat = "sf_coordinates", size = 2.5) +
+  geom_text_repel(data = cbsa_centroids,
+                  aes(label = label, geometry = geometry),
+                  stat = "sf_coordinates", size = 2.75) +
 
   # Scale for population size
   scale_fill_continuous(
@@ -278,20 +280,25 @@ ggplot() +
   # Theme and labels
   theme_minimal() +
   theme(
+    plot.margin = margin(0, 0, 0, 0),  # top, right, bottom, left
     panel.grid = element_blank(),              # Remove gridlines
     axis.title = element_blank(),              # Remove axis titles
     axis.text = element_blank(),               # Remove axis text (latitude/longitude labels)
     axis.ticks = element_blank()               # Remove axis ticks
-  )  +
-  labs(
-    title = "Geographic Coverage of Sample"
-  )
+  ) 
+# +
+#   labs(
+#     title = "Geographic Coverage of Sample"
+#   )
 
 # save map 
-ggsave(here(map_dir, "cbsa_coverage_map.png"), 
-       width = 8, height = 6, dpi = 900,
-       bg = "white")
-
+ggsave(
+  here(map_dir, "cbsa_coverage_map.pdf"),
+  width = 13.5, height = 9.5, units = "in",
+  dpi = 450, bg = "white",
+  device = cairo_pdf,
+  limitsize = FALSE
+)
 
 ## Graphs of each variable by city ----
 outcome_vars <- c("black_share", "asinh_pop_total", "total_pop", "black_pop", "asinh_pop_black",

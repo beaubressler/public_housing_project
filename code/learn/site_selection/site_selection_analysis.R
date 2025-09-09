@@ -61,21 +61,147 @@ site_selection_data <-
 
 # Variable labels for models
 variable_labels_1940 <- c(
-  "black_share_1940" = "Black Share (1940)",
-  "asinh_total_pop_1940" = "Total Population (1940)", 
-  "asinh_median_income_1940" = "Log Median Income (1940)",
-  "pct_hs_grad_1940" = "% High School Graduates (1940)",
-  "unemp_rate_1940" = "Unemployment Rate (1940)",
-  "lfp_rate_1940" = "LFP Rate (1940)",
-  "asinh_median_rent_calculated_1940" = "Log Median Rent (1940)",
-  "redlined_binary_80pp" = "Redlined (HOLC Grade D)",
-  "asinh_distance_from_cbd" = "Log Distance from CBD",
+  "black_share_1940" = "Black Share",
+  "asinh_total_pop_1940" = "Log Total Population", 
+  "total_pop_1940" = "Total Population",
+  "asinh_median_income_1940" = "Log Median Income",
+  "median_income_1940" = "Median Income",
+  "pct_hs_grad_1940" = "Pct Graduated HS",
+  "unemp_rate_1940" = "Unemployment Rate",
+  "lfp_rate_1940" = "LFP Rate",
+  "asinh_median_rent_calculated_1940" = "Log Median Rent",
+  "median_rent_calculated_1940" = "Median Rent",
+  "redlined_binary_80pp" = "Redlined (HOLC)",
+  "asinh_distance_from_cbd" = "Log Dist. from CBD",
   "cbd" = "CBD Indicator", 
-  "share_needing_repair_1940" = "Share Needing Major Repairs (1940)",
-  "median_rent_calculated_1940" = "Median Rent (1940)",
-  "asinh_distance_to_highway_km" = "Log Distance to Highway (km)",
+  "share_needing_repair_1940" = "Share Needing Major Repairs",
+  "asinh_distance_to_highway_km" = "Log Dist. to Highway",
   "ur_binary_5pp" = "Urban Renewal Area"
 )
+
+# Poster version: short, high-contrast labels
+variable_labels_1940_poster <- c(
+  "black_share_1940"                     = "\\% Black",
+  "asinh_total_pop_1940"                 = "ln(Pop)",
+  "total_pop_1940"                       = "Pop",
+  "asinh_median_income_1940"             = "ln(Income)",
+  "median_income_1940"                   = "Income",
+  "pct_hs_grad_1940"                     = "HS grad (\\%)",
+  "unemp_rate_1940"                      = "Unemp. (\\%)",
+  "lfp_rate_1940"                        = "LFP (\\%)",
+  "asinh_median_rent_calculated_1940"    = "ln(Rent)",
+  "median_rent_calculated_1940"          = "Rent",
+  "redlined_binary_80pp"                 = "HOLC redlined",
+  "asinh_distance_from_cbd"              = "ln(dist. CBD)",
+  "cbd"                                  = "CBD",
+  "share_needing_repair_1940"            = "Major repair (\\%)",
+  "asinh_distance_to_highway_km"         = "ln(dist. hwy, km)",
+  "ur_binary_5pp"                        = "UR area"
+)
+
+# Characteristics of treated vs untreated tracts in 1940 ----
+
+# Create descriptive table comparing initial characteristics
+descriptive_vars <- c(
+  "black_share_1940", "asinh_total_pop_1940", "asinh_median_income_1940",
+  "pct_hs_grad_1940", "unemp_rate_1940", "lfp_rate_1940", 
+  "asinh_median_rent_calculated_1940", "share_needing_repair_1940",
+  "asinh_distance_from_cbd", "redlined_binary_80pp", "ur_binary_5pp"
+)
+
+# Calculate means and standard deviations by treatment status
+descriptive_stats <- site_selection_data %>%
+  filter(city == "New York City") %>% 
+  select(treated, all_of(descriptive_vars)) %>%
+  pivot_longer(cols = -treated, names_to = "variable", values_to = "value") %>%
+  group_by(treated, variable) %>%
+  summarise(
+    mean_val = mean(value, na.rm = TRUE),
+    sd_val = sd(value, na.rm = TRUE),
+    n_obs = sum(!is.na(value)),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    mean_sd = ifelse(variable %in% c("redlined_binary_80pp", "ur_binary_5pp"),
+                     sprintf("%.3f", mean_val),
+                     sprintf("%.2f (%.2f)", mean_val, sd_val))
+  ) %>%
+  select(treated, variable, mean_sd) %>%
+  pivot_wider(names_from = treated, values_from = mean_sd, names_prefix = "treated_")
+
+# Calculate differences and t-tests
+difference_tests <- site_selection_data %>%
+  select(treated, all_of(descriptive_vars)) %>%
+  pivot_longer(cols = -treated, names_to = "variable", values_to = "value") %>%
+  group_by(variable) %>%
+  summarise(
+    diff = mean(value[treated == 1], na.rm = TRUE) - mean(value[treated == 0], na.rm = TRUE),
+    t_stat = t.test(value[treated == 1], value[treated == 0])$statistic,
+    p_value = t.test(value[treated == 1], value[treated == 0])$p.value,
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    diff_formatted = sprintf("%.3f", diff),
+    significance = case_when(
+      p_value < 0.001 ~ "***",
+      p_value < 0.01 ~ "**", 
+      p_value < 0.05 ~ "*",
+      TRUE ~ ""
+    ),
+    diff_sig = paste0(diff_formatted, significance)
+  )
+
+# Combine into final table
+descriptive_table_data <- descriptive_stats %>%
+  left_join(difference_tests, by = "variable") %>%
+  mutate(
+    Variable = case_when(
+      variable == "black_share_1940" ~ "Black Share",
+      variable == "asinh_total_pop_1940" ~ "Log Total Population", 
+      variable == "asinh_median_income_1940" ~ "Log Median Income",
+      variable == "pct_hs_grad_1940" ~ "Pct Graduated HS",
+      variable == "unemp_rate_1940" ~ "Unemployment Rate",
+      variable == "lfp_rate_1940" ~ "LFP Rate",
+      variable == "asinh_median_rent_calculated_1940" ~ "Log Median Rent",
+      variable == "share_needing_repair_1940" ~ "Share Needing Major Repairs",
+      variable == "asinh_distance_from_cbd" ~ "Log Dist. from CBD",
+      variable == "redlined_binary_80pp" ~ "Redlined (HOLC)",
+      variable == "ur_binary_5pp" ~ "Urban Renewal Area",
+      TRUE ~ variable
+    )
+  ) %>%
+  select(Variable, treated_0, treated_1, diff_sig) %>%
+  rename(
+    "Non-Public Housing" = treated_0,
+    "Public Housing" = treated_1,
+    "Difference" = diff_sig
+  )
+
+# Add sample sizes
+n_non_public <- sum(site_selection_data$treated == 0, na.rm = TRUE)
+n_public <- sum(site_selection_data$treated == 1, na.rm = TRUE)
+
+descriptive_table_data <- descriptive_table_data %>%
+  add_row(
+    Variable = "N (Tracts)",
+    `Non-Public Housing` = as.character(n_non_public),
+    `Public Housing` = as.character(n_public),
+    Difference = "",
+    .before = 1
+  )
+
+# Create publication-ready table
+descriptive_table <- tt(descriptive_table_data,
+                       caption = "Pre-treatment Characteristics: Public Housing vs Non-Public Housing Tracts (1940)\\label{tab:descriptive_characteristics_1940}") %>%
+  style_tt(font_size = 0.9) %>%
+  format_tt(escape = FALSE) %>%
+  theme_tt("resize")
+
+# Save table
+save_tt(descriptive_table, 
+        here(site_selection_output_dir, "descriptive_characteristics_1940.tex"),
+        overwrite = TRUE)
+
 
 # Site selection models using 1940 characteristics -----
 
@@ -94,6 +220,17 @@ model_0_lpm <- feols(
   data = site_selection_data,
   vcov_conley(lat = "lat", lon = "lon", cutoff = 2)
 )
+
+# in levels
+model_0_lpm_levels <- 
+  feols(
+    treated ~ 
+      black_share_1940 +
+      asinh_total_pop_1940 +
+      median_income_1940 | county_id,
+    data = site_selection_data,
+    vcov_conley(lat = "lat", lon = "lon", cutoff = 2)
+  )
 
 ## Model 1: Full model
 model_1_lpm <- feols(
@@ -117,6 +254,29 @@ model_1_lpm <- feols(
   data = site_selection_data,
   vcov_conley(lat = "lat", lon = "lon", cutoff = 2)
 )
+
+model_1_lpm_levels <-
+  feols(
+    treated ~
+      # demographics
+      black_share_1940 +
+      total_pop_1940 +
+      # SES
+      median_income_1940 +
+      pct_hs_grad_1940 +
+      unemp_rate_1940 +
+      lfp_rate_1940 +
+      # housing
+      median_rent_calculated_1940 +
+      #share_needing_repair_1940 +
+      # geography
+      distance_from_cbd + 
+      cbd + 
+      # pre-existing discrimination 
+      redlined_binary_80pp | county_id,
+    data = site_selection_data,
+    vcov_conley(lat = "lat", lon = "lon", cutoff = 2)
+  )
 
 # 8/21/2025: I don't include share needing major repairs in 1940 because 
 # it is missing for some tracts. However, if I do include it, it is statistically insignificant
@@ -162,11 +322,10 @@ models_1940_lpm <- list(
 
 site_selection_table <- modelsummary(
   models_1940_lpm,
-  estimate = "{estimate} ({std.error}){stars}",
-  statistic = NULL,
   coef_omit = "(Intercept)",
   coef_map = variable_labels_1940,
   stars = TRUE,
+  fmt = 3,
   gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
   title = "Determinants of Public Housing Site Selection\\label{tab:site_selection_1940_lpm}",
   add_rows = fe_row_1940,
@@ -178,12 +337,68 @@ site_selection_table <- modelsummary(
   align  = "lccc"               # wider first column for variable names, centered data columns
 )
 
-
 # slightly smaller font & a bit more row height for readability
-site_selection_table <- style_tt(site_selection_table, font_size = 0.95, height = 1.2)
+site_selection_table <- style_tt(site_selection_table, font_size = 0.95, height = 1)
 
 # save to .tex
 tinytable::save_tt(site_selection_table, here(site_selection_output_dir, "site_selection_1940_lpm.tex"), overwrite = TRUE)
+
+## Smaller version for poster ----
+keep_poster <- c(
+  "asinh_total_pop_1940",
+  "black_share_1940",
+  "asinh_median_income_1940",
+  "asinh_median_rent_calculated_1940",
+  "unemp_rate_1940",
+  "lfp_rate_1940",
+  "redlined_binary_80pp",
+  "ur_binary_5pp"
+)
+
+# short, LaTeX-safe labels
+# variable_labels_1940_poster <- c(
+#   "black_share_1940"                  = "\\% Black",
+#   "asinh_median_income_1940"          = "ln(Income)",
+#   "asinh_median_rent_calculated_1940" = "ln(Rent)",
+#   "asinh_distance_from_cbd"           = "ln(dist. CBD)",
+#   "redlined_binary_80pp"              = "HOLC redlined",
+#   "share_needing_repair_1940"         = "Needs repair (percent)"
+# )
+models_1940_lpm_poster <- list(
+  "(1)" = models_1940_lpm[["(1)"]],
+  "(2)" = models_1940_lpm[["(3)"]]
+)
+
+
+site_selection_table_poster <- modelsummary(
+  models_1940_lpm_poster,
+  coef_omit = "(Intercept)",
+  coef_map = variable_labels_1940_poster[keep_poster],   # short names for poster
+  stars = TRUE,                            # cleaner
+  fmt = 2,                                  # fewer decimals
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within|Adj",
+  title = "Predictors of Public Housing Location (1940 characteristics)",          # short title
+  notes = "Linear Probability Model with county FE. SE clustered (Conley, 2km cutoff).
+  Vars excluded from table: Pct high school graduates, distance to interstate, share of homes needing major repair, distance to CBD",
+  output = "tinytable",
+  theme  = "resize",
+  width     = 1,   # <-- make it fill the available width
+  align  = "lcc"
+)
+
+site_selection_table_poster <- style_tt(
+  site_selection_table_poster,
+  font_size = 0.9,
+  height = 0.8,
+  notes = list(font_size = 0.7)
+)
+
+tinytable::save_tt(
+  site_selection_table_poster,
+  here(site_selection_output_dir, "site_selection_1940_lpm_poster.tex"),
+  overwrite = TRUE
+)
+
 
 # Standardized coefficients ----
 baseline_prob <- mean(site_selection_data$treated, na.rm = TRUE)  # 10.58

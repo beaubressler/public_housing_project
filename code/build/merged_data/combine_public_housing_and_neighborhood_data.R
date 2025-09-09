@@ -33,6 +33,8 @@ tract_id_variables <- c("YEAR", "GISJOIN_1950")
 # I will exclude tiny projects
 public_housing_units_minimum <- 50
 
+# Set buffer size for treatment definition 
+buffer_size <- 50
 
 # Functions -----
 ## Function to filter census data for specific cities -----
@@ -497,6 +499,7 @@ public_housing_data <-
     TRUE ~ NA_real_
   ))
 
+
 # Exclude small public housing projects
 public_housing_data <-
   public_housing_data %>%
@@ -507,8 +510,8 @@ public_housing_data <-
 ## Merge Census and Public Housing data -----
 ### Identify which Census tracts received public housing by merging the two datasets -----
 ### Method 1: Buffer intersection (PRIMARY METHOD)
-# Create 100m buffer around public housing locations
-public_housing_buffered <- st_buffer(public_housing_data, dist = 50) 
+# Create buffer around public housing locations
+public_housing_buffered <- st_buffer(public_housing_data, dist = buffer_size) 
 
 # Find tracts within .1 km of public housing
 treated_tracts <- 

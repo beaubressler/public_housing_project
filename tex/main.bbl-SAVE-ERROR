@@ -1,0 +1,1923 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nyt/global//global/global/global}
+    \entry{aaronsonEffects1930sHOLC2021}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=dd47dcaf0c8ed65a0cfbad07e74f5058}{%
+           family={Aaronson},
+           familyi={A\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=fc0b9c9aa62368f7aae2128f441cd9b9}{%
+           family={Hartley},
+           familyi={H\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9a37622b847748c554ab509dc54c1a72}{%
+           family={Mazumder},
+           familyi={M\bibinitperiod},
+           given={Bhashkar},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{7ac317ecce320680a80fe0fa88ad380d}
+      \strng{fullhash}{7ac317ecce320680a80fe0fa88ad380d}
+      \strng{fullhashraw}{7ac317ecce320680a80fe0fa88ad380d}
+      \strng{bibnamehash}{7ac317ecce320680a80fe0fa88ad380d}
+      \strng{authorbibnamehash}{7ac317ecce320680a80fe0fa88ad380d}
+      \strng{authornamehash}{7ac317ecce320680a80fe0fa88ad380d}
+      \strng{authorfullhash}{7ac317ecce320680a80fe0fa88ad380d}
+      \strng{authorfullhashraw}{7ac317ecce320680a80fe0fa88ad380d}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{This study uses a boundary design and propensity score methods to study the effects of the 1930s-era Home Owners Loan Corporation (HOLC) "redlining" maps on the long-run trajectories of urban neighborhoods. The maps led to reduced home ownership rates, house values, and rents and increased racial segregation in later decades. A comparison on either side of a city-level population cutoff that determined whether maps were drawn finds broadly similar conclusions. These results suggest the HOLC maps had meaningful and lasting effects on the development of urban neighborhoods through reduced credit access and subsequent disinvestment.}
+      \field{issn}{1945-7731}
+      \field{journaltitle}{American Economic Journal: Economic Policy}
+      \field{langid}{english}
+      \field{month}{11}
+      \field{number}{4}
+      \field{title}{The {{Effects}} of the 1930s {{HOLC}} "{{Redlining}}" {{Maps}}}
+      \field{urlday}{4}
+      \field{urlmonth}{10}
+      \field{urlyear}{2023}
+      \field{volume}{13}
+      \field{year}{2021}
+      \field{urldateera}{ce}
+      \field{pages}{355\bibrangedash 392}
+      \range{pages}{38}
+      \verb{doi}
+      \verb 10.1257/pol.20190414
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/REZLTXMP/Aaronson et al. - 2021 - The Effects of the 1930s HOLC Redlining Maps.pdf
+      \endverb
+      \keyw{Banks,Canada: 1913- Economic History: Government War Law International Relations and Regulation: U.S.,Depository Institutions,Micro Finance Institutions,Mortgages Economics of Minorities Races Indigenous Peoples and Immigrants,Neighborhood Characteristics Housing Supply and Markets,Non-labor Discrimination Economic History: Labor and Consumers Demography Education Health Welfare Income Wealth Religion and Philanthropy: U.S.,Population,Regional Labor Markets}
+    \endentry
+    \entry{aliprantisBlowingItKnocking2015}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=5c76b2fb286246cc77bafb04512801ee}{%
+           family={Aliprantis},
+           familyi={A\bibinitperiod},
+           given={Dionissi},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=fc0b9c9aa62368f7aae2128f441cd9b9}{%
+           family={Hartley},
+           familyi={H\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{6ac922fcb0281392c4297bf7cbdce2da}
+      \strng{fullhash}{6ac922fcb0281392c4297bf7cbdce2da}
+      \strng{fullhashraw}{6ac922fcb0281392c4297bf7cbdce2da}
+      \strng{bibnamehash}{6ac922fcb0281392c4297bf7cbdce2da}
+      \strng{authorbibnamehash}{6ac922fcb0281392c4297bf7cbdce2da}
+      \strng{authornamehash}{6ac922fcb0281392c4297bf7cbdce2da}
+      \strng{authorfullhash}{6ac922fcb0281392c4297bf7cbdce2da}
+      \strng{authorfullhashraw}{6ac922fcb0281392c4297bf7cbdce2da}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{This paper estimates the effect that the closure and demolition of roughly 20,000 units of geographically concentrated high-rise public housing had on crime in Chicago. We estimate local effects of closures on crime in the neighborhoods where high-rises stood and in proximate neighborhoods. We also estimate the impact that households displaced from high-rises had on crime in the neighborhoods to which they moved and neighborhoods close to those. Overall, reductions in violent crime in and near the areas where high-rises were demolished greatly outweighed increases in violent crime associated with the arrival of displaced residents in new neighborhoods.}
+      \field{issn}{0094-1190}
+      \field{journaltitle}{Journal of Urban Economics}
+      \field{month}{7}
+      \field{shorttitle}{Blowing It up and Knocking It Down}
+      \field{title}{Blowing It up and Knocking It down: {{The}} Local and City-Wide Effects of Demolishing High Concentration Public Housing on Crime}
+      \field{urlday}{20}
+      \field{urlmonth}{12}
+      \field{urlyear}{2023}
+      \field{volume}{88}
+      \field{year}{2015}
+      \field{urldateera}{ce}
+      \field{pages}{67\bibrangedash 81}
+      \range{pages}{15}
+      \verb{doi}
+      \verb 10.1016/j.jue.2015.06.002
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/276A2NNH/Aliprantis and Hartley - 2015 - Blowing it up and knocking it down The local and .pdf;/Users/beaubressler/Zotero/storage/IW9I7YVY/S0094119015000364.html
+      \endverb
+      \keyw{Crime,Poverty,Public housing}
+    \endentry
+    \entry{almagroUrbanRenewalInequality2023}{misc}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=aa6f436c3e26f2d998760c0eee9d4214}{%
+           family={Almagro},
+           familyi={A\bibinitperiod},
+           given={Milena},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ae4e3f0ebf5ef2a5e46390acd7ea13c7}{%
+           family={Chyn},
+           familyi={C\bibinitperiod},
+           given={Eric},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7ec0bb87212610514216cafcc61d119e}{%
+           family={Stuart},
+           familyi={S\bibinitperiod},
+           given={Bryan\bibnamedelima A.},
+           giveni={B\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {National Bureau of Economic Research}%
+      }
+      \strng{namehash}{e1359cf5221552d18f13b5a6cf943e21}
+      \strng{fullhash}{e1359cf5221552d18f13b5a6cf943e21}
+      \strng{fullhashraw}{e1359cf5221552d18f13b5a6cf943e21}
+      \strng{bibnamehash}{e1359cf5221552d18f13b5a6cf943e21}
+      \strng{authorbibnamehash}{e1359cf5221552d18f13b5a6cf943e21}
+      \strng{authornamehash}{e1359cf5221552d18f13b5a6cf943e21}
+      \strng{authorfullhash}{e1359cf5221552d18f13b5a6cf943e21}
+      \strng{authorfullhashraw}{e1359cf5221552d18f13b5a6cf943e21}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{This paper studies one of the largest spatially targeted redevelopment efforts implemented in the United States: public housing demolitions sponsored by the HOPE VI program. Focusing on Chicago, we study welfare and racial disparities in the impacts of demolitions using a structural model that features a rich set of equilibrium responses. Our results indicate that demolitions had notably heterogeneous effects where welfare decreased for low-income minority households and increased for White households. Counterfactual simulations explore how housing policy mitigates negative effects of demolitions and suggest that increased public housing site redevelopment is the most effective policy for reducing racial inequality.}
+      \field{eprinttype}{National Bureau of Economic Research}
+      \field{month}{1}
+      \field{number}{30838}
+      \field{series}{Working {{Paper Series}}}
+      \field{shorttitle}{Urban {{Renewal}} and {{Inequality}}}
+      \field{title}{Urban {{Renewal}} and {{Inequality}}: {{Evidence}} from {{Chicago}}'s {{Public Housing Demolitions}}}
+      \field{type}{Working {{Paper}}}
+      \field{urlday}{4}
+      \field{urlmonth}{10}
+      \field{urlyear}{2023}
+      \field{year}{2023}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.3386/w30838
+      \endverb
+      \verb{eprint}
+      \verb 30838
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/RWLQ3MPS/Almagro et al. - 2023 - Urban Renewal and Inequality Evidence from Chicag.pdf
+      \endverb
+    \endentry
+    \entry{baum-snowEffectsLowIncome2009}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=3ab304f229ed273705b65bd10541d9e3}{%
+           family={{Baum-Snow}},
+           familyi={B\bibinitperiod},
+           given={Nathaniel},
+           giveni={N\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=70fe0ee2c99279632bfbcecae2f74756}{%
+           family={Marion},
+           familyi={M\bibinitperiod},
+           given={Justin},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{dfc31367ae86e69c07d36dd5d1dc9f35}
+      \strng{fullhash}{dfc31367ae86e69c07d36dd5d1dc9f35}
+      \strng{fullhashraw}{dfc31367ae86e69c07d36dd5d1dc9f35}
+      \strng{bibnamehash}{dfc31367ae86e69c07d36dd5d1dc9f35}
+      \strng{authorbibnamehash}{dfc31367ae86e69c07d36dd5d1dc9f35}
+      \strng{authornamehash}{dfc31367ae86e69c07d36dd5d1dc9f35}
+      \strng{authorfullhash}{dfc31367ae86e69c07d36dd5d1dc9f35}
+      \strng{authorfullhashraw}{dfc31367ae86e69c07d36dd5d1dc9f35}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{This paper evaluates the impacts of new housing developments funded with the Low Income Housing Tax Credit (LIHTC), the largest federal project based housing program in the U.S., on the neighborhoods in which they are built. A discontinuity in the formula determining the magnitude of tax credits as a function of neighborhood characteristics generates pseudo-random assignment in the number of low income housing units built in similar sets of census tracts. Tracts where projects are awarded 30\% higher tax credits receive approximately six more low income housing units on a base of seven units per tract. These additional new low income developments cause homeowner turnover to rise, raise property values in declining areas and reduce incomes in gentrifying areas in neighborhoods near the 30th percentile of the income distribution. LIHTC units significantly crowd out nearby new rental construction in gentrifying areas but do not displace new construction in stable or declining areas.}
+      \field{issn}{0047-2727}
+      \field{journaltitle}{Journal of Public Economics}
+      \field{month}{6}
+      \field{number}{5}
+      \field{title}{The Effects of Low Income Housing Tax Credit Developments on Neighborhoods}
+      \field{urlday}{13}
+      \field{urlmonth}{2}
+      \field{urlyear}{2024}
+      \field{volume}{93}
+      \field{year}{2009}
+      \field{urldateera}{ce}
+      \field{pages}{654\bibrangedash 666}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1016/j.jpubeco.2009.01.001
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/EPYRW59W/Baum-Snow and Marion - 2009 - The effects of low income housing tax credit devel.pdf;/Users/beaubressler/Zotero/storage/V98YABW9/S0047272709000024.html
+      \endverb
+      \keyw{Gentrification,Housing crowd-out,Low income housing,Tax credits}
+    \endentry
+    \entry{baumanPublicHousingDreadful1994}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=a45e1a624833aacd4d2855fcd80a934b}{%
+           family={Bauman},
+           familyi={B\bibinitperiod},
+           given={John\bibnamedelima F.},
+           giveni={J\bibinitperiod\bibinitdelim F\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {SAGE Publications Inc}%
+      }
+      \strng{namehash}{a45e1a624833aacd4d2855fcd80a934b}
+      \strng{fullhash}{a45e1a624833aacd4d2855fcd80a934b}
+      \strng{fullhashraw}{a45e1a624833aacd4d2855fcd80a934b}
+      \strng{bibnamehash}{a45e1a624833aacd4d2855fcd80a934b}
+      \strng{authorbibnamehash}{a45e1a624833aacd4d2855fcd80a934b}
+      \strng{authornamehash}{a45e1a624833aacd4d2855fcd80a934b}
+      \strng{authorfullhash}{a45e1a624833aacd4d2855fcd80a934b}
+      \strng{authorfullhashraw}{a45e1a624833aacd4d2855fcd80a934b}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{issn}{0885-4122}
+      \field{journaltitle}{Journal of Planning Literature}
+      \field{langid}{english}
+      \field{month}{5}
+      \field{number}{4}
+      \field{shorttitle}{Public {{Housing}}}
+      \field{title}{Public {{Housing}}: {{The Dreadful Saga}} of a {{Durable Policy}}}
+      \field{urlday}{21}
+      \field{urlmonth}{10}
+      \field{urlyear}{2024}
+      \field{volume}{8}
+      \field{year}{1994}
+      \field{urldateera}{ce}
+      \field{pages}{347\bibrangedash 361}
+      \range{pages}{15}
+      \verb{doi}
+      \verb 10.1177/088541229400800401
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/QEFMX53H/Bauman - 1994 - Public Housing The Dreadful Saga of a Durable Pol.pdf
+      \endverb
+    \endentry
+    \entry{blancoKnockingItMixing2023}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=6aa32e76346fd37c8fc8e6bf3adb8f01}{%
+           family={Blanco},
+           familyi={B\bibinitperiod},
+           given={Hector},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=9f67afb9529eaa5c968ec2ac39ef8434}{%
+           family={Neri},
+           familyi={N\bibinitperiod},
+           given={Lorenzo},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{a2bbf4c7e0c52933fbc7e1e67e748c12}
+      \strng{fullhash}{a2bbf4c7e0c52933fbc7e1e67e748c12}
+      \strng{fullhashraw}{a2bbf4c7e0c52933fbc7e1e67e748c12}
+      \strng{bibnamehash}{a2bbf4c7e0c52933fbc7e1e67e748c12}
+      \strng{authorbibnamehash}{a2bbf4c7e0c52933fbc7e1e67e748c12}
+      \strng{authornamehash}{a2bbf4c7e0c52933fbc7e1e67e748c12}
+      \strng{authorfullhash}{a2bbf4c7e0c52933fbc7e1e67e748c12}
+      \strng{authorfullhashraw}{a2bbf4c7e0c52933fbc7e1e67e748c12}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{issn}{1556-5068}
+      \field{journaltitle}{SSRN Electronic Journal}
+      \field{langid}{english}
+      \field{shorttitle}{Knocking It {{Down}} and {{Mixing}} It {{Up}}}
+      \field{title}{Knocking It {{Down}} and {{Mixing}} It {{Up}}: {{The Impact}} of {{Public Housing Regenerations}}}
+      \field{urlday}{11}
+      \field{urlmonth}{12}
+      \field{urlyear}{2023}
+      \field{year}{2023}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.2139/ssrn.4319009
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/URAFHWZH/Blanco and Neri - 2023 - Knocking it Down and Mixing it Up The Impact of P.pdf
+      \endverb
+    \endentry
+    \entry{bloomPublicHousingThat2008}{book}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=55d34f74f79d109fb6cadeeacefd43be}{%
+           family={Bloom},
+           familyi={B\bibinitperiod},
+           given={Nicholas\bibnamedelima Dagen},
+           giveni={N\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Philadelphia (Pa.)}%
+      }
+      \list{publisher}{1}{%
+        {University of Pennsylvania Press}%
+      }
+      \strng{namehash}{55d34f74f79d109fb6cadeeacefd43be}
+      \strng{fullhash}{55d34f74f79d109fb6cadeeacefd43be}
+      \strng{fullhashraw}{55d34f74f79d109fb6cadeeacefd43be}
+      \strng{bibnamehash}{55d34f74f79d109fb6cadeeacefd43be}
+      \strng{authorbibnamehash}{55d34f74f79d109fb6cadeeacefd43be}
+      \strng{authornamehash}{55d34f74f79d109fb6cadeeacefd43be}
+      \strng{authorfullhash}{55d34f74f79d109fb6cadeeacefd43be}
+      \strng{authorfullhashraw}{55d34f74f79d109fb6cadeeacefd43be}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{"The story of New York's success where so many other housing authorities faltered has been ignored for too long. Public Housing That Worked shows how New York's administrators, beginning in the 1930s, developed a rigorous system of public housing management that weathered a variety of social and political challenges. A key element in the long-term viability of New York's public housing has been the constant search for better methods in fields such as tenant selection, policing, renovation, community affairs, and landscape design." "Nicholas Dagen Bloom presents the achievements that contradict the common wisdom that public housing projects are inherently unmanageable. This book is essential reading for practitioners and scholars in the areas of public policy, urban history, planning, criminal justice, affordable housing management, social work, and urban affairs."--Jacket}
+      \field{isbn}{978-0-8122-4077-1 978-0-8122-2067-4}
+      \field{langid}{english}
+      \field{shorttitle}{Public Housing That Worked}
+      \field{title}{Public Housing That Worked: {{New York}} in the Twentieth Century}
+      \field{year}{2008}
+    \endentry
+    \entry{bloomPublicHousingMyths2015}{book}{}{}
+      \name{editor}{3}{}{%
+        {{un=0,uniquepart=base,hash=55d34f74f79d109fb6cadeeacefd43be}{%
+           family={Bloom},
+           familyi={B\bibinitperiod},
+           given={Nicholas\bibnamedelima Dagen},
+           giveni={N\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=16918b7792b72633eb54fb3b7d52f149}{%
+           family={Umbach},
+           familyi={U\bibinitperiod},
+           given={Gregory\bibnamedelima Holcomb},
+           giveni={G\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=913b77ee9cc69a6e84fd1c03dc10276e}{%
+           family={Vale},
+           familyi={V\bibinitperiod},
+           given={Lawrence\bibnamedelima J.},
+           giveni={L\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Ithaca London}%
+      }
+      \list{publisher}{1}{%
+        {Cornell University}%
+      }
+      \strng{namehash}{aaa3b24189003c9f1ba687ace2530199}
+      \strng{fullhash}{aaa3b24189003c9f1ba687ace2530199}
+      \strng{fullhashraw}{aaa3b24189003c9f1ba687ace2530199}
+      \strng{bibnamehash}{aaa3b24189003c9f1ba687ace2530199}
+      \strng{editorbibnamehash}{aaa3b24189003c9f1ba687ace2530199}
+      \strng{editornamehash}{aaa3b24189003c9f1ba687ace2530199}
+      \strng{editorfullhash}{aaa3b24189003c9f1ba687ace2530199}
+      \strng{editorfullhashraw}{aaa3b24189003c9f1ba687ace2530199}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{editor}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Popular opinion holds that public housing is a failure; so what more needs to be said about seventy-five years of dashed hopes and destructive policies? Over the past decade, however, historians and social scientists have quietly exploded the common wisdom about public housing. Public Housing Myths pulls together these fresh perspectives and unexpected findings into a single volume to provide an updated, panoramic view of public housing. With eleven chapters by prominent scholars, the collection not only covers a groundbreaking range of public housing issues transnationally but also does so in a revisionist and provocative manner. With students in mind, Public Housing Myths is organized thematically around popular preconceptions and myths about the policies surrounding big city public housing, the places themselves, and the people who call them home. The authors challenge narratives of inevitable decline, architectural determinism, and rampant criminality that have shaped earlier accounts and still dominate public perception. Contributors: Nicholas Dagen Bloom, New York Institute of Technology; Yonah Freemark, Chicago Metropolitan Planning Council; Alexander Gerould, San Francisco State University; Joseph Heathcott, The New School; D. Bradford Hunt, Roosevelt University; Nancy Kwak, University of California, San Diego; Lisa Levenstein, University of North Carolina at Greensboro; Fritz Umbach, John Jay College of Criminal Justice, CUNY; Florian Urban, Glasgow School of Art; Lawrence J. Vale, Massachusetts Institute of Technology; Rhonda Y. Williams, Case Western Reserve University}
+      \field{isbn}{978-0-8014-5625-1 978-0-8014-5626-8}
+      \field{langid}{english}
+      \field{shorttitle}{Public Housing Myths}
+      \field{title}{Public Housing Myths: Perception, Reality, and Social Policy}
+      \field{year}{2015}
+    \endentry
+    \entry{boustanWasPostwarSuburbanization2010}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=977bb0d156bd9a4f11d72cb1cd1a9159}{%
+           family={Boustan},
+           familyi={B\bibinitperiod},
+           given={Leah\bibnamedelima Platt},
+           giveni={L\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{977bb0d156bd9a4f11d72cb1cd1a9159}
+      \strng{fullhash}{977bb0d156bd9a4f11d72cb1cd1a9159}
+      \strng{fullhashraw}{977bb0d156bd9a4f11d72cb1cd1a9159}
+      \strng{bibnamehash}{977bb0d156bd9a4f11d72cb1cd1a9159}
+      \strng{authorbibnamehash}{977bb0d156bd9a4f11d72cb1cd1a9159}
+      \strng{authornamehash}{977bb0d156bd9a4f11d72cb1cd1a9159}
+      \strng{authorfullhash}{977bb0d156bd9a4f11d72cb1cd1a9159}
+      \strng{authorfullhashraw}{977bb0d156bd9a4f11d72cb1cd1a9159}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Residential segregation by jurisdiction generates disparities in public services and education. The distinctive American pattern---in which blacks live in cities and whites in suburbs---was enhanced by a large black migration from the rural South. I show that whites responded to this black influx by leaving cities and rule out an indirect effect on housing prices as a sole cause. I instrument for changes in black population by using local economic conditions to predict black migration from southern states and assigning predicted flows to northern cities according to established settlement patterns. The best causal estimates imply that each black arrival led to 2.7 white departures.}
+      \field{issn}{0033-5533}
+      \field{journaltitle}{The Quarterly Journal of Economics}
+      \field{month}{2}
+      \field{number}{1}
+      \field{shorttitle}{Was {{Postwar Suburbanization}} ``{{White Flight}}''?}
+      \field{title}{Was {{Postwar Suburbanization}} ``{{White Flight}}''? {{Evidence}} from the {{Black Migration}}*}
+      \field{urlday}{19}
+      \field{urlmonth}{7}
+      \field{urlyear}{2023}
+      \field{volume}{125}
+      \field{year}{2010}
+      \field{urldateera}{ce}
+      \field{pages}{417\bibrangedash 443}
+      \range{pages}{27}
+      \verb{doi}
+      \verb 10.1162/qjec.2010.125.1.417
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/7QMQSY6N/Boustan - 2010 - Was Postwar Suburbanization “White Flight” Eviden.pdf;/Users/beaubressler/Zotero/storage/G8DYNET4/1880366.html
+      \endverb
+    \endentry
+    \entry{carterPolarisationPublicHousing1998}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=10ca6a0504e25a94040ce92e39851514}{%
+           family={Carter},
+           familyi={C\bibinitperiod},
+           given={William\bibnamedelima H.},
+           giveni={W\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0934536784e2a2d46a72a4b87ceb216a}{%
+           family={Schill},
+           familyi={S\bibinitperiod},
+           given={Michael\bibnamedelima H.},
+           giveni={M\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7e3777ba8aa8c8d8228668a305bfb529}{%
+           family={Wachter},
+           familyi={W\bibinitperiod},
+           given={Susan\bibnamedelima M.},
+           giveni={S\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {SAGE Publications Ltd}%
+      }
+      \strng{namehash}{ffbe58e0c454345e1cbdb478d27194e8}
+      \strng{fullhash}{ffbe58e0c454345e1cbdb478d27194e8}
+      \strng{fullhashraw}{ffbe58e0c454345e1cbdb478d27194e8}
+      \strng{bibnamehash}{ffbe58e0c454345e1cbdb478d27194e8}
+      \strng{authorbibnamehash}{ffbe58e0c454345e1cbdb478d27194e8}
+      \strng{authornamehash}{ffbe58e0c454345e1cbdb478d27194e8}
+      \strng{authorfullhash}{ffbe58e0c454345e1cbdb478d27194e8}
+      \strng{authorfullhashraw}{ffbe58e0c454345e1cbdb478d27194e8}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Cities in the US have become home to an increasing concentration of poor households, disproportionately composed of racial and ethnic minorities. In the US, poor and minority populations are overrepresented in public housing, mostly located in central cities. Racial and ethnic minorities in American public housing are, for the most part, composed of native-born households whereas in Europe they are more likely to be foreign-born. After a description of this concentration of poor and minority populations in public housing, we examine the effect of public housing on neighbourhood poverty rates in central cities. We construct a longitudinal database (1950-90) for four large cities-Boston, Cleveland, Detroit and Philadelphia?and examine the relationship between the location of public housing and changes in neighbourhood poverty rates. We find that in each city, one or more of the variables relating to the existence of public housing is significantly related to increases in neighbourhood poverty rates in succeeding decades.}
+      \field{issn}{0042-0980}
+      \field{journaltitle}{Urban Studies}
+      \field{month}{10}
+      \field{number}{10}
+      \field{title}{Polarisation, {{Public Housing}} and {{Racial Minorities}} in {{US Cities}}}
+      \field{urlday}{8}
+      \field{urlmonth}{12}
+      \field{urlyear}{2023}
+      \field{volume}{35}
+      \field{year}{1998}
+      \field{urldateera}{ce}
+      \field{pages}{1889\bibrangedash 1911}
+      \range{pages}{23}
+      \verb{doi}
+      \verb 10.1080/0042098984204
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/N7A5IP3F/Carter et al. - 1998 - Polarisation, Public Housing and Racial Minorities.pdf
+      \endverb
+    \endentry
+    \entry{chynMovedOpportunityLongRun2018}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=ae4e3f0ebf5ef2a5e46390acd7ea13c7}{%
+           family={Chyn},
+           familyi={C\bibinitperiod},
+           given={Eric},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{ae4e3f0ebf5ef2a5e46390acd7ea13c7}
+      \strng{fullhash}{ae4e3f0ebf5ef2a5e46390acd7ea13c7}
+      \strng{fullhashraw}{ae4e3f0ebf5ef2a5e46390acd7ea13c7}
+      \strng{bibnamehash}{ae4e3f0ebf5ef2a5e46390acd7ea13c7}
+      \strng{authorbibnamehash}{ae4e3f0ebf5ef2a5e46390acd7ea13c7}
+      \strng{authornamehash}{ae4e3f0ebf5ef2a5e46390acd7ea13c7}
+      \strng{authorfullhash}{ae4e3f0ebf5ef2a5e46390acd7ea13c7}
+      \strng{authorfullhashraw}{ae4e3f0ebf5ef2a5e46390acd7ea13c7}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{This paper provides new evidence on the effects of moving out of disadvantaged neighborhoods on the long-run outcomes of children. I study public housing demolitions in Chicago, which forced low-income households to relocate to less disadvantaged neighborhoods using housing vouchers. Specifically, I compare young adult outcomes of displaced children to their peers who lived in nearby public housing that was not demolished. Displaced children are more likely to be employed and earn more in young adulthood. I also find that displaced children have fewer violent crime arrests. Children displaced at young ages have lower high school dropout rates.}
+      \field{issn}{0002-8282}
+      \field{journaltitle}{American Economic Review}
+      \field{langid}{english}
+      \field{month}{10}
+      \field{number}{10}
+      \field{shorttitle}{Moved to {{Opportunity}}}
+      \field{title}{Moved to {{Opportunity}}: {{The Long-Run Effects}} of {{Public Housing Demolition}} on {{Children}}}
+      \field{urlday}{11}
+      \field{urlmonth}{1}
+      \field{urlyear}{2024}
+      \field{volume}{108}
+      \field{year}{2018}
+      \field{urldateera}{ce}
+      \field{pages}{3028\bibrangedash 3056}
+      \range{pages}{29}
+      \verb{doi}
+      \verb 10.1257/aer.20161352
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/SB5YWC9C/Chyn - 2018 - Moved to Opportunity The Long-Run Effects of Publ.pdf
+      \endverb
+      \keyw{Child Care,Children,Education,Family Planning,Neighborhood Characteristics Production Analysis and Firm Location: Government Policy,Population,Provision and Effects of Welfare Programs Fertility,Public Pensions Welfare Well-Being and Poverty: Government Programs,Regional Labor Markets,State and Local Government: Health,Welfare,Youth Urban Rural Regional Real Estate and Transportation Economics: Regional Migration}
+    \endentry
+    \entry{collinsSlumClearanceUrban2013}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=22a5cdad9c5a06f2850a30bec87ce3b6}{%
+           family={Collins},
+           familyi={C\bibinitperiod},
+           given={William\bibnamedelima J.},
+           giveni={W\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f0631b0e5fa9b3091ff15c052a5b4567}{%
+           family={Shester},
+           familyi={S\bibinitperiod},
+           given={Katharine\bibnamedelima L.},
+           giveni={K\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{4595d75ccbb41d20e52e92db22d86baf}
+      \strng{fullhash}{4595d75ccbb41d20e52e92db22d86baf}
+      \strng{fullhashraw}{4595d75ccbb41d20e52e92db22d86baf}
+      \strng{bibnamehash}{4595d75ccbb41d20e52e92db22d86baf}
+      \strng{authorbibnamehash}{4595d75ccbb41d20e52e92db22d86baf}
+      \strng{authornamehash}{4595d75ccbb41d20e52e92db22d86baf}
+      \strng{authorfullhash}{4595d75ccbb41d20e52e92db22d86baf}
+      \strng{authorfullhashraw}{4595d75ccbb41d20e52e92db22d86baf}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{We study the local effects of a federal program that helped cities clear areas for redevelopment, rehabilitate structures, complete city plans, and enforce building codes. We use an instrumental variable strategy to estimate the program's effects on city-level measures of income, property values, employment and poverty rates, and population. The estimated effects on income, property values, and population are positive and economically significant. They are not driven by changes in demographic composition. Estimated effects on poverty reduction and employment are positive but imprecise. The results are consistent with a model in which local productivity is enhanced. (JEL I32, N32, N92, R23, R38, R58)}
+      \field{issn}{1945-7782}
+      \field{journaltitle}{American Economic Journal: Applied Economics}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{number}{1}
+      \field{title}{Slum {{Clearance}} and {{Urban Renewal}} in the {{United States}}}
+      \field{urlday}{26}
+      \field{urlmonth}{6}
+      \field{urlyear}{2023}
+      \field{volume}{5}
+      \field{year}{2013}
+      \field{urldateera}{ce}
+      \field{pages}{239\bibrangedash 273}
+      \range{pages}{35}
+      \verb{doi}
+      \verb 10.1257/app.5.1.239
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/XGZFVGSG/Collins and Shester - 2013 - Slum Clearance and Urban Renewal in the United Sta.pdf
+      \endverb
+      \keyw{Measurement and Analysis of Poverty Economic History: Labor and Consumers Demography Education Health Welfare Income Wealth Religion and Philanthropy: U.S.,Neighborhood Characteristics Production Analysis and Firm Location: Government Policy Regional Development Planning and Policy,Population,Regional Labor Markets}
+    \endentry
+    \entry{diamondWhoWantsAffordable2019}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=89c89583c4e647b7158f27bc7b3b7989}{%
+           family={Diamond},
+           familyi={D\bibinitperiod},
+           given={Rebecca},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d6a115601bdfc509ecb2424e0c551307}{%
+           family={McQuade},
+           familyi={M\bibinitperiod},
+           given={Tim},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {The University of Chicago Press}%
+      }
+      \strng{namehash}{0dddb8e5a2af92a5dbef3358fa242b7e}
+      \strng{fullhash}{0dddb8e5a2af92a5dbef3358fa242b7e}
+      \strng{fullhashraw}{0dddb8e5a2af92a5dbef3358fa242b7e}
+      \strng{bibnamehash}{0dddb8e5a2af92a5dbef3358fa242b7e}
+      \strng{authorbibnamehash}{0dddb8e5a2af92a5dbef3358fa242b7e}
+      \strng{authornamehash}{0dddb8e5a2af92a5dbef3358fa242b7e}
+      \strng{authorfullhash}{0dddb8e5a2af92a5dbef3358fa242b7e}
+      \strng{authorfullhashraw}{0dddb8e5a2af92a5dbef3358fa242b7e}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{We nonparametrically estimate spillovers of properties financed by the Low Income Housing Tax Credit (LIHTC) onto neighborhood residents by developing a new difference-in-differences style estimator. LIHTC development revitalizes low-income neighborhoods, increasing house prices 6.5 percent, lowering crime rates, and attracting racially and income diverse populations. LIHTC development in higher-income areas causes house price declines of 2.5 percent and attracts lower-income households. Linking these price effects to a hedonic model of preferences, LIHTC developments in low-income areas cause aggregate welfare benefits of \$116 million. Affordable housing development acts like a place-based policy and can revitalize low-income communities.}
+      \field{issn}{0022-3808}
+      \field{journaltitle}{Journal of Political Economy}
+      \field{month}{6}
+      \field{number}{3}
+      \field{shorttitle}{Who {{Wants Affordable Housing}} in {{Their Backyard}}?}
+      \field{title}{Who {{Wants Affordable Housing}} in {{Their Backyard}}? {{An Equilibrium}} {{Analysis}} of {{Low-Income Property Development}}}
+      \field{urlday}{5}
+      \field{urlmonth}{12}
+      \field{urlyear}{2023}
+      \field{volume}{127}
+      \field{year}{2019}
+      \field{urldateera}{ce}
+      \field{pages}{1063\bibrangedash 1117}
+      \range{pages}{55}
+      \verb{doi}
+      \verb 10.1086/701354
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/F5YKDEY4/Diamond and McQuade - 2019 - Who Wants Affordable Housing in Their Backyard An.pdf
+      \endverb
+    \endentry
+    \entry{eckertMethodConstructGeographical2020}{misc}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=d40d450e9cfaa59daf032a5cd9c55205}{%
+           family={Eckert},
+           familyi={E\bibinitperiod},
+           given={Fabian},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f498b570f4320f75a6431da581cddd8d}{%
+           family={Gvirtz},
+           familyi={G\bibinitperiod},
+           given={Andrés},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=039d1ab845da6b7416aa7bc55f3f37f3}{%
+           family={Liang},
+           familyi={L\bibinitperiod},
+           given={Jack},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=a2485cb9a6567160e7daa53b65b248ee}{%
+           family={Peters},
+           familyi={P\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {National Bureau of Economic Research}%
+      }
+      \strng{namehash}{e29c3620b2e01f0fa377a63b9c168813}
+      \strng{fullhash}{92acdf85c3a05c0395ff4d36fd829bc7}
+      \strng{fullhashraw}{92acdf85c3a05c0395ff4d36fd829bc7}
+      \strng{bibnamehash}{e29c3620b2e01f0fa377a63b9c168813}
+      \strng{authorbibnamehash}{e29c3620b2e01f0fa377a63b9c168813}
+      \strng{authornamehash}{e29c3620b2e01f0fa377a63b9c168813}
+      \strng{authorfullhash}{92acdf85c3a05c0395ff4d36fd829bc7}
+      \strng{authorfullhashraw}{92acdf85c3a05c0395ff4d36fd829bc7}
+      \field{sortinit}{E}
+      \field{sortinithash}{8da8a182d344d5b9047633dfc0cc9131}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Empirical researchers often have to map data provided for a "reporting" spatial unit, say counties in 1900, to a "reference" one, say, counties in 2010. We discuss a general method to create such crosswalks: computing the share of the area of each reporting unit nested in a given reference unit. Using these shares, data can be re-aggregated from the reporting to the reference units. We apply the method to construct a crosswalk for US county-level data since 1790 to present-day counties or commuting zones. We also provide the code to generate other crosswalks given maps of reporting and reference units.}
+      \field{eprinttype}{National Bureau of Economic Research}
+      \field{month}{2}
+      \field{number}{26770}
+      \field{series}{Working {{Paper Series}}}
+      \field{title}{A {{Method}} to {{Construct Geographical Crosswalks}} with an {{Application}} to {{US Counties}} since 1790}
+      \field{type}{Working {{Paper}}}
+      \field{urlday}{21}
+      \field{urlmonth}{8}
+      \field{urlyear}{2023}
+      \field{year}{2020}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.3386/w26770
+      \endverb
+      \verb{eprint}
+      \verb 26770
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/K2HDBCMP/Eckert et al. - 2020 - A Method to Construct Geographical Crosswalks with.pdf
+      \endverb
+    \endentry
+    \entry{fishbackHOLCMapsHow2020}{misc}{}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=70de7a053ea0fa2efe1c89b9341a8146}{%
+           family={Fishback},
+           familyi={F\bibinitperiod},
+           given={Price\bibnamedelima V.},
+           giveni={P\bibinitperiod\bibinitdelim V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=92cd477c1a4c160d8da619440faebd74}{%
+           family={LaVoice},
+           familyi={L\bibinitperiod},
+           given={Jessica},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c7a36f78d6d8494eff302df5df44889b}{%
+           family={Shertzer},
+           familyi={S\bibinitperiod},
+           given={Allison},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=4230635dcae3bbae24dc79312846cd34}{%
+           family={Walsh},
+           familyi={W\bibinitperiod},
+           given={Randall},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {National Bureau of Economic Research}%
+      }
+      \strng{namehash}{66a586e38d1e199d05d9e1641ef89c14}
+      \strng{fullhash}{0e0b4c6e73eef60fac7c23a38a777e49}
+      \strng{fullhashraw}{0e0b4c6e73eef60fac7c23a38a777e49}
+      \strng{bibnamehash}{66a586e38d1e199d05d9e1641ef89c14}
+      \strng{authorbibnamehash}{66a586e38d1e199d05d9e1641ef89c14}
+      \strng{authornamehash}{66a586e38d1e199d05d9e1641ef89c14}
+      \strng{authorfullhash}{0e0b4c6e73eef60fac7c23a38a777e49}
+      \strng{authorfullhashraw}{0e0b4c6e73eef60fac7c23a38a777e49}
+      \field{sortinit}{F}
+      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{During the late 1930s, the Home Owners' Loan Corporation (HOLC) developed a series of area descriptions with color-coded maps of cities that summarized mortgage lending risk. We provide evidence that these maps were not the primary source used by the FHA to create their ``redlining'' maps for insuring mortgages. Instead, the HOLC maps provide a unique snapshot of how real estate professionals perceived lending risk in the 1930s. These perceptions were shaped by a wide range of factors including race, income, and housing quality. We use the maps to explore the mechanisms behind the prevalence of black residents in the lowest-rated neighborhoods. Our results suggest that racial bias in the construction of the HOLC maps can explain at most 4 to 20 percent of the observed concentration of black households in the lowest-rated zones. Instead, our results suggest that the majority of black households were located in such zones because decades of disadvantage and discrimination had already pushed them into the core of economically distressed neighborhoods prior to the federal government's involvement in mortgage markets.}
+      \field{eprinttype}{National Bureau of Economic Research}
+      \field{month}{11}
+      \field{number}{28146}
+      \field{series}{Working {{Paper Series}}}
+      \field{shorttitle}{The {{HOLC Maps}}}
+      \field{title}{The {{HOLC Maps}}: {{How Race}} and {{Poverty Influenced Real Estate Professionals}}' {{Evaluation}} of {{Lending Risk}} in the 1930s}
+      \field{type}{Working {{Paper}}}
+      \field{urlday}{4}
+      \field{urlmonth}{10}
+      \field{urlyear}{2023}
+      \field{year}{2020}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.3386/w28146
+      \endverb
+      \verb{eprint}
+      \verb 28146
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/4NXFH75H/Fishback et al. - 2020 - The HOLC Maps How Race and Poverty Influenced Rea.pdf
+      \endverb
+    \endentry
+    \entry{friedmanGovernmentSlumHousing1967}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=c039ec56bf3ac4e7c2c55c1c71c97ef4}{%
+           family={Friedman},
+           familyi={F\bibinitperiod},
+           given={Lawrence\bibnamedelima M.},
+           giveni={L\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Duke University School of Law}%
+      }
+      \strng{namehash}{c039ec56bf3ac4e7c2c55c1c71c97ef4}
+      \strng{fullhash}{c039ec56bf3ac4e7c2c55c1c71c97ef4}
+      \strng{fullhashraw}{c039ec56bf3ac4e7c2c55c1c71c97ef4}
+      \strng{bibnamehash}{c039ec56bf3ac4e7c2c55c1c71c97ef4}
+      \strng{authorbibnamehash}{c039ec56bf3ac4e7c2c55c1c71c97ef4}
+      \strng{authornamehash}{c039ec56bf3ac4e7c2c55c1c71c97ef4}
+      \strng{authorfullhash}{c039ec56bf3ac4e7c2c55c1c71c97ef4}
+      \strng{authorfullhashraw}{c039ec56bf3ac4e7c2c55c1c71c97ef4}
+      \field{sortinit}{F}
+      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{eprinttype}{jstor}
+      \field{issn}{0023-9186}
+      \field{journaltitle}{Law and Contemporary Problems}
+      \field{number}{2}
+      \field{shorttitle}{Government and {{Slum Housing}}}
+      \field{title}{Government and {{Slum Housing}}: {{Some General Considerations}}}
+      \field{urlday}{8}
+      \field{urlmonth}{4}
+      \field{urlyear}{2025}
+      \field{volume}{32}
+      \field{year}{1967}
+      \field{urldateera}{ce}
+      \field{pages}{357\bibrangedash 370}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.2307/1190873
+      \endverb
+      \verb{eprint}
+      \verb 1190873
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/SC8SKIK8/Friedman - 1967 - Government and Slum Housing Some General Considerations.pdf
+      \endverb
+    \endentry
+    \entry{guennewig-moenertPublicHousingDesign2024}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=65e7312fddf0bf74509348c5d3babbcd}{%
+           family={{Guennewig-Moenert}},
+           familyi={G\bibinitperiod},
+           given={Maximilian},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{65e7312fddf0bf74509348c5d3babbcd}
+      \strng{fullhash}{65e7312fddf0bf74509348c5d3babbcd}
+      \strng{fullhashraw}{65e7312fddf0bf74509348c5d3babbcd}
+      \strng{bibnamehash}{65e7312fddf0bf74509348c5d3babbcd}
+      \strng{authorbibnamehash}{65e7312fddf0bf74509348c5d3babbcd}
+      \strng{authornamehash}{65e7312fddf0bf74509348c5d3babbcd}
+      \strng{authorfullhash}{65e7312fddf0bf74509348c5d3babbcd}
+      \strng{authorfullhashraw}{65e7312fddf0bf74509348c5d3babbcd}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{This paper investigates the long-run effect of public housing project design on neighborhood composition and rental prices in New York City from 1930 to 2010. Using a newly assembled dataset on the US census tract level and leveraging the staggered rollout of public housing, I document sizeable effects on racial composition. White population declined in tracts with public housing projects with significant spillover effects to adjacent tracts, while black population increased but only in public housing tracts. The effects on white and black population are driven by a specific project type called the ``Tower in the park'' -- slim brick high-rises and vast green spaces in between. Falling rent prices around ``Towers'' indicate negative demand effects. In a cross-sectional analysis, I find that ``Towers in the Park'' are more associated with higher incarceration rates than non-towers, though incarceration rates cannot entirely explain spillover effects on white population. Finally, I evaluate the welfare consequences of these externalities using a static neighborhood choice model. The model demonstrates that removing public housing can increase amenity values and improve welfare. I find that these welfare gains can be explained by ``Tower in the park'' demolitions. This suggests that building design can mitigate negative externalities of public housing.}
+      \field{langid}{english}
+      \field{title}{Public Housing Design, Racial Sorting and Welfare: {{Evidence}} from {{New York City}} Public Housing 1930-2010}
+      \field{year}{2024}
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/AK7YNVT4/Guennewig - Public housing design, racial sorting and welfare.pdf
+      \endverb
+    \endentry
+    \entry{haltiwangerChildrenHOPEVI2024}{article}{}{}
+      \name{author}{6}{}{%
+        {{un=0,uniquepart=base,hash=6d3f8c8fd4b12b569742a7dfaa8d174a}{%
+           family={Haltiwanger},
+           familyi={H\bibinitperiod},
+           given={John\bibnamedelima C.},
+           giveni={J\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=31564832cffeba9fb997f0420892d710}{%
+           family={Kutzbach},
+           familyi={K\bibinitperiod},
+           given={Mark\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ddaeb82661125a20927916f0e9aecb23}{%
+           family={Palloni},
+           familyi={P\bibinitperiod},
+           given={Giordano},
+           giveni={G\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=54973cbb3e9045e9d67ffe8df2b532fc}{%
+           family={Pollakowski},
+           familyi={P\bibinitperiod},
+           given={Henry\bibnamedelima O.},
+           giveni={H\bibinitperiod\bibinitdelim O\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7c5aa47b6bf3b272d84305098f30ed43}{%
+           family={Staiger},
+           familyi={S\bibinitperiod},
+           given={Matthew},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5983a6aad78e1d012747f25cbe296151}{%
+           family={Weinberg},
+           familyi={W\bibinitperiod},
+           given={Daniel\bibnamedelima H.},
+           giveni={D\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{4a0af70846c6de643f3ecc58601095fd}
+      \strng{fullhash}{011382e219d29540f41c4fb6ceed3c95}
+      \strng{fullhashraw}{011382e219d29540f41c4fb6ceed3c95}
+      \strng{bibnamehash}{4a0af70846c6de643f3ecc58601095fd}
+      \strng{authorbibnamehash}{4a0af70846c6de643f3ecc58601095fd}
+      \strng{authornamehash}{4a0af70846c6de643f3ecc58601095fd}
+      \strng{authorfullhash}{011382e219d29540f41c4fb6ceed3c95}
+      \strng{authorfullhashraw}{011382e219d29540f41c4fb6ceed3c95}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{We combine national administrative data on earnings and participation in subsidized housing to investigate how the demolition of 160 public housing projects---funded by the HOPE VI Demolition program---affected adult labor market outcomes for 18,500 children. Our empirical strategy compares children exposed to the program between ages 10 and 18 to children drawn from thousands of non-demolished projects, adjusting for observable differences using a flexible estimator that combines features of matching and regression. We find that children who resided in HOPE VI projects earn 15 percent more at age 26 relative to children in comparison projects. Earnings gains are greatest for demolitions in high-poverty neighborhoods in large cities, the context for most prior research on HOPE VI. However, most HOPE VI projects were in smaller cities where we find weaker effects that are not statistically significant. We investigate pathways including improved parental earnings, childhood exposure to lower poverty neighborhoods, and greater job accessibility. We find the strongest evidence for improved job accessibility facilitating increased employment and earnings for young adults.}
+      \field{issn}{0047-2727}
+      \field{journaltitle}{Journal of Public Economics}
+      \field{month}{11}
+      \field{shorttitle}{The Children of {{HOPE VI}} Demolitions}
+      \field{title}{The Children of {{HOPE VI}} Demolitions: {{National}} Evidence on Labor Market Outcomes}
+      \field{urlday}{13}
+      \field{urlmonth}{11}
+      \field{urlyear}{2024}
+      \field{volume}{239}
+      \field{year}{2024}
+      \field{urldateera}{ce}
+      \field{pages}{105188}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.jpubeco.2024.105188
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/G8CBAGCS/Haltiwanger et al. - 2024 - The children of HOPE VI demolitions National evidence on labor market outcomes.pdf;/Users/beaubressler/Zotero/storage/PAUVD8BA/S0047272724001245.html
+      \endverb
+    \endentry
+    \entry{hirschMakingSecondGhetto1998}{book}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=ccaf9726baeedb123af0b7949182312c}{%
+           family={Hirsch},
+           familyi={H\bibinitperiod},
+           given={Arnold\bibnamedelima R.},
+           giveni={A\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Chicago, Ill}%
+      }
+      \list{publisher}{1}{%
+        {The University of Chicago Press}%
+      }
+      \strng{namehash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{fullhash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{fullhashraw}{ccaf9726baeedb123af0b7949182312c}
+      \strng{bibnamehash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{authorbibnamehash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{authornamehash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{authorfullhash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{authorfullhashraw}{ccaf9726baeedb123af0b7949182312c}
+      \field{extraname}{1}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{isbn}{978-0-226-34244-3}
+      \field{series}{Historical Studies of Urban {{America}}}
+      \field{shorttitle}{Making the Second Ghetto}
+      \field{title}{Making the Second Ghetto: Race and Housing in {{Chicago}}, 1940-1960}
+      \field{year}{1998}
+      \keyw{African Americans,Chicago (Ill.),Discrimination in housing,History,Housing History,Housing policy,Illinois Chicago,Race relations History}
+    \endentry
+    \entry{hirschContainmentHomeFront2000}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=ccaf9726baeedb123af0b7949182312c}{%
+           family={Hirsch},
+           familyi={H\bibinitperiod},
+           given={Arnold\bibnamedelima R.},
+           giveni={A\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {SAGE Publications Inc}%
+      }
+      \strng{namehash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{fullhash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{fullhashraw}{ccaf9726baeedb123af0b7949182312c}
+      \strng{bibnamehash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{authorbibnamehash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{authornamehash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{authorfullhash}{ccaf9726baeedb123af0b7949182312c}
+      \strng{authorfullhashraw}{ccaf9726baeedb123af0b7949182312c}
+      \field{extraname}{2}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{issn}{0096-1442}
+      \field{journaltitle}{Journal of Urban History}
+      \field{langid}{english}
+      \field{month}{1}
+      \field{number}{2}
+      \field{shorttitle}{Containment on the {{Home Front}}}
+      \field{title}{Containment on the {{Home Front}}: {{Race}} and {{Federal Housing Policy}} from the {{New Deal}} to the {{Cold War}}}
+      \field{urlday}{7}
+      \field{urlmonth}{2}
+      \field{urlyear}{2024}
+      \field{volume}{26}
+      \field{year}{2000}
+      \field{urldateera}{ce}
+      \field{pages}{158\bibrangedash 189}
+      \range{pages}{32}
+      \verb{doi}
+      \verb 10.1177/009614420002600202
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/RU7RUCJV/Hirsch - 2000 - Containment on the Home Front Race and Federal Ho.pdf
+      \endverb
+    \endentry
+    \entry{jacksonCrabgrassFrontierSuburbanization2006}{book}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=964f41d6c0ad0306defc5a761927edc7}{%
+           family={Jackson},
+           familyi={J\bibinitperiod},
+           given={Kenneth\bibnamedelima T.},
+           giveni={K\bibinitperiod\bibinitdelim T\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {New York, NY}%
+      }
+      \list{publisher}{1}{%
+        {Oxford Univ. Press}%
+      }
+      \strng{namehash}{964f41d6c0ad0306defc5a761927edc7}
+      \strng{fullhash}{964f41d6c0ad0306defc5a761927edc7}
+      \strng{fullhashraw}{964f41d6c0ad0306defc5a761927edc7}
+      \strng{bibnamehash}{964f41d6c0ad0306defc5a761927edc7}
+      \strng{authorbibnamehash}{964f41d6c0ad0306defc5a761927edc7}
+      \strng{authornamehash}{964f41d6c0ad0306defc5a761927edc7}
+      \strng{authorfullhash}{964f41d6c0ad0306defc5a761927edc7}
+      \strng{authorfullhashraw}{964f41d6c0ad0306defc5a761927edc7}
+      \field{sortinit}{J}
+      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{edition}{26. print}
+      \field{isbn}{978-0-19-504983-1 978-0-19-503610-7}
+      \field{langid}{english}
+      \field{shorttitle}{Crabgrass Frontier}
+      \field{title}{Crabgrass Frontier: The Suburbanization of the {{United States}}}
+      \field{year}{2006}
+    \endentry
+    \entry{kuchevaSubsidizedHousingConcentration2013}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=85ef0292f9721fceb4a52d496c8fc229}{%
+           family={Kucheva},
+           familyi={K\bibinitperiod},
+           given={Yana\bibnamedelima Andreeva},
+           giveni={Y\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{85ef0292f9721fceb4a52d496c8fc229}
+      \strng{fullhash}{85ef0292f9721fceb4a52d496c8fc229}
+      \strng{fullhashraw}{85ef0292f9721fceb4a52d496c8fc229}
+      \strng{bibnamehash}{85ef0292f9721fceb4a52d496c8fc229}
+      \strng{authorbibnamehash}{85ef0292f9721fceb4a52d496c8fc229}
+      \strng{authornamehash}{85ef0292f9721fceb4a52d496c8fc229}
+      \strng{authorfullhash}{85ef0292f9721fceb4a52d496c8fc229}
+      \strng{authorfullhashraw}{85ef0292f9721fceb4a52d496c8fc229}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{This paper examines the link between subsidized housing and the concentration of poverty. I use newly available data from the Department of Housing and Urban Development that extends from the earliest years of subsidized housing reform to the present day. I find that substantial changes in the poverty rate of neighborhoods occurred predominantly in census tracts that experienced more than a 5 percent increase or decrease in their share of subsidized units, indicating that more subsidized housing is associated with greater poverty. However, the increase in the poverty rate of neighborhoods that experienced more than a 5 percent increase in either building-based or voucher units was due to the movement of poor subsidized individuals into those neighborhoods rather than changes in the poverty rate of individuals who do not live in subsidized housing.}
+      \field{issn}{1540-6040}
+      \field{journaltitle}{City \& Community}
+      \field{langid}{portuguese}
+      \field{number}{2}
+      \field{shorttitle}{{Subsidized Housing and the Concentration of Poverty, 1977--2008}}
+      \field{title}{{Subsidized Housing and the Concentration of Poverty, 1977--2008: A Comparison of Eight U.S. Metropolitan Areas}}
+      \field{urlday}{19}
+      \field{urlmonth}{2}
+      \field{urlyear}{2024}
+      \field{volume}{12}
+      \field{year}{2013}
+      \field{urldateera}{ce}
+      \field{pages}{113\bibrangedash 133}
+      \range{pages}{21}
+      \verb{doi}
+      \verb 10.1111/cico.12014
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/ZII8WG4H/Kucheva - 2013 - Subsidized Housing and the Concentration of Povert.pdf;/Users/beaubressler/Zotero/storage/4J6YAC8J/cico.html
+      \endverb
+    \endentry
+    \entry{lavoiceLongRunImplicationsSlum}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=92cd477c1a4c160d8da619440faebd74}{%
+           family={LaVoice},
+           familyi={L\bibinitperiod},
+           given={Jessica},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{92cd477c1a4c160d8da619440faebd74}
+      \strng{fullhash}{92cd477c1a4c160d8da619440faebd74}
+      \strng{fullhashraw}{92cd477c1a4c160d8da619440faebd74}
+      \strng{bibnamehash}{92cd477c1a4c160d8da619440faebd74}
+      \strng{authorbibnamehash}{92cd477c1a4c160d8da619440faebd74}
+      \strng{authornamehash}{92cd477c1a4c160d8da619440faebd74}
+      \strng{authorfullhash}{92cd477c1a4c160d8da619440faebd74}
+      \strng{authorfullhashraw}{92cd477c1a4c160d8da619440faebd74}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labeldatesource}{nodate}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{This paper analyzes the federal urban renewal and slum clearance program. This program was one of the largest and most controversial policies used to rehabilitate neighborhoods in the United States. Using a newly constructed dataset, I examine the characteristics of neighborhoods cleared for redevelopment and the effect that such projects had on neighborhoods over time. I show that conditional on experiencing urban blight, black neighborhoods were twice as likely as white neighborhoods to be targeted for clearance. Redevelopment led to a decline in housing density, population density, and the share of black residents while simultaneously increasing median rents and incomes. A spatial equilibrium model suggests redevelopment had negative welfare implications for low-income households.}
+      \field{langid}{english}
+      \field{title}{The {{Long-Run Implications}} of {{Slum Clearance}}: {{A Neighborhood Analysis}}}
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/JTKHEZZC/LaVoice - The Long-Run Implications of Slum Clearance A Nei.pdf
+      \endverb
+    \endentry
+    \entry{loganSideStreetGhetto2024}{article}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=9b7792cfa2e393d67c5e8a6169fdd15c}{%
+           family={Logan},
+           familyi={L\bibinitperiod},
+           given={John\bibnamedelima R.},
+           giveni={J\bibinitperiod\bibinitdelim R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6963af96aa639a7fa6479a48c7b0e637}{%
+           family={Minca},
+           familyi={M\bibinitperiod},
+           given={Elisabeta},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8e8d19b55e8750939b44534621d97024}{%
+           family={Bellman},
+           familyi={B\bibinitperiod},
+           given={Benjamin},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ce5b505c95009ffb0e0e56407352139c}{%
+           family={Kisch},
+           familyi={K\bibinitperiod},
+           given={Amory},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=36eb6e78abe008a19685eab10bb0227c}{%
+           family={Carlson},
+           familyi={C\bibinitperiod},
+           given={H.\bibnamedelimi Jacob},
+           giveni={H\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {SAGE Publications}%
+      }
+      \strng{namehash}{558ae908f443247b13e112ea29749530}
+      \strng{fullhash}{af922e43fdfa15a16590557d86ef5421}
+      \strng{fullhashraw}{af922e43fdfa15a16590557d86ef5421}
+      \strng{bibnamehash}{558ae908f443247b13e112ea29749530}
+      \strng{authorbibnamehash}{558ae908f443247b13e112ea29749530}
+      \strng{authornamehash}{558ae908f443247b13e112ea29749530}
+      \strng{authorfullhash}{af922e43fdfa15a16590557d86ef5421}
+      \strng{authorfullhashraw}{af922e43fdfa15a16590557d86ef5421}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{A standard interpretation of the intensification of segregation in the early twentieth century is that residents of Northern cities reacted against a growing African American presence, using segregation as a tool of social control that was less needed in the South. Evidence from newly available data for 134 cities in 1900?1940 puts this interpretation in question in several ways. We find that segregation was already high in 1900 at the neighborhood scale. Not only was it rising, but it was changing its spatial scale as clusters of Black settlement in side streets and alleys disappeared from White districts while expanding into large Black zones. Finally, multivariate analyses show that trends were similar in the North and South, and in neither region was Black population size (i.e., ?Black threat?) a significant predictor of increasing segregation. The general trends of rising segregation and increasing spatial scale became a nationwide pattern.}
+      \field{issn}{1535-6841}
+      \field{journaltitle}{City \& Community}
+      \field{month}{6}
+      \field{number}{2}
+      \field{shorttitle}{From {{Side Street}} to {{Ghetto}}}
+      \field{title}{From {{Side Street}} to {{Ghetto}}: {{Understanding}} the {{Rising Levels}} and {{Changing Spatial Pattern}} of {{Segregation}}, 1900--1940}
+      \field{urlday}{7}
+      \field{urlmonth}{6}
+      \field{urlyear}{2024}
+      \field{volume}{23}
+      \field{year}{2024}
+      \field{urldateera}{ce}
+      \field{pages}{155\bibrangedash 179}
+      \range{pages}{25}
+      \verb{doi}
+      \verb 10.1177/15356841231188968
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/ZRNE9DQ5/Logan et al. - 2024 - From Side Street to Ghetto Understanding the Risi.pdf
+      \endverb
+    \endentry
+    \entry{mansonNationalHistoricalGeographic2022}{misc}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=31f7ae81e874156775d5feadde8be8a9}{%
+           family={Manson},
+           familyi={M\bibinitperiod},
+           given={Steven},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=36fe880a83819ae0b378aa7b9ea509f8}{%
+           family={Schroeder},
+           familyi={S\bibinitperiod},
+           given={Jonathan},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6c210f59e5663ee17ae4f9de8b525c29}{%
+           family={Van\bibnamedelima Riper},
+           familyi={V\bibinitperiod\bibinitdelim R\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6aa85cc05b37fe46361efabbe7363c11}{%
+           family={Kugler},
+           familyi={K\bibinitperiod},
+           given={Tracy},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7387f51a82f67bf6afaf06e50696a5ba}{%
+           family={Ruggles},
+           familyi={R\bibinitperiod},
+           given={Steven},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Minneapolis, MN: IPUMS}%
+      }
+      \strng{namehash}{501623bdfe3fffa0e4c0b3e7b6a3cb99}
+      \strng{fullhash}{49104979e4611137c4eb32abc63e0c1d}
+      \strng{fullhashraw}{49104979e4611137c4eb32abc63e0c1d}
+      \strng{bibnamehash}{501623bdfe3fffa0e4c0b3e7b6a3cb99}
+      \strng{authorbibnamehash}{501623bdfe3fffa0e4c0b3e7b6a3cb99}
+      \strng{authornamehash}{501623bdfe3fffa0e4c0b3e7b6a3cb99}
+      \strng{authorfullhash}{49104979e4611137c4eb32abc63e0c1d}
+      \strng{authorfullhashraw}{49104979e4611137c4eb32abc63e0c1d}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{The National Historical Geographic Information System (NHGIS) provides free online access to summary statistics and GIS boundary files for U.S. censuses and other nationwide surveys from 1790 through the present. GIS files include: counties and states since 1790, census tracts since 1910, metropolitan areas since 1950, place and county subdivision boundaries since 1980, place points since 1900, all standard census reporting areas since 1990, centers of population for four geographic levels since 2000, and SABINS school attendance areas for 2009-12. Summary tables from decennial censuses and the American Community Survey include county and state tables since 1790; census tract tables since 1910; and tables for all original census summary levels, down to census blocks, since 1970. Additional summary tables include County Business Patterns data (annual, 1970-2002), vital statistics for counties and states (births and deaths: annual, 1915-2007; marriages and divorces: selected years, 1867-2010), agricultural census data (1840-1950), religious bodies data (1850-1952), manufacturing census data (1840-1940), and 2010 census data for SABINS school attendance areas. NHGIS also includes time series tables providing comparable statistics from multiple source years with standardized categories and geography; geographic crosswalks summarizing associations between 1990-2020 census geographic units; environmental summaries describing climate characteristics by county and land cover by county and census tract; and privacy-protected demonstration data that link original 2010 census summary data with data derived from trial runs of the Census Bureau's new 2020 Disclosure Avoidance System applied to 2010 Census responses. NHGIS data are available through an online access system and API and are offered free of charge to registered users at https://nhgis.org.}
+      \field{langid}{english}
+      \field{shorttitle}{National {{Historical Geographic Information System}}}
+      \field{title}{National {{Historical Geographic Information System}}: {{Version}} 17.0}
+      \field{urlday}{21}
+      \field{urlmonth}{8}
+      \field{urlyear}{2023}
+      \field{year}{2022}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.18128/D050.V17.0
+      \endverb
+    \endentry
+    \entry{masseyPublicHousingConcentration1993a}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=1,uniquepart=given,hash=7cd3bd70dcdd9f9b3558be6a69a0333c}{%
+           family={Massey},
+           familyi={M\bibinitperiod},
+           given={D.},
+           giveni={D\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=d80241ad7dcb98be60208243ac673895}{%
+           family={Kanaiaupuni},
+           familyi={K\bibinitperiod},
+           given={S.},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{631e9e713eec9234b57f76af7423e252}
+      \strng{fullhash}{631e9e713eec9234b57f76af7423e252}
+      \strng{fullhashraw}{631e9e713eec9234b57f76af7423e252}
+      \strng{bibnamehash}{631e9e713eec9234b57f76af7423e252}
+      \strng{authorbibnamehash}{631e9e713eec9234b57f76af7423e252}
+      \strng{authornamehash}{631e9e713eec9234b57f76af7423e252}
+      \strng{authorfullhash}{631e9e713eec9234b57f76af7423e252}
+      \strng{authorfullhashraw}{631e9e713eec9234b57f76af7423e252}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{To examine the premise that public housing represents an important cause of poverty concentration in U.S. cities, a four-equation model is estimated. The first equation predicts the likelihood that public housing projects were built within census tracts of the Chicago SMSA between 1950 and 1970, given socioeconomic and housing characteristics in 1950. Then the effect that project location had on tract poverty rates in 1970 is estimated, controlling for socioeconomic composition in 1950. The third equation estimates the effect of tract poverty rates and public housing location on the rate of net migration between 1970 and 1980. The results show that public housing projects were targeted to poor, black neigborhoods and that the presence of housing projects substantially increased the concentration of poverty in later years.}
+      \field{journaltitle}{Social Science Quarterly}
+      \field{title}{Public Housing and the Concentration of Poverty}
+      \field{urlday}{19}
+      \field{urlmonth}{2}
+      \field{urlyear}{2024}
+      \field{year}{1993}
+      \field{urldateera}{ce}
+    \endentry
+    \entry{masseyAmericanApartheidSegregation2003}{book}{}{}
+      \name{author}{2}{}{%
+        {{un=1,uniquepart=given,hash=fe5595e6b704e1128167b3ff37d35106}{%
+           family={Massey},
+           familyi={M\bibinitperiod},
+           given={Douglas\bibnamedelima S.},
+           giveni={D\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=e7b960f1e7ab5fffbdda0804f6771269}{%
+           family={Denton},
+           familyi={D\bibinitperiod},
+           given={Nancy\bibnamedelima A.},
+           giveni={N\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Cambridge, Mass.}%
+      }
+      \list{publisher}{1}{%
+        {Harvard Univ. Press}%
+      }
+      \strng{namehash}{2b806d289bb6d82d391032b243a77d2a}
+      \strng{fullhash}{2b806d289bb6d82d391032b243a77d2a}
+      \strng{fullhashraw}{2b806d289bb6d82d391032b243a77d2a}
+      \strng{bibnamehash}{2b806d289bb6d82d391032b243a77d2a}
+      \strng{authorbibnamehash}{2b806d289bb6d82d391032b243a77d2a}
+      \strng{authornamehash}{2b806d289bb6d82d391032b243a77d2a}
+      \strng{authorfullhash}{2b806d289bb6d82d391032b243a77d2a}
+      \strng{authorfullhashraw}{2b806d289bb6d82d391032b243a77d2a}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{edition}{10. print}
+      \field{isbn}{978-0-674-01821-1 978-0-674-01820-4}
+      \field{langid}{english}
+      \field{shorttitle}{American Apartheid}
+      \field{title}{American Apartheid: Segregation and the Making of the Underclass}
+      \field{year}{2003}
+    \endentry
+    \entry{meyersonPoliticsPlanningPublic1955}{book}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=793b4bdb36004507d8b4b5568ddf8ed0}{%
+           family={Meyerson},
+           familyi={M\bibinitperiod},
+           given={Martin},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {Glencoe, Ill}%
+      }
+      \list{publisher}{1}{%
+        {Free Press}%
+      }
+      \strng{namehash}{793b4bdb36004507d8b4b5568ddf8ed0}
+      \strng{fullhash}{793b4bdb36004507d8b4b5568ddf8ed0}
+      \strng{fullhashraw}{793b4bdb36004507d8b4b5568ddf8ed0}
+      \strng{bibnamehash}{793b4bdb36004507d8b4b5568ddf8ed0}
+      \strng{authorbibnamehash}{793b4bdb36004507d8b4b5568ddf8ed0}
+      \strng{authornamehash}{793b4bdb36004507d8b4b5568ddf8ed0}
+      \strng{authorfullhash}{793b4bdb36004507d8b4b5568ddf8ed0}
+      \strng{authorfullhashraw}{793b4bdb36004507d8b4b5568ddf8ed0}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{langid}{english}
+      \field{title}{Politics, Planning, and the Public Interest; the Case of Public Housing in {{Chicago}}}
+      \field{year}{1955}
+      \keyw{African Americans,Chicago,Chicago Ill,Housing,Illinois,Logement,Logement social,Noirs americains,Public housing,Wohnungspolitik}
+    \endentry
+    \entry{rossi-hansbergHousingExternalities2010}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=89fa91af2b16400f2ce6dc9cd7ea9c33}{%
+           family={Rossi-Hansberg},
+           familyi={R\bibinithyphendelim H\bibinitperiod},
+           given={Esteban},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f826eef5670887b583309cf8d2a94b0e}{%
+           family={Sarte},
+           familyi={S\bibinitperiod},
+           given={Pierre-Daniel},
+           giveni={P\bibinithyphendelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ac782521326f609d2aadb3d21affa0a9}{%
+           family={Owens},
+           familyi={O\bibinitperiod},
+           given={Raymond},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{603279c76946126eda7b2076e20a2384}
+      \strng{fullhash}{603279c76946126eda7b2076e20a2384}
+      \strng{fullhashraw}{603279c76946126eda7b2076e20a2384}
+      \strng{bibnamehash}{603279c76946126eda7b2076e20a2384}
+      \strng{authorbibnamehash}{603279c76946126eda7b2076e20a2384}
+      \strng{authornamehash}{603279c76946126eda7b2076e20a2384}
+      \strng{authorfullhash}{603279c76946126eda7b2076e20a2384}
+      \strng{authorfullhashraw}{603279c76946126eda7b2076e20a2384}
+      \field{sortinit}{R}
+      \field{sortinithash}{5e1c39a9d46ffb6bebd8f801023a9486}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{issn}{0022-3808, 1537-534X}
+      \field{journaltitle}{Journal of Political Economy}
+      \field{langid}{english}
+      \field{month}{6}
+      \field{number}{3}
+      \field{title}{Housing {{Externalities}}}
+      \field{urlday}{30}
+      \field{urlmonth}{5}
+      \field{urlyear}{2024}
+      \field{volume}{118}
+      \field{year}{2010}
+      \field{urldateera}{ce}
+      \field{pages}{485\bibrangedash 535}
+      \range{pages}{51}
+      \verb{doi}
+      \verb 10.1086/653138
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/357HI5SA/Rossi‐Hansberg et al. - 2010 - Housing Externalities.pdf
+      \endverb
+    \endentry
+    \entry{rothsteinColorLawForgotten2018}{book}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=60fd01a12e4688d34f72f52b3889e2b5}{%
+           family={Rothstein},
+           familyi={R\bibinitperiod},
+           given={Richard},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {New York London}%
+      }
+      \list{publisher}{1}{%
+        {Liveright Publishing Corporation, a division of W.W. Norton \& Company}%
+      }
+      \strng{namehash}{60fd01a12e4688d34f72f52b3889e2b5}
+      \strng{fullhash}{60fd01a12e4688d34f72f52b3889e2b5}
+      \strng{fullhashraw}{60fd01a12e4688d34f72f52b3889e2b5}
+      \strng{bibnamehash}{60fd01a12e4688d34f72f52b3889e2b5}
+      \strng{authorbibnamehash}{60fd01a12e4688d34f72f52b3889e2b5}
+      \strng{authornamehash}{60fd01a12e4688d34f72f52b3889e2b5}
+      \strng{authorfullhash}{60fd01a12e4688d34f72f52b3889e2b5}
+      \strng{authorfullhashraw}{60fd01a12e4688d34f72f52b3889e2b5}
+      \field{sortinit}{R}
+      \field{sortinithash}{5e1c39a9d46ffb6bebd8f801023a9486}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{edition}{First published as a Liveright paperback 2018}
+      \field{isbn}{978-1-63149-453-6}
+      \field{langid}{english}
+      \field{shorttitle}{The Color of Law}
+      \field{title}{The Color of Law: A Forgotten History of How Our Government Segregated {{America}}}
+      \field{year}{2018}
+    \endentry
+    \entry{rugglesIPUMSUSAVersion2022}{misc}{}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=7387f51a82f67bf6afaf06e50696a5ba}{%
+           family={Ruggles},
+           familyi={R\bibinitperiod},
+           given={Steven},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1d1fdad8c06cc33521b145d93817da67}{%
+           family={Flood},
+           familyi={F\bibinitperiod},
+           given={Sarah},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=292c2d073bf4d3e709ef9027e7915ede}{%
+           family={Goeken},
+           familyi={G\bibinitperiod},
+           given={Ronald},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8ef6a13a29d99962b88c888b6bd1bbb3}{%
+           family={Schouweiler},
+           familyi={S\bibinitperiod},
+           given={Megan},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=87928807d3b2c56017eaad58f9f65811}{%
+           family={Sobek},
+           familyi={S\bibinitperiod},
+           given={Matthew},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Minneapolis, MN: IPUMS}%
+      }
+      \strng{namehash}{dc2ce9401fe56d5d462d6aaea4312709}
+      \strng{fullhash}{22f2864fa1bfbf54da6f164e97da9fc4}
+      \strng{fullhashraw}{22f2864fa1bfbf54da6f164e97da9fc4}
+      \strng{bibnamehash}{dc2ce9401fe56d5d462d6aaea4312709}
+      \strng{authorbibnamehash}{dc2ce9401fe56d5d462d6aaea4312709}
+      \strng{authornamehash}{dc2ce9401fe56d5d462d6aaea4312709}
+      \strng{authorfullhash}{22f2864fa1bfbf54da6f164e97da9fc4}
+      \strng{authorfullhashraw}{22f2864fa1bfbf54da6f164e97da9fc4}
+      \field{sortinit}{R}
+      \field{sortinithash}{5e1c39a9d46ffb6bebd8f801023a9486}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{IPUMS USA contains harmonized census and American Community Survey (ACS) data from 1790 to the present. For the period 1850 to 1940, IPUMS includes 100\% of individuals in the decennial censuses. For the period 1950 to 2010, we have public use samples of decennial censuses. For the period since 2000, IPUMS provides annual ACS public use samples. The available information in the censuses and ACS varies by year, but generally includes basic housing data (type of housing, household appliances, and housing characteristics), demographic data (age, race, sex, marital status, and relationship to the head of household), economic data (occupation, industry, income, work status), and other individual characteristics (migration, disability, veteran status). For the period 1790 to 1840, IPUMS includes household level records for 100\% of households. IPUMS USA is available through an online data access system free of charge to registered users at usa.ipums.org.}
+      \field{langid}{english}
+      \field{shorttitle}{{{IPUMS USA}}}
+      \field{title}{{{IPUMS USA}}: {{Version}} 12.0}
+      \field{urlday}{21}
+      \field{urlmonth}{8}
+      \field{urlyear}{2023}
+      \field{year}{2022}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.18128/D010.V12.0
+      \endverb
+    \endentry
+    \entry{sandlerExternalitiesPublicHousing2017}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=a9d05bf0b8b979f3a3a09f722c1183b6}{%
+           family={Sandler},
+           familyi={S\bibinitperiod},
+           given={Danielle\bibnamedelima H.},
+           giveni={D\bibinitperiod\bibinitdelim H\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{a9d05bf0b8b979f3a3a09f722c1183b6}
+      \strng{fullhash}{a9d05bf0b8b979f3a3a09f722c1183b6}
+      \strng{fullhashraw}{a9d05bf0b8b979f3a3a09f722c1183b6}
+      \strng{bibnamehash}{a9d05bf0b8b979f3a3a09f722c1183b6}
+      \strng{authorbibnamehash}{a9d05bf0b8b979f3a3a09f722c1183b6}
+      \strng{authornamehash}{a9d05bf0b8b979f3a3a09f722c1183b6}
+      \strng{authorfullhash}{a9d05bf0b8b979f3a3a09f722c1183b6}
+      \strng{authorfullhashraw}{a9d05bf0b8b979f3a3a09f722c1183b6}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{This paper evaluates the potential for negative externalities from public housing by examining crime rates before and after demolition of public housing projects in Chicago between 1995 and 2010. Using data on block-level crimes by type of crime merged to detailed geographic data on individual public housing demolitions, I find evidence that Chicago's public housing imposed significant externalities on the surrounding neighborhood. Using a difference in difference approach comparing neighborhoods around public housing projects to nearby neighborhoods I find that crime decreases by 8.8\% after a demolition. This decrease is concentrated in violent crime. I use an event study to show that the decrease occurs at the approximate date of the eviction of the residents and persists for at least 5 years after the demolition. Neighborhoods with large demolitions and demolitions of public housing that had been poorly maintained display the largest crime decreases.}
+      \field{issn}{0166-0462}
+      \field{journaltitle}{Regional Science and Urban Economics}
+      \field{month}{1}
+      \field{shorttitle}{Externalities of Public Housing}
+      \field{title}{Externalities of Public Housing: {{The}} Effect of Public Housing Demolitions on Local Crime}
+      \field{urlday}{20}
+      \field{urlmonth}{12}
+      \field{urlyear}{2023}
+      \field{volume}{62}
+      \field{year}{2017}
+      \field{urldateera}{ce}
+      \field{pages}{24\bibrangedash 35}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1016/j.regsciurbeco.2016.10.007
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/MF6ZB898/Sandler - 2017 - Externalities of public housing The effect of pub.pdf;/Users/beaubressler/Zotero/storage/I7MAPSWB/S0166046216302976.html
+      \endverb
+      \keyw{Crime,Event study,Externalities,Public housing}
+    \endentry
+    \entry{schwartzHousingPolicyUnited2021}{book}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=483f41908e7fc40bbaf954639b8eb565}{%
+           family={Schwartz},
+           familyi={S\bibinitperiod},
+           given={Alex\bibnamedelima F.},
+           giveni={A\bibinitperiod\bibinitdelim F\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{location}{1}{%
+        {New York, NY}%
+      }
+      \list{publisher}{1}{%
+        {Routledge Books}%
+      }
+      \strng{namehash}{483f41908e7fc40bbaf954639b8eb565}
+      \strng{fullhash}{483f41908e7fc40bbaf954639b8eb565}
+      \strng{fullhashraw}{483f41908e7fc40bbaf954639b8eb565}
+      \strng{bibnamehash}{483f41908e7fc40bbaf954639b8eb565}
+      \strng{authorbibnamehash}{483f41908e7fc40bbaf954639b8eb565}
+      \strng{authornamehash}{483f41908e7fc40bbaf954639b8eb565}
+      \strng{authorfullhash}{483f41908e7fc40bbaf954639b8eb565}
+      \strng{authorfullhashraw}{483f41908e7fc40bbaf954639b8eb565}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{"The fourth edition of Housing Policy in the United States refreshes its classic, foundational coverage of the field with new data, analysis, and comparative focus. This landmark volume offers a broad overview that synthesizes a wide range of material to highlight the significant problems, concepts, programs and debates that all define the aims, challenges, and milestones within and involving housing policy. Expanded discussion in this edition centers on state and local activity to produce and preserve affordable housing, and the implications of reduced financial incentives for homeowners. Other features of this new edition include: Analysis of the impact of the Tax Cuts and Jobs Act of 2017 on housing-related tax expenditures; Review of the state of fair housing programs in the wake of the Trump Administration's rollback of several key programs and policies; Cross-examination of US housing policy and conditions in an international context. Featuring the latest available data on housing patterns and conditions, this is an excellent companion for graduate and advanced undergraduate courses in urban studies, urban planning, sociology and social policy, and housing policy"--}
+      \field{edition}{Fourth edition}
+      \field{isbn}{978-1-003-09750-1}
+      \field{title}{Housing Policy in the {{United States}}}
+      \field{year}{2021}
+      \keyw{Finance,Financial crises,Housing,Housing policy,Low-income housing,Public housing,Rental housing,United States}
+    \endentry
+    \entry{shertzerRacialSortingEmergence2019a}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=c7a36f78d6d8494eff302df5df44889b}{%
+           family={Shertzer},
+           familyi={S\bibinitperiod},
+           given={Allison},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f9e7deada3e77ca676a184caf3a35aa7}{%
+           family={Walsh},
+           familyi={W\bibinitperiod},
+           given={Randall\bibnamedelima P.},
+           giveni={R\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{306ba9ca2cebd6d4ea42eee99e307a3e}
+      \strng{fullhash}{306ba9ca2cebd6d4ea42eee99e307a3e}
+      \strng{fullhashraw}{306ba9ca2cebd6d4ea42eee99e307a3e}
+      \strng{bibnamehash}{306ba9ca2cebd6d4ea42eee99e307a3e}
+      \strng{authorbibnamehash}{306ba9ca2cebd6d4ea42eee99e307a3e}
+      \strng{authornamehash}{306ba9ca2cebd6d4ea42eee99e307a3e}
+      \strng{authorfullhash}{306ba9ca2cebd6d4ea42eee99e307a3e}
+      \strng{authorfullhashraw}{306ba9ca2cebd6d4ea42eee99e307a3e}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Residential segregation by race grew sharply during the early twentieth century as black migrants from the South arrived in northern cities. Using newly assembled neighborhood-level data, we provide the first systematic evidence on the impact of prewar population dynamics within cities on the emergence of the American ghetto. Leveraging exogenous changes in neighborhood racial composition, we show that white flight in response to black arrivals was quantitatively large and accelerated between 1900 and 1930. A key implication of our findings is that segregation could have arisen solely from the flight behavior of whites.}
+      \field{issn}{0034-6535}
+      \field{journaltitle}{The Review of Economics and Statistics}
+      \field{month}{7}
+      \field{number}{3}
+      \field{title}{Racial {{Sorting}} and the {{Emergence}} of {{Segregation}} in {{American Cities}}}
+      \field{urlday}{16}
+      \field{urlmonth}{7}
+      \field{urlyear}{2024}
+      \field{volume}{101}
+      \field{year}{2019}
+      \field{urldateera}{ce}
+      \field{pages}{415\bibrangedash 427}
+      \range{pages}{13}
+      \verb{doi}
+      \verb 10.1162/rest_a_00786
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/NL2YEV55/Shertzer and Walsh - 2019 - Racial Sorting and the Emergence of Segregation in.pdf;/Users/beaubressler/Zotero/storage/DMDNSKL5/Racial-Sorting-and-the-Emergence-of-Segregation-in.html
+      \endverb
+    \endentry
+    \entry{shesterLocalEconomicEffects2013}{article}{}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=f0631b0e5fa9b3091ff15c052a5b4567}{%
+           family={Shester},
+           familyi={S\bibinitperiod},
+           given={Katharine\bibnamedelima L.},
+           giveni={K\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Cambridge University Press}%
+      }
+      \strng{namehash}{f0631b0e5fa9b3091ff15c052a5b4567}
+      \strng{fullhash}{f0631b0e5fa9b3091ff15c052a5b4567}
+      \strng{fullhashraw}{f0631b0e5fa9b3091ff15c052a5b4567}
+      \strng{bibnamehash}{f0631b0e5fa9b3091ff15c052a5b4567}
+      \strng{authorbibnamehash}{f0631b0e5fa9b3091ff15c052a5b4567}
+      \strng{authornamehash}{f0631b0e5fa9b3091ff15c052a5b4567}
+      \strng{authorfullhash}{f0631b0e5fa9b3091ff15c052a5b4567}
+      \strng{authorfullhashraw}{f0631b0e5fa9b3091ff15c052a5b4567}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Between 1933 and 1973 the federal government funded the construction of over 1 million units of low-rent housing. Using county-level data, I find that communities with high densities of public housing had lower median family income, lower median property values, lower population density, and a higher percentage of families with low income in 1970. However, I find no negative effects of public housing in 1950 or 1960, implying that long-run negative effects only became apparent in the 1960s. The effects found in 1970 are partially due to a decline in human capital.}
+      \field{issn}{0022-0507, 1471-6372}
+      \field{journaltitle}{The Journal of Economic History}
+      \field{langid}{english}
+      \field{month}{12}
+      \field{number}{4}
+      \field{title}{The {{Local Economic Effects}} of {{Public Housing}} in the {{United States}}, 1940--1970}
+      \field{urlday}{25}
+      \field{urlmonth}{10}
+      \field{urlyear}{2023}
+      \field{volume}{73}
+      \field{year}{2013}
+      \field{urldateera}{ce}
+      \field{pages}{978\bibrangedash 1016}
+      \range{pages}{39}
+      \verb{doi}
+      \verb 10.1017/S0022050713000855
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/MT2325KM/Shester - 2013 - The Local Economic Effects of Public Housing in th.pdf
+      \endverb
+    \endentry
+    \entry{shesterConcreteMeasuresRise2019}{article}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=f0631b0e5fa9b3091ff15c052a5b4567}{%
+           family={Shester},
+           familyi={S\bibinitperiod},
+           given={Katharine\bibnamedelima L.},
+           giveni={K\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d0306600b8feba2bf5ad373d6f9ba5e8}{%
+           family={Allen},
+           familyi={A\bibinitperiod},
+           given={Samuel\bibnamedelima K.},
+           giveni={S\bibinitperiod\bibinitdelim K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=705cc8169c9e99e7ef6e50260d8e015a}{%
+           family={Handy},
+           familyi={H\bibinitperiod},
+           given={Christopher},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{b820448bc1aa25aba7295e69b036fb01}
+      \strng{fullhash}{b820448bc1aa25aba7295e69b036fb01}
+      \strng{fullhashraw}{b820448bc1aa25aba7295e69b036fb01}
+      \strng{bibnamehash}{b820448bc1aa25aba7295e69b036fb01}
+      \strng{authorbibnamehash}{b820448bc1aa25aba7295e69b036fb01}
+      \strng{authornamehash}{b820448bc1aa25aba7295e69b036fb01}
+      \strng{authorfullhash}{b820448bc1aa25aba7295e69b036fb01}
+      \strng{authorfullhashraw}{b820448bc1aa25aba7295e69b036fb01}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Between 1950 and 1970, the number of public housing units in the United States grew nearly sixfold, and the percentage of births to unmarried women almost tripled. We provide the first estimates of the effect of public housing on single motherhood, using individual-level data to assess whether young women living near higher concentrations of public housing were more likely to have children out of wedlock. We find a strong and positive relationship between public housing and single motherhood for black high school dropouts. This link is larger when we use lagged measures of public housing, which suggests that exposure during childhood may be driving the result.}
+      \field{issn}{1432-1475}
+      \field{journaltitle}{Journal of Population Economics}
+      \field{langid}{english}
+      \field{month}{4}
+      \field{number}{2}
+      \field{shorttitle}{Concrete Measures}
+      \field{title}{Concrete Measures: The Rise of Public Housing and Changes in Young Single Motherhood in the {{U}}.{{S}}.}
+      \field{urlday}{5}
+      \field{urlmonth}{12}
+      \field{urlyear}{2023}
+      \field{volume}{32}
+      \field{year}{2019}
+      \field{urldateera}{ce}
+      \field{pages}{369\bibrangedash 418}
+      \range{pages}{50}
+      \verb{doi}
+      \verb 10.1007/s00148-018-0704-1
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/5X7JM5YI/Shester et al. - 2019 - Concrete measures the rise of public housing and .pdf
+      \endverb
+      \keyw{Fertility,I38,J13,Marriage,N32,Public housing,Single motherhood}
+    \endentry
+    \entry{tachPublicHousingRedevelopment2017}{article}{}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=eff039a3e1f5dcca1d77606470201b39}{%
+           family={Tach},
+           familyi={T\bibinitperiod},
+           given={Laura},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d6e73c662cc29ff993020d0f2cd070b0}{%
+           family={Emory},
+           familyi={E\bibinitperiod},
+           given={Allison\bibnamedelima Dwyer},
+           giveni={A\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {The University of Chicago Press}%
+      }
+      \strng{namehash}{8ed3a0abb8dc467de0436c44278b2d9e}
+      \strng{fullhash}{8ed3a0abb8dc467de0436c44278b2d9e}
+      \strng{fullhashraw}{8ed3a0abb8dc467de0436c44278b2d9e}
+      \strng{bibnamehash}{8ed3a0abb8dc467de0436c44278b2d9e}
+      \strng{authorbibnamehash}{8ed3a0abb8dc467de0436c44278b2d9e}
+      \strng{authornamehash}{8ed3a0abb8dc467de0436c44278b2d9e}
+      \strng{authorfullhash}{8ed3a0abb8dc467de0436c44278b2d9e}
+      \strng{authorfullhashraw}{8ed3a0abb8dc467de0436c44278b2d9e}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Housing policy plays a central role in the reproduction of urban inequalities. This study asks whether one such policy---public housing redevelopment via the federal HOPE VI program---altered the trajectories of high-poverty, racially segregated neighborhoods and reduced urban neighborhood inequality. Using a novel spatially integrated data set that combines administrative data with census data for 168 U.S. cities, the authors find that public housing redevelopment had significant direct and indirect spillover effects on neighborhood racial and economic composition between 1990 and 2010. The change induced by public housing redevelopment was ecologically significant, altering durable racial and economic hierarchies among urban neighborhoods. Changes in poor, minority neighborhoods were driven largely by displacement, however, from a net reduction in the number of poor and nonwhite residents. The authors evaluate the significance of these results for theories of neighborhood effects, gentrification, and durable urban inequality and discuss implications for urban policy.}
+      \field{issn}{0002-9602}
+      \field{journaltitle}{American Journal of Sociology}
+      \field{month}{11}
+      \field{number}{3}
+      \field{title}{Public {{Housing Redevelopment}}, {{Neighborhood Change}}, and the {{Restructuring}} of {{Urban Inequality}}}
+      \field{urlday}{28}
+      \field{urlmonth}{1}
+      \field{urlyear}{2024}
+      \field{volume}{123}
+      \field{year}{2017}
+      \field{urldateera}{ce}
+      \field{pages}{686\bibrangedash 739}
+      \range{pages}{54}
+      \verb{doi}
+      \verb 10.1086/695468
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/MMBRQPCZ/Tach and Emory - 2017 - Public Housing Redevelopment, Neighborhood Change,.pdf
+      \endverb
+    \endentry
+    \entry{wingStackedDifferenceDifferences2024}{misc}{}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=cb8336628484c2f12ab2c53ad066d73c}{%
+           family={Wing},
+           familyi={W\bibinitperiod},
+           given={Coady},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=8f34c93bb07065bedaa1dc01a3ddd0b3}{%
+           family={Freedman},
+           familyi={F\bibinitperiod},
+           given={Seth\bibnamedelima M.},
+           giveni={S\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=2169d8b06114673737f037bc86abfb93}{%
+           family={Hollingsworth},
+           familyi={H\bibinitperiod},
+           given={Alex},
+           giveni={A\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {National Bureau of Economic Research}%
+      }
+      \strng{namehash}{bf8127b3b11f226b88862b3dc050134c}
+      \strng{fullhash}{bf8127b3b11f226b88862b3dc050134c}
+      \strng{fullhashraw}{bf8127b3b11f226b88862b3dc050134c}
+      \strng{bibnamehash}{bf8127b3b11f226b88862b3dc050134c}
+      \strng{authorbibnamehash}{bf8127b3b11f226b88862b3dc050134c}
+      \strng{authornamehash}{bf8127b3b11f226b88862b3dc050134c}
+      \strng{authorfullhash}{bf8127b3b11f226b88862b3dc050134c}
+      \strng{authorfullhashraw}{bf8127b3b11f226b88862b3dc050134c}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{This paper introduces the concept of a "trimmed aggregate ATT," which is a weighted average of a set of group-time average treatment effect on the treated (ATT) parameters identified in a staggered adoption difference-in-differences (DID) design. The set of identified group-time ATTs that contribute to the aggregate is trimmed to achieve compositional balance across an event window, ensuring that comparisons of the aggregate parameter over event time reveal dynamic treatment effects and differential pre-trends rather than compositional changes. Taking the trimmed aggregate ATT as a target parameter, we investigate the performance of stacked DID estimators. We show that the most basic stacked estimator does not identify the target aggregate or any other average causal effect because it applies different implicit weights to treatment and control trends. The bias can be eliminated using corrective sample weights. We present a weighted stacked DID estimator, and show that it correctly identifies the target aggregate, providing justification for using the estimator in applied work.}
+      \field{eprinttype}{National Bureau of Economic Research}
+      \field{month}{1}
+      \field{number}{32054}
+      \field{series}{Working {{Paper Series}}}
+      \field{title}{Stacked {{Difference-in-Differences}}}
+      \field{type}{Working {{Paper}}}
+      \field{urlday}{14}
+      \field{urlmonth}{11}
+      \field{urlyear}{2024}
+      \field{year}{2024}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.3386/w32054
+      \endverb
+      \verb{eprint}
+      \verb 32054
+      \endverb
+      \verb{file}
+      \verb /Users/beaubressler/Zotero/storage/E8B7AY7N/Wing et al. - 2024 - Stacked Difference-in-Differences.pdf
+      \endverb
+    \endentry
+  \enddatalist
+  \missing{callawayDifferenceDifferencesStaggered2021}
+  \missing{conleyGMMEstimationCross1999}
+  \missing{sunEstimatingDynamicTreatment2021}
+\endrefsection
+\endinput
+

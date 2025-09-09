@@ -341,7 +341,7 @@ table(unique_treated_tracts_balanced$treatment_year)
 table(unique_treated_tracts$treatment_year)
 
 
-# cities in balanced sample: 44
+# cities in balanced sample: 45
 cities_in_balanced_sample <- 
   balanced_sample %>% 
   filter(YEAR == 2000) %>% 
@@ -351,7 +351,7 @@ cities_in_balanced_sample <-
 
 length(cities_in_balanced_sample)
 
-# cities in original sample: 62
+# cities in original sample: 52
 cities_in_original_sample <- 
   census_tract_sample_with_treatment_status %>% 
   filter(YEAR == 2000) %>% 
@@ -413,7 +413,7 @@ nrow(treated_tracts_with_projects %>% select(GISJOIN_1950) %>% distinct())
 
 
 # CHECKING BOSTON
-  library(sf)
+library(sf)
 library(ggplot2)
 library(dplyr)
 
@@ -480,6 +480,74 @@ st_write(treated_tracts_panel_balanced, balanced_treated_tracts_panel_filepath,
 # public housing projects that are in the sample
 st_write(public_housing_in_sample, public_housing_sample_filepath,
          append = FALSE, layer = "points", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
+
+
+# Create Descriptive table of cities, number of tracts in each city lost at each step ----
+# Helper: function to summarize tracts by CBSA
+summarize_by_cbsa <- function(df, step_name) {
+  df %>%
+    filter(YEAR == 2000) %>%    # fix to one year for consistency
+    st_drop_geometry() %>%
+    group_by(cbsa_title) %>%
+    summarise(num_tracts = n(), .groups = "drop") %>%
+    mutate(step = step_name)
+}
+
+# Step 0: original sample
+summary_original <- summarize_by_cbsa(census_tract_sample_with_treatment_status, "Original")
+
+# Step 1: balanced on years
+summary_balanced_years <- summarize_by_cbsa(census_tract_sample_with_treatment_status %>% 
+                                              filter(exists_all_years == 1), 
+                                            "Balanced years")
+
+# Step 2: balanced on complete vars
+summary_balanced_vars <- summarize_by_cbsa(census_tract_sample_with_treatment_status_balanced, 
+                                           "Balanced vars")
+
+# Step 3: exclude treated 1940 or earlier
+summary_exclude_early <- summarize_by_cbsa(census_tract_sample_with_treatment_status_balanced %>%
+                                             filter(treated_1940_or_earlier == FALSE),
+                                           "Exclude early treatments")
+
+# Step 4: drop CBSAs with <30 tracts
+summary_large_cities <- summarize_by_cbsa(census_tract_sample_with_treatment_status_balanced %>%
+                                            filter(num_tracts_geq_50 == TRUE),
+                                          "Drop small CBSAs")
+
+# Step 5: drop tiny tracts (<100 pop 1940) + windsorize pops
+summary_sizepop <- summarize_by_cbsa(balanced_sample, "Final balanced")
+
+# Combine
+descriptive_table <- bind_rows(summary_original,
+                               summary_balanced_years,
+                               summary_balanced_vars,
+                               summary_exclude_early,
+                               summary_large_cities,
+                               summary_sizepop)
+
+# Reshape to wide format
+descriptive_table_wide <- descriptive_table %>%
+  pivot_wider(names_from = step, values_from = num_tracts)
+
+# Add column for tracts lost at each step
+descriptive_table_wide <- descriptive_table_wide %>%
+  arrange(cbsa_title) %>%
+  mutate(across(-cbsa_title, ~replace_na(.x, 0))) %>%
+  mutate(across(-cbsa_title, as.integer))
+
+# View table
+descriptive_table_wide
+
+
+lost_final_step <- (census_tract_sample_with_treatment_status_balanced %>%
+                      filter(num_tracts_geq_50 == TRUE)) %>%
+  st_drop_geometry() %>%
+  filter(YEAR == 2000) %>%
+  anti_join(balanced_sample %>% st_drop_geometry() %>% filter(YEAR == 2000),
+            by = "GISJOIN_1950")
+
+table(lost_final_step$cbsa_title)
 
 # # Create 1950-1990 balanced sample -----
 # # As a robustness check, I can use this dataset for site selection analysis

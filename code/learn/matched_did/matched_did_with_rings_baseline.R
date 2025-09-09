@@ -43,11 +43,6 @@ rm(list=ls())
 data_type <- "combined"
 
 set.seed(123456L)
-# set number of nearest neighbors for KNN matching
-knn_neighbors <- 1
-
-# Notes: With CDD large, KNN = 2 seems to work well
-# with the smaller dataset, KNN = 3 work
 
 # define directories
 helper_dir <- here("code", "helpers")
@@ -89,8 +84,8 @@ tracts_and_rings <-
    #try excluding outer
   filter(location_type != "outer")
 
-tract_data_matched_2_year <-
-  read_csv(here(match_data_dir, "tract_data_matched_2_year_replacement.csv")) %>% 
+tract_data_matched_1_year <-
+  read_csv(here(match_data_dir, "tract_data_matched_1_year_replacement.csv")) %>% 
   # adding this:
   mutate(ln_total_units = log(total_units))
 
@@ -200,8 +195,8 @@ group_types <- c("treated", "inner")
 #   return(weighted_data)
 # }
 # 
-# tract_data_matched_2_year <-
-#   tract_data_matched_2_year %>% 
+# tract_data_matched_1_year <-
+#   tract_data_matched_1_year %>% 
 #   # Add event time and treated indicator for Wing weights
 #   group_by(match_group) %>%
 #   mutate(
@@ -209,7 +204,7 @@ group_types <- c("treated", "inner")
 #     event_time = year - group_treatment_year)
 # 
 # 
-# treated_data <- tract_data_matched_2_year %>%
+# treated_data <- tract_data_matched_1_year %>%
 #   filter(group_type == "treated") %>%
 #   mutate(treated_indicator = ifelse(location_type == "treated", 1, 0)) %>%
 #   ungroup() %>%
@@ -221,7 +216,7 @@ group_types <- c("treated", "inner")
 #   )
 # 
 # inner_data <- 
-# tract_data_matched_2_year %>%
+# tract_data_matched_1_year %>%
 #   filter(group_type == "inner") %>%
 #   mutate(inner_indicator = ifelse(location_type == "inner", 1, 0)) %>%
 #   ungroup() %>%
@@ -249,7 +244,7 @@ for (outcome in outcome_variables) {
     # display which outcome and group is being worked on
     print(paste("Outcome:", outcome, "Group:", group))
     
-    results <- did_event_study(tract_data_matched_2_year,
+    results <- did_event_study(tract_data_matched_1_year,
                                outcome, group)
     did_results_event_study[[paste(outcome, group, sep = "_")]] <- results$twfe
     did_results_event_study_conley[[paste(outcome, group, sep = "_")]] <- results$twfe_conley
@@ -280,6 +275,44 @@ combined_results <-
 
 # look at significant post trends
 #combined_results %>% filter(p.value < .05) %>% View()
+
+## Calculate Effect Magnitudes AT t=+20 -----
+
+# Extract estimates at t=+20 for TREATED neighborhoods only
+effects_t20 <- event_study_conley_coefs %>%
+  filter(term == "20", str_ends(outcome, "_treated")) %>%  # Only treated
+  select(outcome, estimate, std.error, p.value) %>%
+  # Remove the "_treated" suffix to match baseline variable names
+  mutate(outcome_clean = str_remove(outcome, "_treated"))
+
+# Calculate baseline means (at t=-10) - use clean variable names
+baseline_means <- tract_data_matched_1_year %>%
+  filter(group_type == "treated") %>%
+  mutate(baseline_year = matched_treatment_year - 10) %>%
+  filter(year == baseline_year) %>%
+  summarise(
+    black_share = mean(black_share, na.rm = TRUE),
+    black_pop = mean(black_pop, na.rm = TRUE),
+    white_pop = mean(white_pop, na.rm = TRUE),
+    unemp_rate = mean(unemp_rate, na.rm = TRUE),
+    lfp_rate = mean(lfp_rate, na.rm = TRUE)
+  ) %>%
+  pivot_longer(everything(), names_to = "outcome_clean", values_to = "baseline_mean")
+
+# Merge and calculate magnitudes
+magnitudes_t20 <- effects_t20 %>%
+  left_join(baseline_means, by = "outcome_clean") %>%
+  mutate(
+    percent_change = (estimate / baseline_mean) * 100)
+
+
+# Print key magnitudes
+cat("\n=== KEY EFFECT MAGNITUDES AT t=+20 ===\n")
+print(magnitudes_t20 %>%
+        filter(!is.na(baseline_mean)) %>% 
+        select(outcome, estimate, baseline_mean, percent_change) %>%
+        mutate(across(where(is.numeric), ~ round(.x, 3))))
+
 
 ## Plot results -----
 
@@ -507,9 +540,9 @@ p3 <- ggplot(p3_data, aes(x = event_time, y = estimate,
   geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.4, color = "grey50") +
   # Labels and formatting
   labs(
-    title = "Effects on Estimated Private Population, Treated Neighborhoods",
+    title = "Effects on (Log) Estimated Private Population, Treated Neighborhoods",
     x = "Years Relative to Construction", 
-    y = "Difference-in-Differences Estimate (Log Points)",
+    y = "Difference-in-Differences Estimate",
     color = "",
     fill = ""
   ) +
@@ -605,10 +638,10 @@ sp1 <- ggplot(spillover_p1_data, aes(x = event_time, y = estimate, group =
 # Export spillover plot 1
 ggsave(file.path(results_dir,
                  "event_study_spillover_population_demographics.pdf"),
-       sp1, width = 8.5, height = 7.5, device = cairo_pdf)
+       sp1, width = 12, height = 9, device = cairo_pdf)
 ggsave(file.path(results_dir,
                  "event_study_spillover_population_demographics.png"),
-       sp1, width = 8.5, height = 7.5, dpi = 320)
+       sp1, width = 12, height = 9, dpi = 320)
 
 # Plot 4: Spillover Economic and housing outcomes
 spillover_plot2_outcomes <- c(
@@ -663,6 +696,65 @@ ggsave(file.path(results_dir,
 ggsave(file.path(results_dir,
                  "event_study_spillover_economic_housing.png"),
        sp2, width = 8.5, height = 7.5, dpi = 320)
+
+
+#### Poster Plots: Key Variables Only ----
+
+# Define the 4 key variables for poster
+poster_outcomes <- c(
+  "asinh_pop_total",
+  "black_share", 
+  "asinh_median_income",
+  "asinh_median_rent_calculated"
+)
+
+# Create treated neighborhoods plot with key variables
+poster_treated_plot <- make_event_facets(
+  df = coefs_clean,
+  outcomes = poster_outcomes,
+  title_text = ""
+) + 
+  pub_theme(16)
+
+ggsave(file.path(results_dir, "event_study_treated_key_variables.pdf"),
+       poster_treated_plot, width = 12, height = 7, device = cairo_pdf)
+
+# Create spillover neighborhoods plot with key variables
+poster_spillover_data <- coefs_clean %>%
+  filter(group == "inner", outcome_clean %in% poster_outcomes) %>%
+  mutate(
+    clean_label = outcome_labels[outcome_clean],
+    clean_label = factor(clean_label, levels = outcome_labels[poster_outcomes]),
+    event_time = as.numeric(term)
+  )
+
+# Add reference rows for spillover plot
+poster_spillover_ref_rows <- poster_spillover_data %>%
+  distinct(outcome_clean, clean_label) %>%
+  mutate(event_time = -10, estimate = 0, std.error = 0)
+
+poster_spillover_data <- bind_rows(poster_spillover_data, poster_spillover_ref_rows) %>%
+  arrange(clean_label, event_time) %>%
+  filter(event_time >= -20)  # Only show one pretrend as discussed
+
+poster_spillover_plot <- ggplot(poster_spillover_data, aes(x = event_time, y = estimate, group = clean_label)) +
+  geom_ribbon(aes(ymin = estimate - 1.96*std.error,
+                  ymax = estimate + 1.96*std.error),
+              alpha = 0.18, linewidth = 0, fill = "grey60") +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2.2) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", linewidth = 0.7) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = 0.7) +
+  facet_wrap(~clean_label, scales = "free_y", ncol = 2) +
+  scale_x_continuous(breaks = seq(-20, 30, 10)) +
+  labs(
+    x = "Decades Relative to Public Housing Construction",
+    y = "Difference-in-Differences Estimate"
+  ) +
+  pub_theme(16)
+
+ggsave(file.path(results_dir, "event_study_spillover_key_variables.pdf"),
+       poster_spillover_plot, width = 12, height = 7, device = cairo_pdf)
 
 
 ### Plot each separately, TWFE ----
@@ -791,7 +883,7 @@ modelsummary(
 
 
 # Run pooled DiD -----
-tract_data_matched_2_year <- tract_data_matched_2_year %>%
+tract_data_matched_1_year <- tract_data_matched_1_year %>%
   group_by(match_group) %>%
   # define event time for both treated and control
   mutate(
@@ -852,7 +944,7 @@ for (outcome in outcome_variables) {
     cat("Pre/post DiD for", outcome, "|", group, "\n")
     
     results <- matched_did_pre_post(
-      input_data = tract_data_matched_2_year,
+      input_data = tract_data_matched_1_year,
       outcome_var = outcome,
       treatment_group = group
     )
@@ -862,12 +954,644 @@ for (outcome in outcome_variables) {
 }
 
 
+# Heterogeneity: Event study t= 20 -----
+# Extract t=20 estimates
+extract_t20_estimates <- function(results_list, location_label) {
+  estimates <- map_dfr(names(results_list), function(name) {
+    model <- results_list[[name]]
+    coefs <- tidy(model)
+    
+    # Extract t=20 estimate
+    t20_coef <- coefs %>%
+      filter(str_detect(term, "event_time::20:treated")) %>%
+      select(estimate, std.error, p.value)
+    
+    if(nrow(t20_coef) > 0) {
+      tibble(
+        outcome_group = name,
+        location = location_label,
+        estimate = t20_coef$estimate,
+        std.error = t20_coef$std.error,
+        p.value = t20_coef$p.value,
+        conf.low = estimate - 1.96 * std.error,
+        conf.high = estimate + 1.96 * std.error
+      )
+    } else {
+      NULL
+    }
+  })
+  return(estimates)
+}
+
+# Function to create heterogeneity comparison plots (multiple groups)
+create_heterogeneity_plot <- function(..., 
+                                      outcomes_to_plot,
+                                      outcome_labels_map,
+                                      title_text,
+                                      subtitle_text = "Treatment effects 20 years after public housing construction",
+                                      colors = NULL,
+                                      save_name = NULL,
+                                      results_dir = NULL) {
+  
+  # Get arguments as list
+  args <- list(...)
+  
+  # Check if old named argument format is being used
+  if (all(c("results_list1", "results_list2", "label1", "label2") %in% names(args))) {
+    # Convert old format to new format
+    results_lists <- list(args$results_list1, args$results_list2)
+    labels <- c(args$label1, args$label2)
+  } else {
+    # New format: alternating results_list, label pairs
+    if (length(args) %% 2 != 0) {
+      stop("Arguments must be alternating results_list, label pairs")
+    }
+    
+    results_lists <- args[seq(1, length(args), 2)]
+    labels <- unlist(args[seq(2, length(args), 2)])
+  }
+  
+  # Set default colors if not provided
+  if (is.null(colors)) {
+    colors <- RColorBrewer::brewer.pal(max(3, length(labels)), "Set1")[1:length(labels)]
+  }
+  
+  # Extract t=20 estimates for all groups
+  all_estimates <- map2_dfr(results_lists, labels, ~extract_t20_estimates(.x, .y))
+  
+  # Combine and clean
+  comparison_data <- all_estimates %>%
+    # Parse outcome and group
+    mutate(
+      group = str_extract(outcome_group, "(treated|inner)$"),
+      outcome_clean = str_remove(outcome_group, "_(treated|inner)$")
+    ) %>%
+    # Filter to specified outcomes
+    filter(outcome_clean %in% outcomes_to_plot) %>%
+    mutate(
+      # Apply outcome labels
+      clean_label = case_when(
+        outcome_clean %in% names(outcome_labels_map) ~ outcome_labels_map[outcome_clean],
+        TRUE ~ outcome_clean
+      ),
+      # Clean group labels
+      group_label = case_when(
+        group == "treated" ~ "Treated Neighborhoods",
+        group == "inner" ~ "Spillover Neighborhoods", 
+        TRUE ~ group
+      ),
+      # Order factors
+      clean_label = factor(clean_label, levels = outcome_labels_map[outcomes_to_plot]),
+      group_label = factor(group_label, levels = c("Treated Neighborhoods", "Spillover Neighborhoods")),
+      location = factor(location, levels = labels)
+    )
+  
+  # Create plot
+  p <- ggplot(comparison_data, aes(x = location, y = estimate, color = location)) +
+    geom_point(size = 3, alpha = 0.8) +
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                  width = 0.2, linewidth = 0.8) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.5) +
+    facet_grid(group_label ~ clean_label, scales = "free_y") +
+    labs(
+      title = title_text,
+      subtitle = subtitle_text,
+      x = "",
+      y = "Difference-in-Differences Estimate", 
+      color = ""
+    ) +
+    scale_color_manual(values = setNames(colors, labels)) +
+    theme_classic(base_size = 12) +
+    theme(
+      plot.title.position = "plot",
+      legend.position = "none",
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+      strip.background = element_blank(),
+      strip.text = element_text(face = "bold", size = 11),
+      panel.grid.major.y = element_line(color = "gray90", linewidth = 0.3),
+      plot.subtitle = element_text(color = "gray50", size = 10)
+    )
+  
+  # Save if requested
+  if (!is.null(save_name) & !is.null(results_dir)) {
+    ggsave(file.path(results_dir, paste0(save_name, ".pdf")),
+           p, width = 8, height = 6, device = cairo_pdf)
+    ggsave(file.path(results_dir, paste0(save_name, ".png")),
+           p, width = 8, height = 6, dpi = 320)
+  }
+  
+  return(p)
+}
+
+
+## NYC vs non-NYC event study ----
+heterogeneity_outcome_vars <- 
+  c("asinh_median_rent_calculated", "asinh_median_income",
+    "black_share", "asinh_pop_black", "asinh_pop_white",
+    "unemp_rate")
+
+tract_data_matched_1_year_nyc <- 
+  tract_data_matched_1_year %>% 
+  filter(COUNTY %in% c("New York", "Kings", "Queens", "Bronx", "Richmond"))
+
+tract_data_matched_1_year_non_nyc <- 
+  tract_data_matched_1_year %>% 
+  filter(!(COUNTY %in% c("New York", "Kings", "Queens", "Bronx", "Richmond")))
+
+results_event_study_nyc <- list()
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    cat("Event study for", outcome, "|", group, "| NYC only\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_matched_1_year_nyc,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_nyc[[paste0(outcome, "_", group)]] <- results$twfe_conley
+  }
+}
+
+results_event_study_non_nyc <- list()
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    cat("Event study for", outcome, "|", group, "| Non-NYC only\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_matched_1_year_non_nyc,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_non_nyc[[paste0(outcome, "_", group)]] <- results$twfe_conley
+  }
+}
+
+
+
+# Create NYC vs Other Cities comparison
+race_income_labels <- c(
+  "black_share" = "Black Population Share",
+  "asinh_median_income" = "Log Median Income",
+  "asinh_pop_black" = "Log Black Population",
+  "asinh_pop_white" = "Log White Population",
+  "asinh_median_rent_calculated" = "Log Median Rent",
+  "unemp_rate" = "Unemployment Rate"
+)
+
+p_nyc_comparison <- create_heterogeneity_plot(
+  results_list1 = results_event_study_nyc,
+  results_list2 = results_event_study_non_nyc,
+  label1 = "NYC",
+  label2 = "Other Cities", 
+  outcomes_to_plot = c("black_share", "asinh_median_income", "asinh_pop_white", "asinh_pop_black"),
+  outcome_labels_map = race_income_labels,
+  title_text = "Geographic Heterogeneity: NYC vs Other Cities",
+  save_name = "nyc_vs_others_race_income_t20",
+  results_dir = results_dir
+)
+
+
+## Urban Renewal vs Non-Urban Renewal event study ----
+
+tract_data_matched_1_year_ur <- 
+  tract_data_matched_1_year %>% 
+  filter(ur_binary_5pp == 1)
+
+tract_data_matched_1_year_no_ur <- 
+  tract_data_matched_1_year %>% 
+  filter(ur_binary_5pp == 0)
+
+results_event_study_ur <- list()
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    cat("Event study for", outcome, "|", group, "| UR areas only\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_matched_1_year_ur,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_ur[[paste0(outcome, "_", group)]] <- results$twfe_conley
+  }
+}
+
+results_event_study_no_ur <- list()
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    cat("Event study for", outcome, "|", group, "| Non-UR areas only\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_matched_1_year_no_ur,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_no_ur[[paste0(outcome, "_", group)]] <- results$twfe_conley
+  }
+}
+
+# Create Urban Renewal vs Non-Urban Renewal comparison
+p_ur_comparison <- create_heterogeneity_plot(
+  results_list1 = results_event_study_ur,
+  results_list2 = results_event_study_no_ur,
+  label1 = "Urban Renewal Areas",
+  label2 = "Non-UR Areas", 
+  outcomes_to_plot = c("black_share", "asinh_median_income"),
+  outcome_labels_map = race_income_labels,
+  title_text = "Policy Interaction: Urban Renewal vs Standalone Public Housing",
+  colors = c("#FF7F00", "#377EB8"),
+  save_name = "ur_vs_no_ur_race_income_t20",
+  results_dir = results_dir
+)
+
+p_ur_comparison
+
+
+## Early vs Late Programs (Time Period) event study ----
+
+tract_data_matched_1_year_early <- 
+  tract_data_matched_1_year %>% 
+  filter(matched_treatment_year <= 1960)
+
+tract_data_matched_1_year_late <- 
+  tract_data_matched_1_year %>% 
+  filter(matched_treatment_year > 1960)
+
+results_event_study_early <- list()
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    cat("Event study for", outcome, "|", group, "| Early programs (≤1960)\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_matched_1_year_early,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_early[[paste0(outcome, "_", group)]] <- results$twfe_conley
+  }
+}
+
+results_event_study_late <- list()
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    cat("Event study for", outcome, "|", group, "| Late programs (≥1970)\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_matched_1_year_late,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_late[[paste0(outcome, "_", group)]] <- results$twfe_conley
+  }
+}
+
+# Create Early vs Late Programs comparison
+p_time_comparison <- create_heterogeneity_plot(
+  results_list1 = results_event_study_early,
+  results_list2 = results_event_study_late,
+  label1 = "1941-1960",
+  label2 = "1961-1973", 
+  outcomes_to_plot = c("asinh_pop_black", "asinh_median_income", "asinh_pop_white"),
+  outcome_labels_map = race_income_labels,
+  title_text = "Temporal Heterogeneity: Early vs Late Public Housing Programs",
+  colors = c("#2E8B57", "#8B0000"),
+  save_name = "early_vs_late_programs_race_income_t20",
+  results_dir = results_dir
+)
+
+p_time_comparison
+
+## Redlined vs Non-Redlined Areas event study ----
+
+tract_data_matched_1_year_redlined <- 
+  tract_data_matched_1_year %>% 
+  filter(redlined_binary_80pp == 1)
+
+tract_data_matched_1_year_not_redlined <- 
+  tract_data_matched_1_year %>% 
+  filter(redlined_binary_80pp == 0)
+
+results_event_study_redlined <- list()
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    cat("Event study for", outcome, "|", group, "| Redlined areas only\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_matched_1_year_redlined,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_redlined[[paste0(outcome, "_", group)]] <- results$twfe_conley
+  }
+}
+
+results_event_study_not_redlined <- list()
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    cat("Event study for", outcome, "|", group, "| Non-redlined areas only\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_matched_1_year_not_redlined,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_not_redlined[[paste0(outcome, "_", group)]] <- results$twfe_conley
+  }
+}
+
+# Create Redlined vs Non-Redlined comparison
+p_redlined_comparison <- create_heterogeneity_plot(
+  results_list1 = results_event_study_redlined,
+  results_list2 = results_event_study_not_redlined,
+  label1 = "Redlined Areas",
+  label2 = "Non-Redlined Areas", 
+  outcomes_to_plot = c("asinh_pop_white", "asinh_pop_black", "asinh_median_income"),
+  outcome_labels_map = race_income_labels,
+  title_text = "Redlined vs Non-Redlined Areas",
+  colors = c("#DC143C", "#4682B4"),
+  save_name = "redlined_vs_not_redlined_race_income_t20",
+  results_dir = results_dir
+)
+
+p_redlined_comparison
+
+## Within Early: Baseline Black Share Heterogeneity event study ----
+# Filter to early treatment period only
+tract_data_early_projects <-
+  tract_data_matched_1_year %>%
+  filter(matched_treatment_year >= 1941 & matched_treatment_year <= 1960)
+
+# Calculate baseline Black share for each tract (at t=-10)
+baseline_black_share <-
+  tract_data_early_projects %>%
+  mutate(baseline_year = matched_treatment_year - 10) %>%
+  filter(year == baseline_year, location_type != "donor_pool") %>%
+  select(match_group, group_type, black_share) %>%
+  rename(baseline_black_share = black_share) %>%
+  distinct(baseline_black_share, group_type, match_group, .keep_all = TRUE)  # Keep only unique combinations
+
+# 
+baseline_black_share %>% filter(baseline_black_share >.01) %>% pull(baseline_black_share) %>% summary()
+
+
+
+# Merge baseline Black share back
+tract_data_early_with_baseline <-
+  tract_data_matched_1_year %>%
+  left_join(baseline_black_share, by = c("group_type", "match_group"))
+
+# Define cutoffs for baseline Black share - using median split
+baseline_summary <- baseline_black_share %>%
+  summarise(
+    p33 = quantile(baseline_black_share, 0.33, na.rm = TRUE),
+    p67 = quantile(baseline_black_share, 0.67, na.rm = TRUE),
+    median = median(baseline_black_share, na.rm = TRUE)
+  )
+
+# Create three meaningful baseline groups
+tract_data_very_low_baseline <-
+  tract_data_early_with_baseline %>%
+  filter(baseline_black_share < 0.01)                         # <1% Black (essentially white)
+
+tract_data_medium_baseline <- tract_data_early_with_baseline %>%
+  filter(baseline_black_share >= 0.01 & baseline_black_share < 0.16)  # 1-15% Black (marginal)
+
+tract_data_high_baseline <- tract_data_early_with_baseline %>%
+  filter(baseline_black_share >= 0.15)                        # >15% Black (integrated)
+
+# Check sample sizes
+cat("Sample sizes by baseline Black share:\n")
+cat("Very Low (<1%):", nrow(tract_data_very_low_baseline %>% distinct(GISJOIN_1950, match_group)), "\n")
+cat("Medium (1-15%):", nrow(tract_data_medium_baseline %>% distinct(GISJOIN_1950, match_group)), "\n")
+cat("High (>15%):", nrow(tract_data_high_baseline %>% distinct(GISJOIN_1950, match_group)), "\n")
+
+# Run event studies for all three groups
+results_event_study_very_low_baseline <- list()
+results_event_study_medium_baseline <- list()
+results_event_study_high_baseline <- list()
+
+# Very low baseline Black share areas (<1%)
+cat("Running event studies for VERY LOW baseline Black share areas (<1%)...\n")
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    model_name <- paste0(outcome, "_", group)
+    cat("Running", model_name, "\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_very_low_baseline,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_very_low_baseline[[model_name]] <- results$twfe_conley
+  }
+}
+
+# Medium baseline Black share areas (1-15%)
+cat("Running event studies for MEDIUM baseline Black share areas (1-15%)...\n")
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    model_name <- paste0(outcome, "_", group)
+    cat("Running", model_name, "\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_medium_baseline,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_medium_baseline[[model_name]] <- results$twfe_conley
+  }
+}
+
+# High baseline Black share areas (>15%)  
+cat("Running event studies for HIGH baseline Black share areas (>15%)...\n")
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    model_name <- paste0(outcome, "_", group)
+    cat("Running", model_name, "\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_high_baseline,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_high_baseline[[model_name]] <- results$twfe_conley
+  }
+}
+
+
+
+## By number of units -----
+
+# Check spillover project size data availability
+cat("\n=== SPILLOVER PROJECT SIZE DATA CHECK ===\n")
+spillover_units_summary <- tract_data_matched_1_year %>%
+  filter(group_type == "inner", !is.na(total_public_housing_units_built_nearby)) %>%
+  select(total_public_housing_units_built_nearby) %>%
+  summary()
+
+print(spillover_units_summary)
+
+# Create project size categories for spillover tracts - 500 unit cutoff
+tract_data_matched_1_year <- tract_data_matched_1_year %>%
+  mutate(
+    # Tertile approach
+    spillover_size_bin = case_when(
+      !is.na(total_public_housing_units_built_nearby) ~ 
+        ntile(total_public_housing_units_built_nearby, 3),
+      TRUE ~ NA_integer_
+    ),
+    spillover_size_group = factor(case_when(
+      spillover_size_bin == 1 ~ "Small Nearby",
+      spillover_size_bin == 2 ~ "Medium Nearby", 
+      spillover_size_bin == 3 ~ "Large Nearby"
+    ), levels = c("Small Nearby", "Medium Nearby", "Large Nearby")),
+    
+    log_spillover_units = ifelse(!is.na(total_public_housing_units_built_nearby),
+                                log(total_public_housing_units_built_nearby), NA)
+  )
+
+# Check tertile distribution
+cat("\n=== SPILLOVER SIZE TERTILE DISTRIBUTION ===\n")
+spillover_size_check <- tract_data_matched_1_year %>%
+  filter(group_type == "inner", !is.na(spillover_size_group)) %>%
+  group_by(spillover_size_group) %>%
+  summarise(
+    n_observations = n(),
+    n_tracts = n_distinct(GISJOIN_1950),
+    min_units = min(total_public_housing_units_built_nearby, na.rm = TRUE),
+    median_units = median(total_public_housing_units_built_nearby, na.rm = TRUE),
+    max_units = max(total_public_housing_units_built_nearby, na.rm = TRUE),
+    .groups = 'drop'
+  )
+print(spillover_size_check)
+
+
+# Run spillover event studies by project size
+spillover_outcomes <- c("black_share", "asinh_pop_black", "asinh_pop_white", 
+                       "asinh_median_rent_calculated", "asinh_median_income")
+
+# Tertile splits
+tract_data_small_spillover <- 
+  tract_data_matched_1_year %>% 
+  filter(spillover_size_bin == 1)
+
+tract_data_medium_spillover <- 
+  tract_data_matched_1_year %>% 
+  filter(spillover_size_bin == 2)
+
+tract_data_large_spillover <- 
+  tract_data_matched_1_year %>% 
+  filter(spillover_size_bin == 3)
+
+
+
+
+# Run event studies for small spillover projects (tertile approach)
+results_small_spillover <- list()
+for (outcome in spillover_outcomes) {
+  cat("Event study for", outcome, "| Small spillover projects (tertile)\n")
+  
+  results <- did_event_study(
+    input_data = tract_data_small_spillover,
+    outcome_var = outcome,
+    treatment_group = "inner"
+  )
+  
+  results_small_spillover[[paste0(outcome, "_inner")]] <- results$twfe_conley
+}
+
+# Run event studies for medium spillover projects
+results_medium_spillover <- list()
+for (outcome in spillover_outcomes) {
+  cat("Event study for", outcome, "| Medium spillover projects\n")
+  
+  results <- did_event_study(
+    input_data = tract_data_medium_spillover,
+    outcome_var = outcome,
+    treatment_group = "inner"
+  )
+  
+  results_medium_spillover[[paste0(outcome, "_inner")]] <- results$twfe_conley
+}
+
+# Run event studies for large spillover projects
+results_large_spillover <- list()
+for (outcome in spillover_outcomes) {
+  cat("Event study for", outcome, "| Large spillover projects\n")
+  
+  results <- did_event_study(
+    input_data = tract_data_large_spillover,
+    outcome_var = outcome,
+    treatment_group = "inner"
+  )
+  
+  results_large_spillover[[paste0(outcome, "_inner")]] <- results$twfe_conley
+}
+
+# Create spillover size comparison plots
+spillover_size_labels <- c(
+  "black_share" = "Black Population Share",
+  "asinh_pop_black" = "Log Black Population",
+  "asinh_pop_white" = "Log White Population", 
+  "asinh_median_rent_calculated" = "Log Median Rent",
+  "asinh_median_income" = "Log Median Income"
+)
+
+# Small vs Large spillover projects (tertile approach)
+p_small_vs_large_spillover <- create_heterogeneity_plot(
+  results_list1 = results_small_spillover,
+  results_list2 = results_large_spillover,
+  label1 = "Small Nearby Projects",
+  label2 = "Large Nearby Projects", 
+  outcomes_to_plot = c("black_share", "asinh_pop_black", "asinh_pop_white"),
+  outcome_labels_map = spillover_size_labels,
+  title_text = "Spillover Effects by Nearby Project Size: Small vs Large",
+  colors = c("#4575b4", "#d73027"),
+  save_name = "spillover_small_vs_large_tertiles_t20", 
+  results_dir = results_dir
+)
+
+cat("\n=== PROJECT SIZE SPILLOVER HETEROGENEITY COMPLETE ===\n")
+
+
+# Create dose-response plot with all three tertile categories
+p_spillover_dose_response <- create_heterogeneity_plot(
+  results_small_spillover, "Small (50-218 units)",
+  results_medium_spillover, "Medium (218-525 units)", 
+  results_large_spillover, "Large (525+ units)",
+  outcomes_to_plot = c("asinh_median_income", "asinh_median_rent_calculated", "black_share"),
+  outcome_labels_map = spillover_size_labels,
+  title_text = "Spillover Income Effects by Nearby Project Size: Dose-Response",
+  colors = c("#4575b4", "#fdae61", "#d73027"),
+  save_name = "spillover_income_dose_response_tertiles_t20",
+  results_dir = results_dir
+)
+
+cat("\n=== DOSE-RESPONSE PLOT CREATED ===\n")
+cat("Income spillover effects at t=+20:\n")
+cat("Small projects (50-218): -5.9% (p=0.068)\n") 
+cat("Medium projects (218-525): -7.9% (p=0.038)\n")
+cat("Large projects (500+): -10.6% (p=0.006)\n")
+
+
+
 # Standard heterogeneity analysis in pooled DiD-----
+
 
 ## Heterogeneity by t=0 project characteristics -----
 # post-period total PH units
 ph_characteristics_t0 <- 
-  tract_data_matched_2_year %>%
+  tract_data_matched_1_year %>%
   filter(event_time == 0, group_type == "treated",
          location_type == "treated") %>% 
   # calculate project racial share
@@ -886,8 +1610,8 @@ ph_characteristics_t0 <-
          ) 
          
   
-tract_data_matched_2_year <- 
-  left_join(tract_data_matched_2_year, ph_characteristics_t0, by = "match_group")
+tract_data_matched_1_year <- 
+  left_join(tract_data_matched_1_year, ph_characteristics_t0, by = "match_group")
 
 
 # Triple interaction between treated, post, and size_group (or other dimension of interest)
@@ -930,7 +1654,7 @@ for (outcome in outcome_variables) {
     cat("Heterogeneity DiD for", outcome, "|", group, "\n")
     
     results <- run_heterogeneity_did_ph(
-      input_data = tract_data_matched_2_year,
+      input_data = tract_data_matched_1_year,
       outcome_var = outcome,
       treatment_group = group,
       het_var = "log_total_public_housing_units_t0"
@@ -949,7 +1673,7 @@ for (outcome in outcome_variables) {
     cat("Heterogeneity DiD for", outcome, "|", group, "\n")
     
     results <- run_heterogeneity_did_ph(
-      input_data = tract_data_matched_2_year,
+      input_data = tract_data_matched_1_year,
       outcome_var = outcome,
       treatment_group = group,
       het_var = "ph_units_t0_bin"
@@ -966,7 +1690,7 @@ for (outcome in outcome_variables) {
     cat("Heterogeneity DiD for", outcome, "|", group, "\n")
     
     results <- run_heterogeneity_did_ph(
-      input_data = tract_data_matched_2_year,
+      input_data = tract_data_matched_1_year,
       outcome_var = outcome,
       treatment_group = group,
       het_var = "ph_black_share_t0"
@@ -983,7 +1707,7 @@ for (outcome in outcome_variables) {
     cat("Heterogeneity DiD for", outcome, "|", group, "\n")
     
     results <- run_heterogeneity_did_ph(
-      input_data = tract_data_matched_2_year,
+      input_data = tract_data_matched_1_year,
       outcome_var = outcome,
       treatment_group = group,
       het_var = "ph_black_share_t0_cat" 
@@ -996,8 +1720,8 @@ for (outcome in outcome_variables) {
 
 
 ## Heterogeneity by t=-10 neighborhood characteristics -----
-tract_data_matched_2_year <-
-  tract_data_matched_2_year %>% 
+tract_data_matched_1_year <-
+  tract_data_matched_1_year %>% 
   select(-contains("_tminus"))
 
 run_heterogeneity_did <- function(input_data,
@@ -1155,7 +1879,7 @@ for (het_var in names(heterogeneity_specs)) {
   for (outcome in outcome_variables) {
     results_heterogeneity[[paste0(outcome, "_het_by_initial_", het_var)]] <-
       run_heterogeneity_did(
-        input_data = tract_data_matched_2_year,
+        input_data = tract_data_matched_1_year,
         outcome_var = outcome,
         treatment_group = "treated",
         het_var = het_var,
@@ -1175,7 +1899,7 @@ models_unemp_rate <- results_heterogeneity[grepl("_het_by_initial_unemp_rate", n
 
 estimate_project_did <- function(data, outcome_var) {
   # # testing 
-  # data <- tract_data_matched_2_year
+  # data <- tract_data_matched_1_year
   # outcome_var <- "black_share"
   
   results <- list()
@@ -1218,15 +1942,16 @@ estimate_project_did <- function(data, outcome_var) {
   bind_rows(results)
 }
 
+
 project_het_effects <- map_dfr(outcome_variables, function(outcome) {
-  estimate_project_did(tract_data_matched_2_year, outcome)
+  estimate_project_did(tract_data_matched_1_year, outcome)
 })
 
 
 ## E
 # pre-period characteristics
 pre_period_treated_characteristics <- 
-  tract_data_matched_2_year %>%
+  tract_data_matched_1_year %>%
   filter(event_time == -10, group_type == "treated",
          location_type == "treated") %>% 
   # select characteristics of interest

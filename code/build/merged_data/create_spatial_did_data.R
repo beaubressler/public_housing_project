@@ -446,10 +446,19 @@ baseline_black_share <-
   rename(black_share_baseline = black_share) %>% 
   distinct()
 
+# # calculate initial total public housing units (at event_time == 0)
+# initial_ph_units <-
+#   event_study_data_rings %>%
+#   filter(event_time == "0", location_type == "treated") %>% 
+#   dplyr::select(treated_id, total_public_housing_units) %>% 
+#   rename(total_public_housing_units_t0 = total_public_housing_units) %>% 
+#   distinct()
+
+
 # Merge on by treated project
 event_study_data_rings <-
   event_study_data_rings %>%
-  left_join(baseline_black_share, by = c("treated_id", "GISJOIN_1950"))
+  left_join(baseline_black_share, by = c("treated_id", "GISJOIN_1950")) 
 
 # Define distance thresholds (in meters, same units as distance_from_project)
 

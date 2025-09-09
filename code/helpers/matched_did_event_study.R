@@ -41,7 +41,7 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
       treated = ifelse(location_type == treatment_group, 1, 0)) %>% 
     ungroup() %>% 
     # exclude extreme event times
-    filter(event_time > -30, event_time <= 30)
+    filter(event_time >= -20, event_time <= 30)
   
   
   # calculate pre-period mean of variable

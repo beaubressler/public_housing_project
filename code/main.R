@@ -3,6 +3,9 @@
 ####
 library(here)
 
+# Source tract configuration system
+source(here("code", "config", "tract_config.R"))
+
 # Define directories
 build_dir <- here("code", "build")
 census_tract_build_dir <- here(build_dir, "census_tract")

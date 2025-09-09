@@ -303,20 +303,20 @@ merged_cdd_project_data <-
 
 # 3. Reconcile merges ------
 
-# Prioritize HUD951 over PSH 2000 over PSH 1997 over NGDA for location
-# Prioritize PSH 2000 over HUD951 over PSH 1997  over NGDA for name
+# Prioritize PSH2000 over HUD951 over PSH1997 over NGDA for location (based on ground truth accuracy testing)
+# Prioritize PSH2000 over HUD951 over PSH1997 over NGDA for name
 merged_cdd_project_data <-
   merged_cdd_project_data %>% 
   mutate(name = coalesce(name_psh2000, name_hud951, name_psh1997, name_ngda),
-         latitude = coalesce(latitude_hud951, latitude_psh2000, latitude_psh1997, latitude_ngda),
-         longitude = coalesce(longitude_hud951, longitude_psh2000, longitude_psh1997, longitude_ngda))
+         latitude = coalesce(latitude_psh2000, latitude_hud951, latitude_psh1997, latitude_ngda),
+         longitude = coalesce(longitude_psh2000, longitude_hud951, longitude_psh1997, longitude_ngda))
 
-# assign source of location
+# assign source of location (updated to match new priority order)
 merged_cdd_project_data <-
   merged_cdd_project_data %>% 
   mutate(source = case_when(
-    !is.na(latitude_hud951) ~ "hud951",
     !is.na(latitude_psh2000) ~ "psh2000",
+    !is.na(latitude_hud951) ~ "hud951",
     !is.na(latitude_psh1997) ~ "psh1997",
     !is.na(latitude_ngda) ~ "ngda",
     TRUE ~ "unknown"
@@ -326,32 +326,6 @@ merged_cdd_project_data <-
 # merged_cdd_project_data %>% 
 #   filter(is.na(latitude)) %>% 
 #   View()
-
-# What share of projects do I have latitude for: 80.7% as of 2024-11-23
-nrow(merged_cdd_project_data %>% filter(!is.na(latitude) | !is.na(longitude))) /
-  nrow(merged_cdd_project_data)
-
-# what share of units do I have latitude for: 91%! as of 2024-11-23
-merged_cdd_project_data %>% 
-  filter(!is.na(latitude) | !is.na(longitude), !is.na(totunits)) %>% 
-  summarise(total_units = sum(totunits)) %>% 
-  pull(total_units)/
-  sum(merged_cdd_project_data$totunits, na.rm = TRUE)
-
-# What about among the top 50 localities? 91.6% as well... pretty good
-merged_cdd_project_data %>% 
-  group_by(locality, state) %>% 
-  # total units and total units without missing latitude
-  summarise(total_units = sum(totunitsplanned),
-         total_units_no_missing_lat = sum(totunitsplanned[!is.na(latitude)])) %>%
-  ungroup() %>% 
-  # select top 50
-  top_n(50, total_units)  %>% 
-  # calculate share of units with latitude
-  summarise(total_units = sum(total_units),
-         total_units_no_missing_lat = sum(total_units_no_missing_lat)) %>% 
-  mutate(share = total_units_no_missing_lat/total_units) %>% 
-  pull(share)
 
 # manual fixes to project locations-----
 merged_cdd_project_data <-
@@ -392,6 +366,33 @@ merged_cdd_project_data <-
        longitude = ifelse(project_code == "PA-2-8", -75.19505,
                           ifelse(project_code == "PA-2-7", -75.19505, longitude)))
   
+
+# What share of projects do I have latitude for: 80.8% as of 2024-11-23
+nrow(merged_cdd_project_data %>% filter(!is.na(latitude) | !is.na(longitude))) /
+  nrow(merged_cdd_project_data)
+
+# what share of units do I have latitude for: 91%! as of 2024-11-23
+merged_cdd_project_data %>% 
+  filter(!is.na(latitude) | !is.na(longitude), !is.na(totunits)) %>% 
+  summarise(total_units = sum(totunits)) %>% 
+  pull(total_units)/
+  sum(merged_cdd_project_data$totunits, na.rm = TRUE)
+
+# What about among the top 50 localities? 91.9% as well... pretty good
+merged_cdd_project_data %>% 
+  group_by(locality, state) %>% 
+  # total units and total units without missing latitude
+  summarise(total_units = sum(totunitsplanned),
+            total_units_no_missing_lat = sum(totunitsplanned[!is.na(latitude)])) %>%
+  ungroup() %>% 
+  # select top 50
+  top_n(50, total_units)  %>% 
+  # calculate share of units with latitude
+  summarise(total_units = sum(total_units),
+            total_units_no_missing_lat = sum(total_units_no_missing_lat)) %>% 
+  mutate(share = total_units_no_missing_lat/total_units) %>% 
+  pull(share)
+
 
 # Collapse dataset by project code ----
 
@@ -490,3 +491,4 @@ write_csv(collapsed_data_with_populations, here(output_data_dir, "merged_cdd_pro
 
 # also output the non collapsed version, with missing latitudes, for analysis
 write_csv(merged_cdd_project_data, here(output_data_dir, "merged_cdd_projects_non_collapsed.csv"))
+

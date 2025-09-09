@@ -292,7 +292,7 @@ racial_comp_table <- modelsummary(
   racial_composition_models,
   stars = TRUE,
   fmt = 3,
-  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors",
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
   coef_rename = c(
     "baseline_black_share" = "Black Share",
     "baseline_log_income" = "Log Median Income",
