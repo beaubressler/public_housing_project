@@ -4,7 +4,7 @@
 library(here)
 
 # Source tract configuration system
-source(here("code", "config", "tract_config.R"))
+# source(here("code", "config", "tract_config.R"))
 
 # Define directories
 build_dir <- here("code", "build")
@@ -27,13 +27,13 @@ exploratory_dir <- here(learn_dir, "exploratory")
 # Construct neighborhood data ----
 
 ## Construct tract crosswalks -----
-###  crosswalks from 1930-1980 to 1990 tracts ----
+###  crosswalks from 1930-1980 to 1950 tracts ----
 source(here(census_tract_build_dir, "construct_tract_crosswalk_eglp_to_1950.R"))
 
 ### Create CBD indicators (based on 1980 CBDs) -----
 source(here(census_tract_build_dir, "create_cbd_crosswalk.R"))
 
-### 1930 and 1940 enumeration district -> 1990 Tract crosswalks -----
+### 1930 and 1940 enumeration district -> 1950 Tract crosswalks -----
 source(here(census_tract_build_dir, "construct_ed_to_tract_crosswalk_eglp_1950.R"))
 
 ##  Clean Census tract data from NHGIS -------

@@ -1,0 +1,59 @@
+\section{Philadelphia Site Selection: Placebo Analysis}\label{app:philadelphia_site_selection}
+
+This appendix presents an analysis of the site selection process in one city, Philadelphia, drawing on the historical treatment and maps from \textcite{baumanPublicHousingRace1987}.
+I study the neighborhoods of proposed-but-not-built public housing projects in Philadelphia, comparing them to neighborhoods with actual public housing projects.
+I also conduct a simple placebo test of my identification strategy by estimating the effects of these proposed-but-not-built projects on neighborhood demographics, using the same matched difference-in-differences strategy as in Section \ref{sec:neighborhood_effects}.
+This exercise illustrates two key points.
+First, these proposed-but-not-built locations were very different from actual public housing locations, and in particular were much whiter.
+This suggests that these locations would not be a good control group for actual public housing locations.
+Second, in the placebo exercise, I find no evidence of changes in neighborhood demographics around these proposed-but-not-built locations, supporting the validity of my identification strategy.
+
+\subsection{Historical Context and Data Source}
+TODO
+
+% [BLANK SECTION]
+% Describe the historical context of Philadelphia public housing site selection from Bauman 1987
+% Include details about:
+% - The planning process and political factors
+% - Why certain sites were proposed but not built
+% - The timeframe of the site selection decisions
+% - Any relevant policy or political context
+
+\subsection{Georeferencing Methodology}
+
+I identified proposed Philadelphia public housing locations by scanning and georeferencing a historical map from \textcite{baumanPublicHousingRace1987}, shown in Figure \ref{fig:bauman_philadelphia_fan}.
+I georeferenced the historical map using QGIS, aligning it to a modern basemap using identifiable landmarks such as major roads and rivers.
+Then, I located the proposed public housing sites on the georeferenced map, and matched these points to 1950 census tracts. 
+Overall, I identify 11 proposed-but-not-built public housing sites in Philadelphia.
+
+\begin{figure}[htbp]
+    \includegraphics[width=0.8\textwidth]{../georeferencing/philadelphia/bauman_philadelphia_fan_for_paper.pdf}
+    \caption{Historical Map of Proposed and Actual Philadelphia Public Housing Sites, 1956}
+    \label{fig:bauman_philadelphia_fan}
+    \footnotesize
+    \textit{Notes:} This map shows the distribution of proposed and actual public housing sites in Philadelphia. Proposed-but-not-built sites serve as placebo treatments in our analysis. Source: \textcite{baumanPublicHousingRace1987}, georeferenced by author.
+\end{figure}
+
+
+\subsection{Analysis of Proposed vs Actual Locations}
+First, I compare the baseline characteristics of proposed-but-not-built locations to actual public housing locations in Philadelphia.
+Table \ref{tab:philadelphia_proposed_vs_actual} presents the balance table.
+We see that proposed locations were were systematically different from actual public housing locations. Most notably, these proposed-but-not-built locations had very low initial Black population shares.
+They were also further from the CBD, richer, less populated, and had lower unemployment rates.
+
+\input{../output/regression_results/philadelphia_placebo/combined/philadelphia_proposed_vs_actual_characteristics.tex}\label{tab:philadelphia_proposed_vs_actual}
+
+Next, I conduct a simple placebo test of my matched difference-in-differences identification strategy by estimating the effects of these proposed-but-not-built projects on neighborhood demographics.
+As in Section \ref{sec:neighborhood_effects}, I match each proposed location to the closest control neighborhoods based on pre-treatment characteristics.
+I then estimate the treatment effects for these placebo neighborhoods, which I compare to the effects estimated for actual public housing locations in Philadelphia.
+Figure \ref{fig:philadelphia_placebo_results} presents the results. 
+
+\begin{figure}[htbp]
+    \includegraphics[width=\textwidth]{../output/regression_results/philadelphia_placebo/combined/philadelphia_placebo_vs_treated_comparison.pdf}
+    \caption{Philadelphia Placebo Test: Proposed vs Actual Public Housing Effects}
+    \label{fig:philadelphia_placebo_results}
+    \footnotesize
+    \textit{Notes:} Event study coefficients comparing proposed-but-not-built locations (placebo) to actual public housing locations (treated) in Philadelphia. Placebo treatment assigned in 1960. Error bars show 95\% confidence intervals. The absence of significant pre-trends or post-treatment effects in placebo locations supports the validity of our identification strategy.
+\end{figure}
+
+The placebo results show that proposed-but-not-built locations exhibit no systematic demographic changes relative to their matched controls, in contrast to the significant effects observed around actual public housing locations. This pattern supports the validity of our identification strategy by demonstrating that neighborhood selection alone does not generate the demographic changes we observe in our main analysis.

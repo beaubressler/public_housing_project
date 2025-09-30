@@ -1,0 +1,61 @@
+\section{Callaway-Sant'Anna Staggered Difference-in-Differences: Robustness Analysis}
+\label{sec:callaway_santanna_appendix}
+
+This appendix presents results from the Callaway and Sant'Anna (2021) staggered difference-in-differences estimator as an additional robustness check on our main matched DiD findings. The CS estimator addresses potential bias from treatment effect heterogeneity across groups and time periods that can arise in standard two-way fixed effects models with staggered treatment adoption.
+
+\subsection{Methodology}
+
+The Callaway-Sant'Anna approach estimates group-time average treatment effects $ATT(g,t)$ for each treatment cohort $g$ (defined by first treatment year) and time period $t$. The method avoids using already-treated units as controls by constructing comparison groups from either never-treated units or not-yet-treated units. For our analysis, we define treatment cohorts based on the year public housing projects first opened in a given census tract, using a "not-yet-treated" control group design where comparison units come from census tracts that have not yet received public housing treatment by time $t$.
+
+We apply the CS estimator to our full balanced panel dataset, excluding inner ring tracts to avoid contamination from spillover effects. This yields a sample of treated and control census tracts observed from 1930 to 1990, with treatment cohorts from 1941 to 1980 and never-treated census tracts serving as clean control observations. We exclude projects treated in 1940 or earlier to preserve pre-treatment periods for identification, consistent with our main analysis approach.
+
+Our CS estimation includes baseline controls measured in 1940: distance from CBD, CBSA fixed effects, HOLC redlining status, urban renewal exposure, Black population share, total population, median income, median rent, unemployment rate, and labor force participation. All continuous variables are transformed using the inverse hyperbolic sine function to facilitate interpretation and reduce the influence of outliers.
+
+\subsection{Results}
+
+Table \ref{tab:cs_simple_results} presents the simple average treatment effects across all treated groups and post-treatment periods. These estimates represent the average effect of public housing on neighborhood outcomes, aggregated across the heterogeneous treatment timing in our sample.
+
+\begin{table}[h]
+\centering
+\caption{Callaway-Sant'Anna Simple Average Treatment Effects}
+\label{tab:cs_simple_results}
+\input{../output/regression_results/callaway_santanna/cs_simple_results.tex}
+\footnotesize
+\textit{Notes:} This table presents simple average treatment effects from the Callaway-Sant'Anna staggered DiD estimator. Standard errors clustered at the census tract level are shown in parentheses. The sample includes census tracts from 1930-1990, excluding inner ring areas to avoid spillover contamination. All continuous variables transformed using inverse hyperbolic sine. Controls include 1940 baseline characteristics: distance from CBD, CBSA fixed effects, redlining status, urban renewal exposure, demographic and economic characteristics.
+\end{table}
+
+The results show broadly consistent patterns with our main matched DiD findings. Public housing significantly increases Black population share by 5.7 percentage points and Black population by 0.60 asinh units, while having minimal effect on White population. Economic outcomes show significant decreases in median income and median rent, with smaller effects on home values. Overall population increases, driven primarily by Black population growth, while labor market outcomes show small increases in unemployment and decreases in labor force participation.
+
+Figure \ref{fig:cs_event_studies} presents event study plots for key outcomes using the CS dynamic aggregation. These plots show treatment effects by years relative to public housing project opening, providing insight into both pre-treatment trends and post-treatment dynamics.
+
+\begin{figure}[h]
+\centering
+\subfloat[Population and Demographics]{
+    \includegraphics[width=1.0\textwidth]{../output/regression_results/callaway_santanna/cs_panel_population_demographics.pdf}
+} \\
+\subfloat[Economic and Housing]{
+    \includegraphics[width=1.0\textwidth]{../output/regression_results/callaway_santanna/cs_panel_economic_housing.pdf}
+}
+\caption{Callaway-Sant'Anna Event Study Results}
+\label{fig:cs_event_studies}
+\end{figure}
+\footnotesize
+\textit{Notes:} Event study plots from Callaway-Sant'Anna staggered DiD estimator showing treatment effects by years relative to public housing opening. Simultaneous 95\% confidence intervals shown. The estimator uses not-yet-treated controls and includes 1940 baseline characteristics as controls.
+
+The event study results reveal that most outcomes show flat pre-treatment trends, supporting the identifying assumption of parallel trends. Treatment effects typically emerge within the first few years after project opening and generally persist throughout the post-treatment period, with some evidence of continued growth for certain outcomes. Demographic changes appear more immediate, while economic effects show more gradual adjustment patterns.
+
+\subsection{Comparison with Main Results}
+
+The Callaway-Sant'Anna results provide strong corroboration of our main matched DiD findings. All major findings have consistent signs across methodologies, with effect sizes generally comparable and falling within the confidence intervals of our matched DiD results. The pattern of significant versus insignificant results aligns closely between approaches, and both methodologies suggest minimal violations of parallel trends assumptions.
+
+Some differences in precision may reflect the different sample construction approaches. The matched DiD approach uses a more restrictive sample focused on observationally similar neighborhoods, while the CS approach uses the full balanced panel with covariate adjustment.
+
+\subsection{Methodological Considerations}
+
+The Callaway-Sant'Anna estimator offers several benefits for our setting. It explicitly allows for treatment effects to vary across groups and time periods, avoids using already-treated units as controls, provides a natural fit for public housing's staggered rollout, and offers diagnostic tools through group-time specific estimates.
+
+However, the approach also has limitations in our context. Unlike our matched approach, it relies primarily on covariate adjustment rather than balancing on observables, which may not fully address selection bias. Excluding inner ring tracts reduces available control observations, and the numerous group-time specific effects can be difficult to summarize comprehensively.
+
+\subsection{Conclusion}
+
+The Callaway-Sant'Anna analysis provides reassuring confirmation of our main findings using a methodologically distinct approach. The consistency of results across matched DiD and staggered DiD estimators strengthens confidence in our core conclusions about public housing's effects on neighborhood demographics and economic outcomes. This robustness to alternative identification strategies suggests that our findings are not driven by methodological artifacts and supports our interpretation that public housing development led to significant and persistent changes in neighborhood composition and economic conditions.

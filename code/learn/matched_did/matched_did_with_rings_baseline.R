@@ -140,8 +140,8 @@ outcome_labels <- c(
   "asinh_median_income" = "Asinh Median Income",
   "median_home_value_calculated" = "Median Home Value",
   "asinh_median_home_value_calculated" = "Asinh Median Home Value",
-  "median_rent_calculated" = "Calculated Median Rent",
-  "asinh_median_rent_calculated" = "Log Calculated Median Rent",
+  "median_rent_calculated" = "Median Rent",
+  "asinh_median_rent_calculated" = "Log Median Rent",
   "total_units" = "Total Housing Units",
   "ln_total_units" = "Log Housing Units",
   "lfp_rate" = "Labor Force Participation Rate",
@@ -371,7 +371,57 @@ coefs_clean <-
                    ifelse(str_ends(outcome, "_inner"), "inner", NA)),
     outcome_clean = str_remove(outcome, "_treated|_inner")
   )
+
+# Publication-ready theme
+pub_theme <- function(base_size = 14){
+  theme_classic(base_size = base_size) +
+    theme(
+      plot.title.position = "plot",
+      legend.position = "none",
+      strip.background = element_blank(),
+      strip.text = element_text(face = "bold"),
+      axis.title.x = element_text(margin = margin(t = 8)),
+      axis.title.y = element_text(margin = margin(r = 8))
+    )
+}
+
+# Function for publication-ready faceted event studies
+make_event_facets <- function(df, outcomes, title_text, group = "treated",
+                              x_breaks = seq(-40, 40, 10)) {
+  df_use <- df %>%
+    filter(group == !!group, outcome_clean %in% outcomes) %>%
+    mutate(
+      clean_label = outcome_labels[outcome_clean],
+      clean_label = factor(clean_label, levels = outcome_labels[outcomes]),
+      event_time = as.numeric(term)
+    )
   
+  # Add a 0-at-(-10) reference row per series for visual anchoring
+  ref_rows <- df_use %>%
+    distinct(outcome_clean, clean_label) %>%
+    mutate(event_time = -10, estimate = 0, std.error = 0)
+  
+  df_use <- bind_rows(df_use, ref_rows) %>% arrange(clean_label, event_time)
+  
+  ggplot(df_use, aes(x = event_time, y = estimate, group = clean_label)) +
+    geom_ribbon(aes(ymin = estimate - 1.96 * std.error,
+                    ymax = estimate + 1.96 * std.error),
+                alpha = 0.18, linewidth = 0, fill = "grey60") +
+    geom_line(linewidth = 0.9) +
+    geom_point(size = 1.8, stroke = 0) +
+    geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
+    geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.4) +
+    labs(
+      title = title_text,
+      x = "Years Relative to Construction",
+      y = "Difference-in-Differences Estimate"
+    ) +
+    scale_x_continuous(breaks = x_breaks) +
+    facet_wrap(~ clean_label, ncol = 2, scales = "free_y") +
+    pub_theme(14)
+}
+
+
 #### Treated-----
 
 combined_treated_results <- 
@@ -419,60 +469,7 @@ ggsave(
   width = 14, height = 8
 )
 
-# Publication-ready theme
-pub_theme <- function(base_size = 14){
-  theme_classic(base_size = base_size) +
-    theme(
-      plot.title.position = "plot",
-      legend.position = "none",
-      strip.background = element_blank(),
-      strip.text = element_text(face = "bold"),
-      axis.title.x = element_text(margin = margin(t = 8)),
-      axis.title.y = element_text(margin = margin(r = 8))
-    )
-}
 
-# Function for publication-ready faceted event studies
-make_event_facets <- function(df, outcomes, title_text){
-  # Map outcomes to pretty labels using existing outcome_labels
-  df_use <- df %>%
-    filter(group == "treated", outcome_clean %in% outcomes) %>%
-    mutate(
-      clean_label = outcome_labels[outcome_clean],
-      clean_label = factor(clean_label, levels = outcome_labels[outcomes]),
-      event_time = as.numeric(term)
-    )
-
-  # Add 0-at-(-10) reference row per series
-  ref_rows <- df_use %>%
-    distinct(outcome_clean, clean_label) %>%
-    mutate(event_time = -10, estimate = 0, std.error = 0)
-
-  df_use <- bind_rows(df_use, ref_rows) %>%
-    arrange(clean_label, event_time)
-
-  # Plot with facets
-  ggplot(df_use, aes(x = event_time, y = estimate, group = clean_label)) +
-    # CI ribbon first
-    geom_ribbon(aes(ymin = estimate - 1.96*std.error,
-                    ymax = estimate + 1.96*std.error),
-                alpha = 0.18, linewidth = 0, fill = "grey60") +
-    # Line and points
-    geom_line(linewidth = 0.9) +
-    geom_point(size = 1.8, stroke = 0) +
-    # Reference lines
-    geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
-    geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.4) +
-    # Labels
-    labs(
-      title = title_text,
-      x = "Years Relative to Construction",
-      y = "Difference-in-Differences Estimate"
-    ) +
-    scale_x_continuous(breaks = seq(-40, 40, 10)) +
-    facet_wrap(~ clean_label, ncol = 2, scales = "free_y") +
-    pub_theme(14)
-}
 
 # Plot 1: Population and racial composition
 plot1_outcomes <- c(
@@ -493,6 +490,26 @@ ggsave(file.path(results_dir, "event_study_population_demographics_treated.pdf")
        p1, width = 8.5, height = 7.5, device = cairo_pdf)
 ggsave(file.path(results_dir, "event_study_population_demographics_treated.png"),
        p1, width = 8.5, height = 7.5, dpi = 320)
+
+# Plot 2: Economic and housing outcomes
+plot2_outcomes <- c(
+  "asinh_median_rent_calculated",
+  "unemp_rate",
+  "lfp_rate",
+  "asinh_median_income"
+)
+
+p2 <- make_event_facets(
+  df = coefs_clean,
+  outcomes = plot2_outcomes,
+  title_text = "Economic and Housing Effects, Treated Neighborhoods"
+)
+
+ggsave(file.path(results_dir, "event_study_economic_housing_treated.pdf"),
+       p2, width = 8.5, height = 7.5, device = cairo_pdf)
+ggsave(file.path(results_dir, "event_study_economic_housing_treated.png"),
+       p2, width = 8.5, height = 7.5, dpi = 320)
+
 
 # Plot 3: Single-panel population plot - Private vs Total populations
 p3_outcomes <- c(
@@ -526,29 +543,30 @@ p3_data <- bind_rows(p3_data, p3_ref_rows) %>%
   arrange(clean_label, event_time)
 
 # Create p3 plot
-p3 <- ggplot(p3_data, aes(x = event_time, y = estimate, 
-                          color = clean_label, fill = clean_label)) +
-  # CI ribbons
-  geom_ribbon(aes(ymin = estimate - 1.96*std.error,
-                  ymax = estimate + 1.96*std.error),
-              alpha = 0.15, linewidth = 0) +
-  # Lines and points  
-  geom_line(aes(group = clean_label), linewidth = 0.9) +
-  geom_point(size = 1.8, stroke = 0) +
+p3 <- ggplot(p3_data, aes(x = event_time, y = estimate,
+                          color = clean_label)) +
+  # Error bars instead of ribbons
+  geom_errorbar(aes(ymin = estimate - 1.96*std.error,
+                    ymax = estimate + 1.96*std.error),
+                width = 0.4, linewidth = 0.8, alpha = 0.7,
+                position = position_dodge(width = 2.5)) +
+  # Lines and points with staggered positioning
+  geom_line(aes(group = clean_label), linewidth = 0.9,
+            position = position_dodge(width = 2.5)) +
+  geom_point(size = 2.2, stroke = 0,
+             position = position_dodge(width = 2.5)) +
   # Reference lines
   geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4, color = "grey50") +
   geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.4, color = "grey50") +
   # Labels and formatting
   labs(
     title = "Effects on (Log) Estimated Private Population, Treated Neighborhoods",
-    x = "Years Relative to Construction", 
+    x = "Years Relative to Construction",
     y = "Difference-in-Differences Estimate",
-    color = "",
-    fill = ""
+    color = ""
   ) +
   scale_x_continuous(breaks = seq(-30, 30, 10)) +
-  scale_color_brewer(type = "qual", palette = "Dark2") +
-  scale_fill_brewer(type = "qual", palette = "Dark2") +
+  scale_color_manual(values = c("#2171b5", "#6baed6", "#9ecae1")) +
   theme_classic(base_size = 14) +
   theme(
     plot.title.position = "plot",
@@ -564,24 +582,6 @@ ggsave(file.path(results_dir, "event_study_population_private_treated.pdf"),
 ggsave(file.path(results_dir, "event_study_population_private_treated.png"),
        p3, width = 9, height = 6.5, dpi = 320)
 
-# Plot 2: Economic and housing outcomes
-plot2_outcomes <- c(
-  "asinh_median_rent_calculated",
-  "unemp_rate",
-  "lfp_rate",
-  "asinh_median_income"
-)
-
-p2 <- make_event_facets(
-  df = coefs_clean,
-  outcomes = plot2_outcomes,
-  title_text = "Economic and Housing Effects, Treated Neighborhoods"
-)
-
-ggsave(file.path(results_dir, "event_study_economic_housing_treated.pdf"),
-       p2, width = 8.5, height = 7.5, device = cairo_pdf)
-ggsave(file.path(results_dir, "event_study_economic_housing_treated.png"),
-       p2, width = 8.5, height = 7.5, dpi = 320)
 
 
 
@@ -597,43 +597,49 @@ spillover_plot1_outcomes <- c(
 )
 
 
-# Need to modify the function call to use inner group
-spillover_p1_data <- coefs_clean %>%
-  filter(group == "inner", outcome_clean %in% spillover_plot1_outcomes) %>%
-  mutate(
-    clean_label = outcome_labels[outcome_clean],
-    clean_label = factor(clean_label, levels =
-                           outcome_labels[spillover_plot1_outcomes]),
-    event_time = as.numeric(term)
-  )
+# # Need to modify the function call to use inner group
+# spillover_p1_data <- coefs_clean %>%
+#   filter(group == "inner", outcome_clean %in% spillover_plot1_outcomes) %>%
+#   mutate(
+#     clean_label = outcome_labels[outcome_clean],
+#     clean_label = factor(clean_label, levels =
+#                            outcome_labels[spillover_plot1_outcomes]),
+#     event_time = as.numeric(term)
+#   )
+# 
+# # Add reference rows
+# spillover_ref_rows1 <- spillover_p1_data %>%
+#   distinct(outcome_clean, clean_label) %>%
+#   mutate(event_time = -10, estimate = 0, std.error = 0)
+# 
+# spillover_p1_data <- bind_rows(spillover_p1_data, spillover_ref_rows1) %>%
+#   arrange(clean_label, event_time)
+# 
+# # Create spillover plot 1
+# sp1 <- ggplot(spillover_p1_data, aes(x = event_time, y = estimate, group =
+#                                        clean_label)) +
+#   geom_ribbon(aes(ymin = estimate - 1.96*std.error,
+#                   ymax = estimate + 1.96*std.error),
+#               alpha = 0.18, linewidth = 0, fill = "grey60") +
+#   geom_line(linewidth = 0.9) +
+#   geom_point(size = 1.8, stroke = 0) +
+#   geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
+#   geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.4) +
+#   labs(
+#     title = "Effects of Public Housing on Nearby Neighborhoods: Population and Racial Composition",
+#     x = "Years Relative to Construction",
+#     y = "Difference-in-Differences Estimate"
+#   ) +
+#   scale_x_continuous(breaks = seq(-40, 40, 10)) +
+#   facet_wrap(~ clean_label, ncol = 2, scales = "free_y") +
+#   pub_theme(14)
 
-# Add reference rows
-spillover_ref_rows1 <- spillover_p1_data %>%
-  distinct(outcome_clean, clean_label) %>%
-  mutate(event_time = -10, estimate = 0, std.error = 0)
-
-spillover_p1_data <- bind_rows(spillover_p1_data, spillover_ref_rows1) %>%
-  arrange(clean_label, event_time)
-
-# Create spillover plot 1
-sp1 <- ggplot(spillover_p1_data, aes(x = event_time, y = estimate, group =
-                                       clean_label)) +
-  geom_ribbon(aes(ymin = estimate - 1.96*std.error,
-                  ymax = estimate + 1.96*std.error),
-              alpha = 0.18, linewidth = 0, fill = "grey60") +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 1.8, stroke = 0) +
-  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
-  geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.4) +
-  labs(
-    title = "Spillover Effects: Population and Racial Composition, Adjacent
-   Neighborhoods",
-    x = "Years Relative to Construction",
-    y = "Difference-in-Differences Estimate"
-  ) +
-  scale_x_continuous(breaks = seq(-40, 40, 10)) +
-  facet_wrap(~ clean_label, ncol = 2, scales = "free_y") +
-  pub_theme(14)
+sp1 <- make_event_facets(
+  df = coefs_clean,
+  outcomes = spillover_plot1_outcomes,
+  title = "Effects of Public Housing on Nearby Neighborhoods: Population and Racial Composition",
+  group = "inner"
+)
 
 # Export spillover plot 1
 ggsave(file.path(results_dir,
@@ -651,51 +657,55 @@ spillover_plot2_outcomes <- c(
   "asinh_median_income"
 )
 
-# Prepare spillover plot 2 data
-spillover_p2_data <- coefs_clean %>%
-  filter(group == "inner", outcome_clean %in% spillover_plot2_outcomes) %>%
-  mutate(
-    clean_label = outcome_labels[outcome_clean],
-    clean_label = factor(clean_label, levels =
-                           outcome_labels[spillover_plot2_outcomes]),
-    event_time = as.numeric(term)
-  )
+# # Prepare spillover plot 2 data
+# spillover_p2_data <- coefs_clean %>%
+#   filter(group == "inner", outcome_clean %in% spillover_plot2_outcomes) %>%
+#   mutate(
+#     clean_label = outcome_labels[outcome_clean],
+#     clean_label = factor(clean_label, levels =
+#                            outcome_labels[spillover_plot2_outcomes]),
+#     event_time = as.numeric(term)
+#   )
+# 
+# # Add reference rows
+# spillover_ref_rows2 <- spillover_p2_data %>%
+#   distinct(outcome_clean, clean_label) %>%
+#   mutate(event_time = -10, estimate = 0, std.error = 0)
+# 
+# spillover_p2_data <- bind_rows(spillover_p2_data, spillover_ref_rows2) %>%
+#   arrange(clean_label, event_time)
+# 
+# # Create spillover plot 2
+# sp2 <- ggplot(spillover_p2_data, aes(x = event_time, y = estimate, group =
+#                                        clean_label)) +
+#   geom_ribbon(aes(ymin = estimate - 1.96*std.error,
+#                   ymax = estimate + 1.96*std.error),
+#               alpha = 0.18, linewidth = 0, fill = "grey60") +
+#   geom_line(linewidth = 0.9) +
+#   geom_point(size = 1.8, stroke = 0) +
+#   geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
+#   geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.4) +
+#   labs(
+#     title = "Effects of Public Housing on Nearby Neighborhoods: Economic and Housing Outcomes",
+#     x = "Years Relative to Construction",
+#     y = "Difference-in-Differences Estimate"
+#   ) +
+#   scale_x_continuous(breaks = seq(-40, 40, 10)) +
+#   facet_wrap(~ clean_label, ncol = 2, scales = "free_y") +
+#   pub_theme(14)
 
-# Add reference rows
-spillover_ref_rows2 <- spillover_p2_data %>%
-  distinct(outcome_clean, clean_label) %>%
-  mutate(event_time = -10, estimate = 0, std.error = 0)
 
-spillover_p2_data <- bind_rows(spillover_p2_data, spillover_ref_rows2) %>%
-  arrange(clean_label, event_time)
-
-# Create spillover plot 2
-sp2 <- ggplot(spillover_p2_data, aes(x = event_time, y = estimate, group =
-                                       clean_label)) +
-  geom_ribbon(aes(ymin = estimate - 1.96*std.error,
-                  ymax = estimate + 1.96*std.error),
-              alpha = 0.18, linewidth = 0, fill = "grey60") +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 1.8, stroke = 0) +
-  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
-  geom_vline(xintercept = 0, linetype = "dotted", linewidth = 0.4) +
-  labs(
-    title = "Spillover Effects: Economic and Housing Outcomes, Adjacent 
-  Neighborhoods",
-    x = "Years Relative to Construction",
-    y = "Difference-in-Differences Estimate"
-  ) +
-  scale_x_continuous(breaks = seq(-40, 40, 10)) +
-  facet_wrap(~ clean_label, ncol = 2, scales = "free_y") +
-  pub_theme(14)
+sp2 <- make_event_facets(
+  df = coefs_clean, 
+  outcomes = spillover_plot2_outcomes,
+  title_text = "Effects of Public Housing on Nearby Neighborhoods: Economic and Housing Outcomes",
+  group = "inner"
+)
 
 # Export spillover plot 2
 ggsave(file.path(results_dir,
                  "event_study_spillover_economic_housing.pdf"),
-       sp2, width = 8.5, height = 7.5, device = cairo_pdf)
-ggsave(file.path(results_dir,
-                 "event_study_spillover_economic_housing.png"),
-       sp2, width = 8.5, height = 7.5, dpi = 320)
+       sp2, width = 12, height = 9, device = cairo_pdf)
 
 
 #### Poster Plots: Key Variables Only ----
@@ -882,78 +892,78 @@ modelsummary(
 
 
 
-# Run pooled DiD -----
-tract_data_matched_1_year <- tract_data_matched_1_year %>%
-  group_by(match_group) %>%
-  # define event time for both treated and control
-  mutate(
-    group_treatment_year = min(matched_treatment_year, na.rm = TRUE),
-    event_time = year - group_treatment_year) %>% 
-  ungroup()
-
-
-
-matched_did_pre_post <- function(input_data, outcome_var, treatment_group,
-                         size = NULL, city_filter = NULL, initial_share = NULL) {
-  
-  data <- input_data %>%
-    filter(!is.na(match_group),
-           group_type == treatment_group)
-  
-  if (!is.null(size)) data <- data %>% filter(size_group == size)
-  if (!is.null(city_filter)) data <- data %>% filter(city == city_filter)
-  if (!is.null(initial_share)) data <- data %>% filter(race_group == initial_share)
-  
-  data <- data %>%
-    group_by(match_group) %>%
-    mutate(
-      group_treatment_year = min(matched_treatment_year, na.rm = TRUE),
-      event_time = year - group_treatment_year,
-      treated = ifelse(location_type == treatment_group, 1, 0),
-      post = ifelse(event_time >= 0, 1, 0)
-    ) %>%
-    ungroup() %>%
-    filter(event_time > -40, event_time <= 30, event_time > -30)
-  
-  # Basic DiD interaction model: post × treated
-  formula <- as.formula(paste0(
-    outcome_var, " ~ i(treated, post, ref = c(0,0)) | GISJOIN_1950 + match_group^year"
-  ))
-  
-  model <- feols(formula, data = data, weights = ~weights, cluster = ~GISJOIN_1950)
-  
-  model_conley <- feols(formula, data = data, weights = ~weights,
-                        vcov = vcov_conley(lat = "lat", lon = "lon", cutoff = 2))
-  
-  formula_nomatch <- as.formula(paste0(
-    outcome_var, " ~ i(treated, post, ref = c(0,0)) | GISJOIN_1950"
-  ))
-  
-  model_nomatch_conley <- feols(formula_nomatch, data = data, weights = ~weights,
-                                vcov = vcov_conley(lat = "lat", lon = "lon", cutoff = 2))
-  
-  return(list(pre_post = model, pre_post_conley = model_conley,
-              pre_post_nomatch_conley = model_nomatch_conley))
-}
-
-
-results_pre_post <- list()
-
-for (outcome in outcome_variables) {
-  for (group in group_types) {
-    cat("Pre/post DiD for", outcome, "|", group, "\n")
-    
-    results <- matched_did_pre_post(
-      input_data = tract_data_matched_1_year,
-      outcome_var = outcome,
-      treatment_group = group
-    )
-    
-    results_pre_post[[paste0(outcome, "_", group)]] <- results$pre_post_conley
-  }
-}
-
-
+# # Run pooled DiD -----
+# tract_data_matched_1_year <- tract_data_matched_1_year %>%
+#   group_by(match_group) %>%
+#   # define event time for both treated and control
+#   mutate(
+#     group_treatment_year = min(matched_treatment_year, na.rm = TRUE),
+#     event_time = year - group_treatment_year) %>% 
+#   ungroup()
+# 
+# 
+# 
+# matched_did_pre_post <- function(input_data, outcome_var, treatment_group,
+#                          size = NULL, city_filter = NULL, initial_share = NULL) {
+#   
+#   data <- input_data %>%
+#     filter(!is.na(match_group),
+#            group_type == treatment_group)
+#   
+#   if (!is.null(size)) data <- data %>% filter(size_group == size)
+#   if (!is.null(city_filter)) data <- data %>% filter(city == city_filter)
+#   if (!is.null(initial_share)) data <- data %>% filter(race_group == initial_share)
+#   
+#   data <- data %>%
+#     group_by(match_group) %>%
+#     mutate(
+#       group_treatment_year = min(matched_treatment_year, na.rm = TRUE),
+#       event_time = year - group_treatment_year,
+#       treated = ifelse(location_type == treatment_group, 1, 0),
+#       post = ifelse(event_time >= 0, 1, 0)
+#     ) %>%
+#     ungroup() %>%
+#     filter(event_time > -40, event_time <= 30, event_time > -30)
+#   
+#   # Basic DiD interaction model: post × treated
+#   formula <- as.formula(paste0(
+#     outcome_var, " ~ i(treated, post, ref = c(0,0)) | GISJOIN_1950 + match_group^year"
+#   ))
+#   
+#   model <- feols(formula, data = data, weights = ~weights, cluster = ~GISJOIN_1950)
+#   
+#   model_conley <- feols(formula, data = data, weights = ~weights,
+#                         vcov = vcov_conley(lat = "lat", lon = "lon", cutoff = 2))
+#   
+#   formula_nomatch <- as.formula(paste0(
+#     outcome_var, " ~ i(treated, post, ref = c(0,0)) | GISJOIN_1950"
+#   ))
+#   
+#   model_nomatch_conley <- feols(formula_nomatch, data = data, weights = ~weights,
+#                                 vcov = vcov_conley(lat = "lat", lon = "lon", cutoff = 2))
+#   
+#   return(list(pre_post = model, pre_post_conley = model_conley,
+#               pre_post_nomatch_conley = model_nomatch_conley))
+# }
+# 
+# 
+# results_pre_post <- list()
+# 
+# for (outcome in outcome_variables) {
+#   for (group in group_types) {
+#     cat("Pre/post DiD for", outcome, "|", group, "\n")
+#     
+#     results <- matched_did_pre_post(
+#       input_data = tract_data_matched_1_year,
+#       outcome_var = outcome,
+#       treatment_group = group
+#     )
+#     
+#     results_pre_post[[paste0(outcome, "_", group)]] <- results$pre_post_conley
+#   }
+# }
+# 
+# 
 # Heterogeneity: Event study t= 20 -----
 # Extract t=20 estimates
 extract_t20_estimates <- function(results_list, location_label) {
@@ -988,7 +998,7 @@ create_heterogeneity_plot <- function(...,
                                       outcomes_to_plot,
                                       outcome_labels_map,
                                       title_text,
-                                      subtitle_text = "Treatment effects 20 years after public housing construction",
+                                      subtitle_text = "Treatment effects at t=20",
                                       colors = NULL,
                                       save_name = NULL,
                                       results_dir = NULL) {
@@ -1046,38 +1056,69 @@ create_heterogeneity_plot <- function(...,
       location = factor(location, levels = labels)
     )
   
-  # Create plot
+  # Create plot with publication-quality formatting
   p <- ggplot(comparison_data, aes(x = location, y = estimate, color = location)) +
-    geom_point(size = 3, alpha = 0.8) +
+    geom_hline(yintercept = 0, linetype = "solid", color = "gray30", linewidth = 0.4) +
+    geom_point(size = 3.5, alpha = 0.9, shape = 16) +
     geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
-                  width = 0.2, linewidth = 0.8) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.5) +
-    facet_grid(group_label ~ clean_label, scales = "free_y") +
+                  width = 0.15, linewidth = 1, alpha = 0.8) +
+    facet_grid(group_label ~ clean_label, scales = "free_y",
+               labeller = labeller(clean_label = label_wrap_gen(width = 12))) +
     labs(
       title = title_text,
       subtitle = subtitle_text,
       x = "",
-      y = "Difference-in-Differences Estimate", 
+      y = "Treatment Effect",
       color = ""
     ) +
     scale_color_manual(values = setNames(colors, labels)) +
-    theme_classic(base_size = 12) +
+    scale_y_continuous(labels = scales::number_format(accuracy = 0.01,
+                                                      decimal.mark = ".",
+                                                      big.mark = ",")) +
+    theme_minimal(base_size = 14, base_family = "sans") +
     theme(
+      # Plot titles and text
+      plot.title = element_text(size = 18, face = "bold", color = "black",
+                               margin = margin(b = 10)),
+      plot.subtitle = element_text(size = 14, color = "gray40",
+                                  margin = margin(b = 15)),
       plot.title.position = "plot",
-      legend.position = "none",
-      axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-      strip.background = element_blank(),
-      strip.text = element_text(face = "bold", size = 11),
+
+      # Axes
+      axis.title.y = element_text(size = 14, color = "black",
+                                 margin = margin(r = 10)),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 12, color = "black"),
+      axis.text.y = element_text(size = 12, color = "black"),
+      axis.line = element_line(color = "black", linewidth = 0.3),
+      axis.ticks = element_line(color = "black", linewidth = 0.3),
+      axis.ticks.length = unit(2, "pt"),
+
+      # Facets/strips
+      strip.background = element_rect(fill = "gray95", color = "gray80", linewidth = 0.3),
+      strip.text = element_text(face = "bold", size = 13, color = "black",
+                               margin = margin(6, 6, 6, 6)),
+
+      # Panel
+      panel.background = element_rect(fill = "white", color = NA),
+      panel.border = element_rect(color = "gray80", fill = NA, linewidth = 0.5),
       panel.grid.major.y = element_line(color = "gray90", linewidth = 0.3),
-      plot.subtitle = element_text(color = "gray50", size = 10)
+      panel.grid.minor.y = element_line(color = "gray95", linewidth = 0.2),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      panel.spacing = unit(12, "pt"),
+
+      # Legend
+      legend.position = "none",
+
+      # Plot margins
+      plot.margin = margin(15, 15, 10, 10)
     )
   
   # Save if requested
   if (!is.null(save_name) & !is.null(results_dir)) {
     ggsave(file.path(results_dir, paste0(save_name, ".pdf")),
-           p, width = 8, height = 6, device = cairo_pdf)
-    ggsave(file.path(results_dir, paste0(save_name, ".png")),
-           p, width = 8, height = 6, dpi = 320)
+           p, width = 10, height = 7, device = cairo_pdf,
+           units = "in", dpi = 300)
   }
   
   return(p)
@@ -1088,15 +1129,16 @@ create_heterogeneity_plot <- function(...,
 heterogeneity_outcome_vars <- 
   c("asinh_median_rent_calculated", "asinh_median_income",
     "black_share", "asinh_pop_black", "asinh_pop_white",
+    "black_pop", "white_pop",
     "unemp_rate")
 
 tract_data_matched_1_year_nyc <- 
   tract_data_matched_1_year %>% 
-  filter(COUNTY %in% c("New York", "Kings", "Queens", "Bronx", "Richmond"))
+  filter(COUNTY %in% c("New York", "Kings", "Queens", "Bronx", "Richmond") & STATE == "New York")
 
 tract_data_matched_1_year_non_nyc <- 
   tract_data_matched_1_year %>% 
-  filter(!(COUNTY %in% c("New York", "Kings", "Queens", "Bronx", "Richmond")))
+  filter(!(COUNTY %in% c("New York", "Kings", "Queens", "Bronx", "Richmond") & STATE == "New York"))
 
 results_event_study_nyc <- list()
 for (outcome in heterogeneity_outcome_vars) {
@@ -1132,10 +1174,12 @@ for (outcome in heterogeneity_outcome_vars) {
 
 # Create NYC vs Other Cities comparison
 race_income_labels <- c(
-  "black_share" = "Black Population Share",
+  "black_share" = "Black Pop Share",
   "asinh_median_income" = "Log Median Income",
-  "asinh_pop_black" = "Log Black Population",
-  "asinh_pop_white" = "Log White Population",
+  "asinh_pop_black" = "Log Black Pop",
+  "asinh_pop_white" = "Log White Pop",
+  "black_pop" = "Black Pop",
+  "white_pop" = "White Pop",
   "asinh_median_rent_calculated" = "Log Median Rent",
   "unemp_rate" = "Unemployment Rate"
 )
@@ -1145,13 +1189,15 @@ p_nyc_comparison <- create_heterogeneity_plot(
   results_list2 = results_event_study_non_nyc,
   label1 = "NYC",
   label2 = "Other Cities", 
-  outcomes_to_plot = c("black_share", "asinh_median_income", "asinh_pop_white", "asinh_pop_black"),
+  outcomes_to_plot = c("asinh_median_income", "asinh_pop_white", "asinh_pop_black"),
+  # outcomes_to_plot = "black_share",
   outcome_labels_map = race_income_labels,
   title_text = "Geographic Heterogeneity: NYC vs Other Cities",
   save_name = "nyc_vs_others_race_income_t20",
   results_dir = results_dir
 )
 
+p_nyc_comparison
 
 ## Urban Renewal vs Non-Urban Renewal event study ----
 
@@ -1199,15 +1245,24 @@ p_ur_comparison <- create_heterogeneity_plot(
   results_list2 = results_event_study_no_ur,
   label1 = "Urban Renewal Areas",
   label2 = "Non-UR Areas", 
-  outcomes_to_plot = c("black_share", "asinh_median_income"),
+  outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
-  title_text = "Policy Interaction: Urban Renewal vs Standalone Public Housing",
+  title_text = "Urban Renewal vs Non-Urban Renewal Areas",
   colors = c("#FF7F00", "#377EB8"),
   save_name = "ur_vs_no_ur_race_income_t20",
   results_dir = results_dir
 )
 
 p_ur_comparison
+
+# output p_ur_comparison to pdf
+ggsave(
+  filename = here("output", "regression_results",  "urban_renewal_heterogeneity_race_income_t20.pdf"),
+  plot = p_ur_comparison,
+  width = 12,
+  height = 8,
+  device = "pdf"
+)
 
 
 ## Early vs Late Programs (Time Period) event study ----
@@ -1258,7 +1313,7 @@ p_time_comparison <- create_heterogeneity_plot(
   label2 = "1961-1973", 
   outcomes_to_plot = c("asinh_pop_black", "asinh_median_income", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
-  title_text = "Temporal Heterogeneity: Early vs Late Public Housing Programs",
+  title_text = "Early vs Late Public Housing Projects",
   colors = c("#2E8B57", "#8B0000"),
   save_name = "early_vs_late_programs_race_income_t20",
   results_dir = results_dir
@@ -1266,6 +1321,16 @@ p_time_comparison <- create_heterogeneity_plot(
 
 p_time_comparison
 
+# output p_time_comparison to pdf 
+ggsave(
+  filename = here("output", "regression_results",  "early_vs_late_programs_race_income_t20.pdf"),
+  plot = p_time_comparison,
+  width = 12,
+  height = 8,
+  device = "pdf"
+)
+
+  
 ## Redlined vs Non-Redlined Areas event study ----
 
 tract_data_matched_1_year_redlined <- 
@@ -1322,11 +1387,13 @@ p_redlined_comparison <- create_heterogeneity_plot(
 
 p_redlined_comparison
 
+
 ## Within Early: Baseline Black Share Heterogeneity event study ----
 # Filter to early treatment period only
 tract_data_early_projects <-
-  tract_data_matched_1_year %>%
-  filter(matched_treatment_year >= 1941 & matched_treatment_year <= 1960)
+  tract_data_matched_1_year 
+# %>%
+#   filter(matched_treatment_year >= 1941 & matched_treatment_year <= 1960)
 
 # Calculate baseline Black share for each tract (at t=-10)
 baseline_black_share <-
@@ -1361,7 +1428,7 @@ tract_data_very_low_baseline <-
   filter(baseline_black_share < 0.01)                         # <1% Black (essentially white)
 
 tract_data_medium_baseline <- tract_data_early_with_baseline %>%
-  filter(baseline_black_share >= 0.01 & baseline_black_share < 0.16)  # 1-15% Black (marginal)
+  filter(baseline_black_share >= 0.01 & baseline_black_share <= 0.15)  # 1-15% Black (marginal)
 
 tract_data_high_baseline <- tract_data_early_with_baseline %>%
   filter(baseline_black_share >= 0.15)                        # >15% Black (integrated)
@@ -1428,9 +1495,133 @@ for (outcome in heterogeneity_outcome_vars) {
   }
 }
 
+results_event_study_very_low_baseline$black_share_treated
+results_event_study_medium_baseline$black_share_treated
+results_event_study_high_baseline$black_share_treated
 
 
-## By number of units -----
+results_event_study_very_low_baseline$asinh_pop_black_treated
+results_event_study_medium_baseline$asinh_pop_black_treated
+results_event_study_high_baseline$asinh_pop_black_treated
+
+## Baseline black share, alt: ----
+# Calculate baseline Black share for each tract (at t=-10)
+baseline_black_share <-
+  tract_data_matched_1_year %>%
+  mutate(baseline_year = matched_treatment_year - 10) %>%
+  filter(year == baseline_year, location_type != "donor_pool") %>%
+  select(match_group, group_type, black_share) %>%
+  rename(baseline_black_share = black_share) %>%
+  distinct(baseline_black_share, group_type, match_group, .keep_all = TRUE)
+
+# Merge baseline Black share back
+tract_data_with_baseline <-
+  tract_data_matched_1_year %>%
+  left_join(baseline_black_share, by = c("group_type", "match_group"))
+
+# Define three meaningful baseline groups
+tract_data_very_low_baseline <-
+  tract_data_with_baseline %>%
+  filter(baseline_black_share < 0.01)  # <1% Black (essentially all white)
+
+tract_data_medium_baseline <-
+  tract_data_with_baseline %>%
+  filter(baseline_black_share >= 0.01 & baseline_black_share < 0.12)  # 1-12% Black (tipping range)
+
+tract_data_high_baseline <-
+  tract_data_with_baseline %>%
+  filter(baseline_black_share >= 0.12)  # >=12% Black (integrated/majority Black)
+
+# Check sample sizes
+cat("Sample sizes by baseline Black share:\n")
+cat("Very Low (<1%):", nrow(tract_data_very_low_baseline %>% distinct(GISJOIN_1950, match_group)), "\n")
+cat("Medium (1-12%):", nrow(tract_data_medium_baseline %>% distinct(GISJOIN_1950, match_group)), "\n")
+cat("High (>=12%):", nrow(tract_data_high_baseline %>% distinct(GISJOIN_1950, match_group)), "\n")
+
+# Run event studies for all three groups
+results_event_study_very_low_baseline <- list()
+results_event_study_medium_baseline <- list()
+results_event_study_high_baseline <- list()
+
+# Very low baseline Black share areas
+cat("Running event studies for VERY LOW baseline Black share areas (<1%)...\n")
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    model_name <- paste0(outcome, "_", group)
+    cat("Running", model_name, "\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_very_low_baseline,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_very_low_baseline[[model_name]] <- results$twfe_conley
+  }
+}
+
+# Medium baseline Black share areas
+cat("Running event studies for MEDIUM baseline Black share areas (1-12%)...\n")
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    model_name <- paste0(outcome, "_", group)
+    cat("Running", model_name, "\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_medium_baseline,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_medium_baseline[[model_name]] <- results$twfe_conley
+  }
+}
+
+# High baseline Black share areas
+cat("Running event studies for HIGH baseline Black share areas (>=12%)...\n")
+for (outcome in heterogeneity_outcome_vars) {
+  for (group in group_types) {
+    model_name <- paste0(outcome, "_", group)
+    cat("Running", model_name, "\n")
+    
+    results <- did_event_study(
+      input_data = tract_data_high_baseline,
+      outcome_var = outcome,
+      treatment_group = group
+    )
+    
+    results_event_study_high_baseline[[model_name]] <- results$twfe_conley
+  }
+}
+
+# Function to create three-group comparison plot
+# Create the three-group plot using your existing function
+p_three_groups <- create_heterogeneity_plot(
+  results_event_study_very_low_baseline, "Very Low (<1%)",
+  results_event_study_medium_baseline, "Medium (1-12%)",
+  results_event_study_high_baseline, "High (≥12%)",
+  outcomes_to_plot = c("black_pop", "white_pop"),
+  outcome_labels_map = race_income_labels,
+  title_text = "Public Housing Effects by Baseline Black Share",
+  colors = c("#2E8B57", "#8B4513", "#8B0000"),
+  save_name = "baseline_three_groups_t20",
+  results_dir = results_dir
+)
+
+# Save the plot
+ggsave(
+  filename = here("output", "regression_results", "baseline_black_share_heterogeneity_t20.pdf"),
+  plot = p_three_groups,
+  width = 12,
+  height = 8,
+  device = "pdf"
+)
+
+p_three_groups
+
+
+
+## By number of units: Spillovers -----
 
 # Check spillover project size data availability
 cat("\n=== SPILLOVER PROJECT SIZE DATA CHECK ===\n")
@@ -1553,7 +1744,7 @@ p_small_vs_large_spillover <- create_heterogeneity_plot(
   results_list2 = results_large_spillover,
   label1 = "Small Nearby Projects",
   label2 = "Large Nearby Projects", 
-  outcomes_to_plot = c("black_share", "asinh_pop_black", "asinh_pop_white"),
+  outcomes_to_plot = c("black_share", "asinh_pop_black", "asinh_pop_white", "asinh_median_income"),
   outcome_labels_map = spillover_size_labels,
   title_text = "Spillover Effects by Nearby Project Size: Small vs Large",
   colors = c("#4575b4", "#d73027"),
@@ -1562,7 +1753,7 @@ p_small_vs_large_spillover <- create_heterogeneity_plot(
 )
 
 cat("\n=== PROJECT SIZE SPILLOVER HETEROGENEITY COMPLETE ===\n")
-
+p_small_vs_large_spillover
 
 # Create dose-response plot with all three tertile categories
 p_spillover_dose_response <- create_heterogeneity_plot(
@@ -1601,6 +1792,10 @@ ph_characteristics_t0 <-
   mutate(log_total_public_housing_units_t0 = log(total_public_housing_units_t0),
          ph_units_t0_bin = ntile(total_public_housing_units_t0, 3),
          ph_units_t0_bin = factor(ph_units_t0_bin),
+         # Median split for units
+         ph_units_median = median(total_public_housing_units_t0, na.rm = TRUE),
+         ph_units_above_median = ifelse(total_public_housing_units_t0 >= ph_units_median, "Above Median", "Below Median"),
+         ph_units_above_median = factor(ph_units_above_median, levels = c("Below Median", "Above Median")),
          # Manual binning of black share in the projects
            ph_black_share_t0_cat = case_when(
              ph_black_share_t0 == 0 ~ "None",
@@ -1671,15 +1866,33 @@ results_het_logunits_bin <- list()
 for (outcome in outcome_variables) {
   for (group in "treated") {
     cat("Heterogeneity DiD for", outcome, "|", group, "\n")
-    
+
     results <- run_heterogeneity_did_ph(
       input_data = tract_data_matched_1_year,
       outcome_var = outcome,
       treatment_group = group,
       het_var = "ph_units_t0_bin"
     )
-    
+
     results_het_logunits_bin[[paste0(outcome, "_", group)]] <- results
+  }
+}
+
+# Median split analysis
+results_het_median_split <- list()
+
+for (outcome in outcome_variables) {
+  for (group in "treated") {
+    cat("Median split DiD for", outcome, "|", group, "\n")
+
+    results <- run_heterogeneity_did_ph(
+      input_data = tract_data_matched_1_year,
+      outcome_var = outcome,
+      treatment_group = group,
+      het_var = "ph_units_above_median"
+    )
+
+    results_het_median_split[[paste0(outcome, "_", group)]] <- results
   }
 }
 

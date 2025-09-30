@@ -23,6 +23,9 @@
 \newcommand{\tinytableTabularrayStrikeout}[1]{\sout{#1}}
 \NewTableCommand{\tinytableDefineColor}[3]{\definecolor{#1}{#2}{#3}}
 
+\newcommand{\note}[1]{\par\vspace{0.5ex}\noindent\textit{Note:} #1}
+
+
 % for formatting tables
 \usepackage{pdflscape}
 \usepackage{adjustbox}
@@ -83,8 +86,11 @@
 \definecolor{teal}{RGB}{241,244,243}
 
 
-\title{\Large Public Housing and The Transformation of American Neighborhoods}
-%\thanks{I thank participants at the UC Davis Economic History Coffee and Applied Microeconomics Student Talk}}
+\title{\Large Building Segregation: The Long-Run Neighborhood Effects of American Public Housing
+\thanks{I am grateful to Giovanni Peri, Santiago Perez, Chris Meissner and Marianne Bitler for their valuable feedback.
+I would also like to thank Alessandro Caiumi, Rowena Gray, and seminar participants of the UC Davis applied micro and economic history seminars.
+Thank you to Max Guennewig-Moenert for sharing data on New York City public housing populations and to D. Bradford Hunt for sharing data on Chicago public housing. 
+Stephanie Smith, Reece Doyle, and Andrew Shamardin provided excellent help in digitizing and checking data.}}
 
 \author{
     Beau Bressler \\ UC Davis \\
@@ -117,10 +123,12 @@
 \appendix
 
 % Appendices
-\input{sections/appendix}
-\input{appendices/appendix_data_construction}
-\input{appendices/spatial_did_appendix}
+%\input{sections/appendix}
+%\input{appendices/appendix_data_construction}
+%\input{appendices/spatial_did_appendix}
+%\input{appendices/callaway_santanna_appendix}
 \input{appendices/appendix_chicago_land_values}
+\input{appendices/philadelphia_site_selection_appendix}
 
 \newpage
 \printbibliography

@@ -19,7 +19,7 @@ library(here)
 
 # Set the target tract year for analysis
 # Change this to 1950 or 2000 to switch tract definitions
-TRACT_YEAR <- 1950
+TRACT_YEAR <- 2000
 
 # ============================================================================
 # DERIVED VARIABLES AND HELPER FUNCTIONS
@@ -145,3 +145,4 @@ log_tract_config()
 
 # Check crosswalk availability (warning only, don't stop execution)
 check_crosswalks_exist()
+

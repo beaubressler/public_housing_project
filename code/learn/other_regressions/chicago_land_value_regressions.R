@@ -192,26 +192,105 @@ extract_all_rings_coefficients <- function(model) {
   return(plot_data)
 }
 
+#' Create two-panel heterogeneity plot by project size
+create_heterogeneity_plot <- function(below_500_model, above_500_model) {
+
+  # Extract coefficients for both models
+  below_500_data <- extract_all_rings_coefficients(below_500_model) %>%
+    mutate(panel = "Below 500 Units")
+
+  above_500_data <- extract_all_rings_coefficients(above_500_model) %>%
+    mutate(panel = "Above 500 Units")
+
+  # Combine data
+  plot_data <- bind_rows(below_500_data, above_500_data)
+
+  # Add staggering for point positioning
+  plot_data <- plot_data %>%
+    mutate(
+      stagger_offset = case_when(
+        location_type == "ring_0_200" ~ -0.15,
+        location_type == "ring_200_400" ~ -0.05,
+        location_type == "ring_400_600" ~ 0.05,
+        location_type == "ring_600_800" ~ 0.15,
+        TRUE ~ 0
+      ),
+      event_time_staggered = event_time + stagger_offset
+    )
+
+  # Create plot with facets
+  ggplot(plot_data, aes(x = event_time_staggered, y = estimate, color = location_type)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray40", alpha = 0.8) +
+    geom_vline(xintercept = -0.5, linetype = "solid", color = "gray60", alpha = 0.6) +
+    geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper),
+                  width = 0.1, alpha = 0.8, size = 0.6) +
+    geom_point(size = 2.5, alpha = 0.9) +
+    facet_wrap(~ panel, ncol = 2, scales = "free_y") +
+    scale_color_manual(
+      values = c(
+        "ring_0_200" = "#2166ac",     # Dark blue
+        "ring_200_400" = "#4393c3",   # Medium blue
+        "ring_400_600" = "#92c5de",   # Light blue
+        "ring_600_800" = "#d1e5f0"    # Very light blue/gray
+      ),
+      labels = c(
+        "ring_0_200" = "0-200m",
+        "ring_200_400" = "200-400m",
+        "ring_400_600" = "400-600m",
+        "ring_600_800" = "600-800m"
+      ),
+      name = "Distance to Project"
+    ) +
+    scale_x_continuous(
+      breaks = seq(-3, 5, 1),
+      labels = seq(-3, 5, 1)
+    ) +
+    labs(
+      title = "Heterogeneity by Project Size: Effects on Chicago Land Values",
+      subtitle = "Stacked Difference-in-Differences Event Study",
+      x = "Decades Since Public Housing Completion",
+      y = "Effect on Log Land Value",
+      caption = "Reference: Control ring (800-1000m). 95% confidence intervals.\nClustered standard errors at project level."
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold", color = "gray20"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, color = "gray40"),
+      plot.caption = element_text(size = 9, color = "gray50"),
+      axis.title = element_text(size = 11, color = "gray20"),
+      axis.text = element_text(size = 10, color = "gray30"),
+      legend.position = "bottom",
+      legend.title = element_text(size = 10, color = "gray20"),
+      legend.text = element_text(size = 9, color = "gray30"),
+      panel.grid.major = element_line(color = "gray90", size = 0.5),
+      panel.grid.minor = element_line(color = "gray95", size = 0.3),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA),
+      strip.text = element_text(size = 11, face = "bold", color = "gray20"),
+      strip.background = element_rect(fill = "gray95", color = NA)
+    )
+}
+
 #' Create event study plot from regression results
 create_event_study_plot <- function(model, title_suffix = "", all_rings = FALSE) {
-  
+
   if(all_rings) {
     plot_data <- extract_all_rings_coefficients(model)
   } else {
     # Original extraction logic for separate regressions
     coeffs <- coef(model)
     ses <- se(model)
-    
+
     # Get all event time coefficients
     event_coeffs <- coeffs[str_detect(names(coeffs), "event_time.*:ring_")]
     event_ses <- ses[str_detect(names(ses), "event_time.*:ring_")]
-    
+
     if(length(event_coeffs) > 0) {
       # Extract event times and location types from coefficient names
       coef_info <- str_match(names(event_coeffs), "event_time::(-?[0-9]+):location_type::(ring_[0-9]+_[0-9]+)")
       event_times <- as.numeric(coef_info[,2])
       location_types <- coef_info[,3]
-      
+
       # Create plot data
       plot_data <- tibble(
         event_time = event_times,
@@ -244,32 +323,67 @@ create_event_study_plot <- function(model, title_suffix = "", all_rings = FALSE)
       )
     }
   }
-  
-  # Create plot
-  ggplot(plot_data, aes(x = event_time, y = estimate, color = location_type)) +
-    geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.7) +
-    geom_vline(xintercept = -0.5, linetype = "solid", alpha = 0.5) +
-    geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, alpha = 0.7) +
-    geom_point(size = 2) +
+
+  # Add staggering for point positioning to prevent overlap
+  plot_data <- plot_data %>%
+    mutate(
+      stagger_offset = case_when(
+        location_type == "ring_0_200" ~ -0.15,
+        location_type == "ring_200_400" ~ -0.05,
+        location_type == "ring_400_600" ~ 0.05,
+        location_type == "ring_600_800" ~ 0.15,
+        TRUE ~ 0
+      ),
+      event_time_staggered = event_time + stagger_offset
+    )
+
+  # Create plot with professional color scheme and improved aesthetics
+  ggplot(plot_data, aes(x = event_time_staggered, y = estimate, color = location_type)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray40", alpha = 0.8) +
+    geom_vline(xintercept = -0.5, linetype = "solid", color = "gray60", alpha = 0.6) +
+    geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper),
+                  width = 0.1, alpha = 0.8, size = 0.6) +
+    geom_point(size = 2.5, alpha = 0.9) +
     scale_color_manual(
-      values = c("ring_0_200" = "red", "ring_200_400" = "orange", "ring_400_600" = "green", "ring_600_800" = "blue",
-                 "treated" = "red", "inner" = "orange", "outer" = "blue"),
-      labels = c("ring_0_200" = "0-200m", "ring_200_400" = "200-400m", "ring_400_600" = "400-600m", "ring_600_800" = "600-800m",
-                 "treated" = "Treated", "inner" = "Inner", "outer" = "Outer"),
+      values = c(
+        "ring_0_200" = "#2166ac",     # Dark blue
+        "ring_200_400" = "#4393c3",   # Medium blue
+        "ring_400_600" = "#92c5de",   # Light blue
+        "ring_600_800" = "#d1e5f0"    # Very light blue/gray
+      ),
+      labels = c(
+        "ring_0_200" = "0-200m",
+        "ring_200_400" = "200-400m",
+        "ring_400_600" = "400-600m",
+        "ring_600_800" = "600-800m"
+      ),
       name = "Distance to Project"
+    ) +
+    scale_x_continuous(
+      breaks = seq(-3, 5, 1),
+      labels = seq(-3, 5, 1)
     ) +
     labs(
       title = paste("Effect of Public Housing on Chicago Land Values", title_suffix),
       subtitle = "Stacked Difference-in-Differences Event Study",
-      x = "Years Since Public Housing Completion", 
+      x = "Decades Since Public Housing Completion",
       y = "Effect on Log Land Value",
       caption = "Reference: Control ring (800-1000m). 95% confidence intervals.\nClustered standard errors at project level."
     ) +
     theme_minimal() +
     theme(
-      plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-      plot.subtitle = element_text(hjust = 0.5, size = 12),
-      legend.position = "bottom"
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold", color = "gray20"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12, color = "gray40"),
+      plot.caption = element_text(size = 9, color = "gray50"),
+      axis.title = element_text(size = 11, color = "gray20"),
+      axis.text = element_text(size = 10, color = "gray30"),
+      legend.position = "bottom",
+      legend.title = element_text(size = 10, color = "gray20"),
+      legend.text = element_text(size = 9, color = "gray30"),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_line(color = "gray95", size = 0.3),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA)
     )
 }
 
@@ -495,10 +609,122 @@ cat("Size interaction regression completed\n")
 cat("\n=== SAVING RESULTS ===\n")
 
 # Create all-rings plot
-all_rings_plot <- create_event_study_plot(all_rings_results$all_rings_baseline, 
-                                         title_suffix = " (All Rings)", 
+all_rings_plot <- create_event_study_plot(all_rings_results$all_rings_baseline,
+                                         title_suffix = " (All Rings)",
                                          all_rings = TRUE)
 ggsave(here(figures_dir, "chicago_land_value_event_study_all_rings.pdf"), all_rings_plot, width = 10, height = 6)
+
+# Create heterogeneity plot by project size (500-unit threshold)
+if(length(size_hetero_500_results) >= 2) {
+  heterogeneity_plot_500 <- create_heterogeneity_plot(
+    below_500_model = size_hetero_500_results$below_500,
+    above_500_model = size_hetero_500_results$above_500
+  )
+
+  # Update titles for 500-unit threshold
+  heterogeneity_plot_500$labels$title <- "Heterogeneity by Project Size (500-Unit Threshold): Effects on Chicago Land Values"
+
+  ggsave(here(figures_dir, "chicago_land_value_heterogeneity_500_units.pdf"),
+         heterogeneity_plot_500, width = 12, height = 6)
+  cat("Heterogeneity plot (500-unit threshold) saved\n")
+} else {
+  cat("Insufficient heterogeneity results for 500-unit threshold plot\n")
+}
+
+# Create heterogeneity plot by project size (median split)
+if(length(size_hetero_median_results) >= 2) {
+  # Create modified heterogeneity function for median split with different labels
+  create_median_heterogeneity_plot <- function(below_median_model, above_median_model, median_value) {
+
+    # Extract coefficients for both models
+    below_median_data <- extract_all_rings_coefficients(below_median_model) %>%
+      mutate(panel = paste0("Below Median ($\\leq$", median_value, " Units)"))
+
+    above_median_data <- extract_all_rings_coefficients(above_median_model) %>%
+      mutate(panel = paste0("Above Median (>", median_value, " Units)"))
+
+    # Combine data
+    plot_data <- bind_rows(below_median_data, above_median_data)
+
+    # Add staggering for point positioning
+    plot_data <- plot_data %>%
+      mutate(
+        stagger_offset = case_when(
+          location_type == "ring_0_200" ~ -0.15,
+          location_type == "ring_200_400" ~ -0.05,
+          location_type == "ring_400_600" ~ 0.05,
+          location_type == "ring_600_800" ~ 0.15,
+          TRUE ~ 0
+        ),
+        event_time_staggered = event_time + stagger_offset
+      )
+
+    # Create plot with facets
+    ggplot(plot_data, aes(x = event_time_staggered, y = estimate, color = location_type)) +
+      geom_hline(yintercept = 0, linetype = "dashed", color = "gray40", alpha = 0.8) +
+      geom_vline(xintercept = -0.5, linetype = "solid", color = "gray60", alpha = 0.6) +
+      geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper),
+                    width = 0.1, alpha = 0.8, size = 0.6) +
+      geom_point(size = 2.5, alpha = 0.9) +
+      facet_wrap(~ panel, ncol = 2) +
+      scale_color_manual(
+        values = c(
+          "ring_0_200" = "#2166ac",     # Dark blue
+          "ring_200_400" = "#4393c3",   # Medium blue
+          "ring_400_600" = "#92c5de",   # Light blue
+          "ring_600_800" = "#d1e5f0"    # Very light blue/gray
+        ),
+        labels = c(
+          "ring_0_200" = "0-200m",
+          "ring_200_400" = "200-400m",
+          "ring_400_600" = "400-600m",
+          "ring_600_800" = "600-800m"
+        ),
+        name = "Distance to Project"
+      ) +
+      scale_x_continuous(
+        breaks = seq(-3, 5, 1),
+        labels = seq(-3, 5, 1)
+      ) +
+      labs(
+        title = "Heterogeneity by Project Size (Median Split): Effects on Chicago Land Values",
+        subtitle = "Stacked Difference-in-Differences Event Study",
+        x = "Decades Since Public Housing Completion",
+        y = "Effect on Log Land Value",
+        caption = "Reference: Control ring (800-1000m). 95% confidence intervals.\nClustered standard errors at project level."
+      ) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold", color = "gray20"),
+        plot.subtitle = element_text(hjust = 0.5, size = 12, color = "gray40"),
+        plot.caption = element_text(size = 9, color = "gray50"),
+        axis.title = element_text(size = 11, color = "gray20"),
+        axis.text = element_text(size = 10, color = "gray30"),
+        legend.position = "bottom",
+        legend.title = element_text(size = 10, color = "gray20"),
+        legend.text = element_text(size = 9, color = "gray30"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_line(color = "gray95", size = 0.3),
+        panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA),
+        strip.text = element_text(size = 11, face = "bold", color = "gray20"),
+        strip.background = element_rect(fill = "gray95", color = NA),
+        panel.spacing = unit(1.5, "cm")
+      )
+  }
+
+  heterogeneity_plot_median <- create_median_heterogeneity_plot(
+    below_median_model = size_hetero_median_results$below_median,
+    above_median_model = size_hetero_median_results$above_median,
+    median_value = project_median_units
+  )
+
+  ggsave(here(figures_dir, "chicago_land_value_heterogeneity_median_split.pdf"),
+         heterogeneity_plot_median, width = 12, height = 6)
+  cat("Heterogeneity plot (median split) saved\n")
+} else {
+  cat("Insufficient heterogeneity results for median split plot\n")
+}
 
 # Save all-rings regression tables with different specifications
 etable(all_rings_results$all_rings_baseline, all_rings_results$all_rings_control_ur_highway, all_rings_results$all_rings_exclude_ur,

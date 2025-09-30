@@ -38,7 +38,7 @@ census_tract_sample_indexed_unique <-
 
 # merge unique tracts and rings onto 1990 census data
 tracts_and_rings_for_maps <-
-  left_join(census_tract_sample_indexed_1990, unique_tracts_and_rings) %>%
+  left_join(census_tract_sample_indexed_unique, unique_tracts_and_rings) %>%
   select(STATE, COUNTY, TRACTA, location_type, city) %>% 
   # if location type is missing, set to "excluded"
   mutate(location_type = ifelse(is.na(location_type), "excluded", location_type)) %>% 
@@ -50,8 +50,11 @@ tracts_and_rings_for_maps <-
 # For each city, create a map of tracts and rings
 
 map_list <- list()
+cities <- "Chicago"
 
-for (c in unique(tracts_and_rings_for_maps$city)) {
+#for (c in unique(tracts_and_rings_for_maps$city)) {
+
+for (c in cities) {
   
   tracts_and_rings_for_maps_city <- 
     tracts_and_rings_for_maps %>% 

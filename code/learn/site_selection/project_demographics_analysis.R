@@ -69,6 +69,7 @@ project_demographics <- balanced_data %>%
     baseline_log_rent = asinh_median_rent_calculated[event_time == -10],
     baseline_pop_density = population_density[event_time == -10],
     baseline_unemp_rate = unemp_rate[event_time == -10],
+    baseline_lfp_rate = lfp_rate[event_time == -10],
     baseline_dissimilarity = local_dissimilarity_index[event_time == -10],
     baseline_distance_cbd = asinh_distance_from_cbd[event_time == -10],
     baseline_distance_highway = asinh(distance_to_highway_km)[event_time == -10],
@@ -98,8 +99,10 @@ project_demographics <- balanced_data %>%
          # Baseline neighborhood characteristics
          baseline_asinh_pop_total,
          baseline_black_share, baseline_white_share, baseline_log_income, baseline_log_rent,
-         baseline_pop_density, baseline_unemp_rate, baseline_dissimilarity,
-         baseline_distance_cbd, baseline_distance_highway, redlined, ur_binary_10pp, ur_binary_5pp,
+         baseline_pop_density, baseline_unemp_rate, baseline_lfp_rate,
+         baseline_dissimilarity,
+         baseline_distance_cbd, cbd, 
+         baseline_distance_highway, redlined, ur_binary_10pp, ur_binary_5pp,
          # Project characteristics
          total_public_housing_units, project_size_log,
          project_black_share, project_white_share) 
@@ -173,62 +176,40 @@ cat("\n=== REGRESSION ANALYSIS ===\n")
 
 ### 1. No FE, 
 model_black_share_no_fe <- feols(
-  project_black_share ~ baseline_black_share + baseline_log_income + 
-                        baseline_asinh_pop_total + baseline_unemp_rate + 
-                       baseline_distance_cbd + redlined + ur_binary_5pp,
+  project_black_share ~ baseline_black_share + baseline_log_income + baseline_log_rent +
+                          baseline_asinh_pop_total + baseline_unemp_rate + baseline_lfp_rate +
+                          baseline_distance_cbd + cbd +
+                          baseline_distance_highway + redlined + 
+                          ur_binary_5pp,
   data = project_demographics,
   cluster = ~COUNTY
 )
 model_black_share_no_fe
 
-model_white_share_no_fe <- 
-feols(
-  project_white_share ~ baseline_black_share + baseline_log_income +
-                        baseline_asinh_pop_total + baseline_unemp_rate +
-                       baseline_distance_cbd + redlined + ur_binary_5pp,
-  data = project_demographics,
-  cluster = ~COUNTY
-)
-model_white_share_no_fe
-
 
 ### 2. Full specification with all controls
 model_black_share_full <- feols(
   project_black_share ~ baseline_black_share + baseline_log_income + baseline_log_rent +
-                        baseline_asinh_pop_total + baseline_unemp_rate +
-                       baseline_distance_cbd + baseline_distance_highway + redlined + ur_binary_5pp| COUNTY,
+                        baseline_asinh_pop_total + baseline_unemp_rate + baseline_lfp_rate +
+                       baseline_distance_cbd + cbd +
+                       baseline_distance_highway + redlined + 
+                       ur_binary_5pp | COUNTY,
   data = project_demographics,
   cluster = ~COUNTY
 )
 model_black_share_full
 
 
-model_white_share_full <- feols(
-  project_white_share ~ baseline_black_share + baseline_log_income + baseline_log_rent +
-                        baseline_asinh_pop_total + baseline_unemp_rate +
-                        baseline_distance_cbd + baseline_distance_highway + redlined  + ur_binary_5pp | COUNTY,
-  data = project_demographics,
-  cluster = ~COUNTY
-)
-
-model_white_share_full
-
-### 3. Simple specifications (parsimonious models)
+### 3. Simple specification
 model_black_share_simple <- feols(
-  project_black_share ~ baseline_black_share + baseline_log_income | COUNTY,
+  project_black_share ~ baseline_black_share + baseline_log_income,
   data = project_demographics,
   cluster = ~COUNTY
 )
 
-model_white_share_simple <- feols(
-  project_white_share ~ baseline_black_share + baseline_log_income | COUNTY,
-  data = project_demographics,
-  cluster = ~COUNTY
-)
 
 cat("\nSimple models:\n")
 model_black_share_simple
-model_white_share_simple
 
 # ## Project size models ----
 # # 8/22/2025: The problem with these project size models is that I split the projects up among multiple tracts
@@ -284,7 +265,8 @@ cat("\n=== SAVING RESULTS ===\n")
 # Project racial composition table - focus on Black share only
 racial_composition_models <- list(
   "(1)" = model_black_share_simple,
-  "(2)" = model_black_share_full
+  "(2)" = model_black_share_no_fe, 
+  "(3)" = model_black_share_full
 )
 
 
@@ -295,27 +277,29 @@ racial_comp_table <- modelsummary(
   gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
   coef_rename = c(
     "baseline_black_share" = "Black Share",
-    "baseline_log_income" = "Log Median Income",
-    "baseline_log_rent" = "Log Median Rent",
-    "baseline_asinh_pop_total" = "Log Population",
+    "baseline_log_income" = "Asinh Median Income",
+    "baseline_log_rent" = "Asinh Median Rent",
+    "baseline_asinh_pop_total" = "Asinh Population",
     "baseline_unemp_rate" = "Unemployment Rate",
-    "baseline_distance_cbd" = "Log Distance to CBD",
-    "baseline_distance_highway" = "Log Distance to Highway",
+    "baseline_lfp_rate" = "LFP Rate",
+    "baseline_distance_cbd" = "Asinh Dist. to CBD",
+    "cbd" = "CBD",
+    "baseline_distance_highway" = "Asinh Dist. to Highway",
     "redlined" = "Redlined (HOLC)",
     "ur_binary_5pp" = "Urban Renewal Area"
   ),
-  add_rows = data.frame(term = "County FE", "(1)" = "Yes", "(2)" = "Yes",
+  add_rows = data.frame(term = "County FE", "(1)" = "No", "(2)" = "No", "(3)" = "Yes",
                         check.names = FALSE),
-  title = "Public housing project demographic composition by neighborhood characteristics\\label{tab:project_targeting}",
+  title = "Project Black share by initial neighborhood characteristics\\label{tab:project_targeting}",
   # split long footnotes into separate lines
   notes = paste(
     "Regression of project Black share on baseline neighborhood characteristics.",
-    "All specifications include county fixed. Standard errors clustered by county.", sep = " " 
+    "Standard errors clustered by county.", sep = " " 
   ),
   output = "tinytable",         # get a tinytable object for post-processing
   width  = 1,                   # pass-through to tinytable::tt(): use full \linewidth
   theme  = "resize",            # scale to fit if needed (LaTeX)
-  align  = "lcc"                # wider first column for variable names
+  align  = "lccc"                # wider first column for variable names
 )
 
 # Optional polish: slightly smaller font & a bit more row height for readability

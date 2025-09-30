@@ -393,12 +393,19 @@ public_housing_in_sample <-
   public_housing_data %>%
   filter(project_code %in% treated_tracts_with_projects$project_code)
 
-
+# Final counts -----
 # Numbers (Updated 7/24/2025)
-# 294694
+
+# unique tracts
+nrow(balanced_sample %>% filter(YEAR == 2000) %>% select(GISJOIN_1950) %>% distinct())
+
+# unique CBSAs
+n_distinct(balanced_sample$cbsa_title)
+
+# 294022
 sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE)
 
-# Number of projects: 688 (8/19)
+# Number of projects: 687 (8/19)
 nrow(public_housing_in_sample %>% filter(!is.na(total_public_housing_units)))
 
 # projects per city
@@ -407,7 +414,7 @@ projects_per_city <-
   pull(locality) %>% 
   table()
 
-# number of treated tracts: 627
+# number of treated tracts: 628
 nrow(treated_tracts_with_projects %>% select(GISJOIN_1950) %>% distinct())
 
 
@@ -443,6 +450,14 @@ boston_map <- ggplot(boston_tracts) +
   )
 
 print(boston_map)
+
+# identify northmost chicago project
+public_housing_data %>%
+  filter(str_detect(locality, "CHICAGO")) %>%
+  mutate(lat = as.numeric(st_coordinates(geom)[,2])) %>% 
+  st_drop_geometry() %>%
+  arrange(-lat) %>%
+  slice(1)
 
 # County-level breakdown
 boston_by_county <- boston_tracts %>%

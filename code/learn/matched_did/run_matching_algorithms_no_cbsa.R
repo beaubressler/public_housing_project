@@ -1,7 +1,8 @@
 ####
-# Matching Algorithms with Replacement
-# This script runs propensity score matching WITH replacement to maximize sample size
-# while maintaining strong identification through better individual matches
+# Matching Algorithms with Replacement - CROSS-CITY VERSION:
+# Robustness check
+# This script runs propensity score matching WITH replacement across cities
+# Key difference: antiexact = "cbsa_title" and no county_id exact matching
 ####
 
 library(MatchIt)
@@ -122,14 +123,13 @@ census_tract_data <-
 # Define group types and matching variables -----
 group_types <- c("treated", "inner")
 
-# Matching variables based on site selection analysis: 
+# Matching variables based on site selection analysis: Only those p<0.01
 matching_vars <- c(
   #"asinh_distance_from_cbd",     # Geographic/transportation access
   #"asinh_pop_total",             # Neighborhood size
   "total_pop",
   "black_share",                 # Racial composition
-  #"black_pop",
-  "lfp_rate",
+  # "lfp_rate",
   "unemp_rate",                  # Economic conditions
   # "asinh_median_income",         # Socioeconomic status
   "median_income",
@@ -138,7 +138,7 @@ matching_vars <- c(
   )
 
 exact_matching_vars <- c(
-  "county_id", 
+  #"county_id", 
   "redlined_binary_80pp", 
   "ur_binary_5pp"
 )
@@ -233,6 +233,7 @@ perform_matching_with_replacement <- function(data, treatment_year, match_vars, 
                    ratio = nearest_neighbors,
                    link = match_link,
                    caliper = caliper,
+                   antiexact = "cbsa_title",
                    replace = TRUE)
   
   # Print matching summary
@@ -294,7 +295,7 @@ for (group in group_types) {
         distance_option = "glm",
         match_type = "nearest",
         match_link = "logit",
-        #caliper = 0.4,
+        #caliper = 0.2,
         exact_match_vars =exact_matching_vars
       )
       
@@ -433,7 +434,6 @@ cat("\n=== BALANCE CHECK ===\n")
 
 # Covariates for balance checking
 covariates <- c("total_pop", "black_share", 
-                "black_pop",
                 "median_income", 
                 "median_rent_calculated",
                 "median_home_value_calculated", 
@@ -501,7 +501,6 @@ format_balance_table <- function(tableone_obj, group_name) {
       Variable = str_replace_all(Variable, "\\s*\\(mean \\(SD\\)\\)", ""),  # Remove (mean (SD)) suffix
       Variable = case_when(
         str_detect(Variable, "total_pop") ~ "Total Population",
-        str_detect(Variable, "black_pop") ~ "Black Population",
         str_detect(Variable, "black_share") ~ "Black Share", 
         str_detect(Variable, "white_share") ~ "White Share",
         str_detect(Variable, "median_income") & !str_detect(Variable, "asinh") ~ "Median Income",
@@ -554,21 +553,19 @@ if (nrow(balance_data_treated) > 0 & exists("balance_table_treated")) {
   
   # Format with tinytable and add title with label
   treated_table <- tt(treated_balance_formatted,
-                     caption = "Pre-treatment Covariate Balance: Treated Neighborhoods\\label{tab:balance_treated}",
-                     notes = "\\footnotesize \\textit{Notes:} Sample includes all treated neighborhoods and their matched controls from the propensity score matching procedure."
-                     ) %>%
+                     caption = "Pre-treatment Covariate Balance: Treated Neighborhoods\\label{tab:balance_treated}") %>%
     style_tt(font_size = 0.9) %>%
     format_tt(escape = FALSE) %>%  # Don't escape LaTeX commands in caption
-    theme_tt("resize") 
+    theme_tt("resize")
+  
   # Save to LaTeX
   save_tt(treated_table, 
-          file.path(balance_table_dir, "balance_table_treated_neighborhoods.tex"),
+          file.path(balance_table_dir, "balance_table_treated_neighborhoods_no_cbsa.tex"),
           overwrite = TRUE)
   
   cat("Treated balance table saved to:", 
-      file.path(balance_table_dir, "balance_table_treated_neighborhoods.tex"), "\n")
+      file.path(balance_table_dir, "balance_table_treated_neighborhoods_no_cbsa.tex"), "\n")
 }
-
 
 # Create balance table for spillover neighborhoods  
 if (nrow(balance_data_inner) > 0 & exists("balance_table_inner")) {
@@ -578,20 +575,18 @@ if (nrow(balance_data_inner) > 0 & exists("balance_table_inner")) {
   
   # Format with tinytable and add title with label
   inner_table <- tt(inner_balance_formatted,
-                   caption = "Pre-treatment Covariate Balance: Spillover Neighborhoods\\label{tab:balance_spillover}",
-                   notes = paste0("\\footnotesize \\textit{Notes:} Sample includes all neighborhoods contiguous to public housing neighborhoods (within 1km of public housing projects) and their matched controls",
-                                  "from the propensity score matching procedure.")) %>%
+                   caption = "Pre-treatment Covariate Balance: Spillover Neighborhoods\\label{tab:balance_spillover}") %>%
     style_tt(font_size = 0.9) %>%
     format_tt(escape = FALSE) %>%  # Don't escape LaTeX commands in caption
     theme_tt("resize")
-
+  
   # Save to LaTeX
   save_tt(inner_table,
-          file.path(balance_table_dir, "balance_table_spillover_neighborhoods.tex"),
+          file.path(balance_table_dir, "balance_table_spillover_neighborhoods_no_cbsa.tex"),
           overwrite = TRUE)
   
   cat("Spillover balance table saved to:", 
-      file.path(balance_table_dir, "balance_table_spillover_neighborhoods.tex"), "\n")
+      file.path(balance_table_dir, "balance_table_spillover_neighborhoods_no_cbsa.tex"), "\n")
 }
 
 cat("\n=== BALANCE TABLES COMPLETE ===\n")
@@ -601,191 +596,11 @@ cat("\n=== MATCHING WITH REPLACEMENT COMPLETE ===\n")
 cat("\n=== SAVING DATASETS ===\n")
 
 write_csv(tract_data_matched_1_year_replacement, 
-          here(output_data_dir, "tract_data_matched_1_year_replacement.csv"))
+          here(output_data_dir, "tract_data_matched_1_year_replacement_no_cbsa.csv"))
 
-cat("Dataset saved to:", here(output_data_dir, "tract_data_matched_1_year_replacement.csv"), "\n")
+cat("Dataset saved to:", here(output_data_dir, "tract_data_matched_1_year_replacement_no_cbsa.csv"), "\n")
 
 # Save matching objects for diagnostics
 # saveRDS(m_out_objects_replacement, 
 #         here(output_data_dir, "m_out_objects_replacement.rds"))
-
-# Analyze matching dropouts -----
-cat("\n=== MATCHING DROPOUT ANALYSIS ===\n")
-
-# Get all treated tracts that went into matching
-all_treated_tracts <- census_tract_data %>%
-  filter(location_type == "treated") %>%
-  distinct(GISJOIN_1950, treatment_year, county_id, redlined_binary_80pp, ur_binary_5pp, cbsa_title)
-
-# Get treated tracts that successfully matched
-matched_treated_tracts <- tract_data_matched_1_year_replacement %>%
-  filter(location_type == "treated") %>%
-  distinct(GISJOIN_1950, matched_treatment_year, county_id, redlined_binary_80pp, ur_binary_5pp, cbsa_title) %>%
-  rename(treatment_year = matched_treatment_year)
-
-# Find unmatched tracts
-unmatched_tracts <- all_treated_tracts %>%
-  anti_join(matched_treated_tracts, by = c("GISJOIN_1950", "treatment_year"))
-
-cat("Total treated tracts:", nrow(all_treated_tracts), "\n")
-cat("Successfully matched treated tracts:", nrow(matched_treated_tracts), "\n") 
-cat("Unmatched treated tracts:", nrow(unmatched_tracts), "\n\n")
-
-if (nrow(unmatched_tracts) > 0) {
-  cat("REASONS FOR MATCHING FAILURE:\n")
-  
-  # Check exact matching constraint failures
-  cat("\n1. County distribution of unmatched tracts:\n")
-  county_summary <- unmatched_tracts %>%
-    count(county_id, cbsa_title, sort = TRUE)
-  print(county_summary)
-  
-  cat("\n2. Redlining status of unmatched tracts:\n")
-  redlining_summary <- unmatched_tracts %>%
-    count(redlined_binary_80pp, sort = TRUE)
-  print(redlining_summary)
-  
-  cat("\n3. Urban renewal status of unmatched tracts:\n") 
-  ur_summary <- unmatched_tracts %>%
-    count(ur_binary_5pp, sort = TRUE)
-  print(ur_summary)
-  
-  cat("\n4. Combined exact matching combinations for unmatched tracts:\n")
-  exact_combo_summary <- unmatched_tracts %>%
-    count(county_id, redlined_binary_80pp, ur_binary_5pp, cbsa_title, sort = TRUE)
-  print(head(exact_combo_summary, 10))
-  
-  # Save unmatched tracts for further analysis
-  write_csv(unmatched_tracts, here(output_data_dir, "unmatched_treated_tracts.csv"))
-  cat("\nUnmatched tracts saved to:", here(output_data_dir, "unmatched_treated_tracts.csv"), "\n")
-}
-
-cat("\n=== DROPOUT ANALYSIS COMPLETE ===\n")
-
-# Function to create time series graphs for any variable ----
-create_time_series_plots <- function(data, variable_name, variable_label = NULL, 
-                                   use_percent = FALSE, save_plots = TRUE) {
-  
-  # Set default label if not provided
-  if (is.null(variable_label)) {
-    variable_label <- str_to_title(str_replace_all(variable_name, "_", " "))
-  }
-  
-  # Prepare data for time series analysis
-  time_series_data <- data %>%
-    filter(location_type %in% c("treated", "inner", "donor_pool")) %>%
-    group_by(year, location_type, group_type) %>%
-    summarise(
-      mean_value = mean(.data[[variable_name]], na.rm = TRUE),
-      median_value = median(.data[[variable_name]], na.rm = TRUE),
-      n_tracts = n(),
-      .groups = "drop"
-    ) %>%
-    # Create cleaner labels
-    mutate(location_label = case_when(
-      location_type == "treated" ~ "Treated Tracts",
-      location_type == "inner" ~ "Nearby neighborhoods", 
-      location_type == "donor_pool" ~ "Matched Controls"
-    ))
-  
-  # Set y-axis formatting
-  if (use_percent) {
-    y_scale <- scale_y_continuous(labels = scales::percent_format())
-  } else {
-    y_scale <- scale_y_continuous(labels = scales::comma_format())
-  }
-  
-  # Create faceted plot: Treated vs Controls and Nearby vs Controls
-  facet_data <- time_series_data %>%
-    mutate(
-      comparison = case_when(
-        group_type == "treated" ~ "Treated vs Controls",
-        group_type == "inner" ~ "Nearby vs Controls"
-      )
-    ) %>%
-    filter(!is.na(comparison))
-  
-  p_faceted <- facet_data %>%
-    ggplot(aes(x = year, y = mean_value, color = location_label, linetype = location_label)) +
-    geom_line(size = 1.2) +
-    geom_point(size = 2) +
-    scale_color_manual(values = c("Treated Tracts" = "red", "Nearby neighborhoods" = "orange", "Matched Controls" = "blue")) +
-    scale_linetype_manual(values = c("Treated Tracts" = "solid", "Nearby neighborhoods" = "solid", "Matched Controls" = "dashed")) +
-    y_scale +
-    scale_x_continuous(breaks = seq(1930, 1990, 10)) +
-    facet_wrap(~ comparison, ncol = 2) +
-    labs(
-      title = paste(variable_label, "Over Time: Treatment vs Control Comparisons"),
-      x = "Year", 
-      y = paste("Mean", variable_label),
-      color = "Tract Type",
-      linetype = "Tract Type",
-      caption = "Based on matched difference-in-differences sample"
-    ) +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      plot.title = element_text(size = 14, face = "bold"),
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      strip.text = element_text(size = 12, face = "bold")
-    )
-  
-  # Save plots if requested
-  if (save_plots) {
-    clean_var_name <- str_replace_all(variable_name, "[^a-zA-Z0-9_]", "_")
-    ggsave(here(figures_dir, paste0("time_series_faceted_", clean_var_name, ".pdf")), 
-           p_faceted, width = 12, height = 6)
-    
-    # Save time series data
-    write_csv(time_series_data, 
-              here(output_data_dir, paste0("time_series_", clean_var_name, "_by_group.csv")))
-    
-    cat("\nTime series faceted graph for", variable_name, "saved to:", here(figures_dir), "\n")
-    cat("Time series data saved to:", here(output_data_dir, paste0("time_series_", clean_var_name, "_by_group.csv")), "\n")
-  }
-  
-  # Print summary statistics
-  cat("\nTime series summary for", variable_label, ":\n")
-  print(time_series_data %>% arrange(year, location_type) %>% select(year, location_label, mean_value, n_tracts))
-  
-  # Return plot and data
-  return(list(
-    faceted_plot = p_faceted,
-    data = time_series_data
-  ))
-}
-
-# Create time series graphs ----
-cat("\n=== CREATING TIME SERIES GRAPHS ===\n")
-
-# Example: Create graphs for multiple variables
-variables_to_plot <- list(
-  list(var = "black_share", label = "Black Share", percent = TRUE),
-  list(var = "black_pop", label = "Black pop", percent = FALSE),
-  list(var = "total_pop", label = "Total Population", percent = FALSE),
-  list(var = "median_income", label = "Median Income (1950$)", percent = FALSE)
-)
-
-create_time_series_plots(data = tract_data_matched_1_year_replacement,
-                         variable_name = "black_share",
-                         variable_label = "Total pop", use_percent = FALSE, save_plots = FALSE)
-
-# Generate plots for each variable
-for (var_info in variables_to_plot) {
-  if (var_info$var %in% names(tract_data_matched_1_year_replacement)) {
-    cat("\nCreating plots for:", var_info$label, "\n")
-    plots <- create_time_series_plots(
-      data = tract_data_matched_1_year_replacement,
-      variable_name = var_info$var,
-      variable_label = var_info$label,
-      use_percent = var_info$percent,
-      save_plots = TRUE
-    )
-  } else {
-    cat("\nVariable", var_info$var, "not found in data\n")
-  }
-}
-
-cat("\n=== TIME SERIES ANALYSIS COMPLETE ===\n")
-
 

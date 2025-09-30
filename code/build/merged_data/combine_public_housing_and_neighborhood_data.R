@@ -33,7 +33,7 @@ tract_id_variables <- c("YEAR", "GISJOIN_1950")
 # I will exclude tiny projects
 public_housing_units_minimum <- 50
 
-# Set buffer size for treatment definition 
+# Set buffer size for treatment definition (meters)
 buffer_size <- 50
 
 # Functions -----

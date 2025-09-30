@@ -206,7 +206,7 @@ chicago_geocoded_google <-
   )) %>%
   # apply manual fixes
   mutate(lat = if_else(is.na(lat_fix), lat, lat_fix),
-         long = if_else(is.na(long_fix), long, long)) %>%
+         long = if_else(is.na(long_fix), long, long_fix)) %>%
   # document source
   mutate(geocode_source = case_when(
     project_name == "Philip Murray Homes" ~ "name_with_city",
@@ -219,8 +219,6 @@ chicago_geocoded_google <-
 
 # output the geocded data
 write_csv(chicago_geocoded_google, here(digitization_dir, "chicago", "chicago_geocoded_projects.csv"))
-
-#write_csv(chicago_geocoded_google, paste0(out_dir, "chicago_1973_geocoded.csv"))
 
 ## San Francisco -----
 sf_raw_1973 <- read_xlsx(here(digitization_dir, "san_francisco", "1973_project_list.xlsx"))
@@ -596,14 +594,14 @@ write_csv(boston_geocoded_google, here(digitization_dir, "boston", "boston_geoco
 # E.g. If you want to re-run new york, you can run the new york geocoding above, uncomment
 # every other city below, and then combine them all together
 
-# chicago_geocoded_google <- read_csv(here(digitization_dir, "chicago", "chicago_geocoded_projects.csv"))
-# sf_geocoded_1973_google_with_fixes <- read_csv(here(digitization_dir, "san_francisco", "sf_geocoded_projects.csv"))
-# la_geocoded_google <- read_csv(here(digitization_dir, "los_angeles", "la_geocoded_projects.csv"))
-# dc_geocoded_google <- read_csv(here(digitization_dir, "washington_dc", "dc_geocoded_projects.csv"))
-# atlanta_geocoded_google <- read_csv(here(digitization_dir, "atlanta", "atlanta_geocoded_projects.csv"))
-# baltimore_geocoded_google <- read_csv(here(digitization_dir, "baltimore", "baltimore_geocoded_projects.csv"))
-# nyc_geocoded_google_with_fixes <- read_csv(here(digitization_dir, "nyc", "nyc_geocoded_projects.csv"))
-# boston_geocoded_google <- read_csv(here(digitization_dir, "boston", "boston_geocoded_projects.csv"))
+chicago_geocoded_google <- read_csv(here(digitization_dir, "chicago", "chicago_geocoded_projects.csv"))
+sf_geocoded_1973_google_with_fixes <- read_csv(here(digitization_dir, "san_francisco", "sf_geocoded_projects.csv"))
+la_geocoded_google <- read_csv(here(digitization_dir, "los_angeles", "la_geocoded_projects.csv"))
+dc_geocoded_google <- read_csv(here(digitization_dir, "washington_dc", "dc_geocoded_projects.csv"))
+atlanta_geocoded_google <- read_csv(here(digitization_dir, "atlanta", "atlanta_geocoded_projects.csv"))
+baltimore_geocoded_google <- read_csv(here(digitization_dir, "baltimore", "baltimore_geocoded_projects.csv"))
+nyc_geocoded_google_with_fixes <- read_csv(here(digitization_dir, "nycha", "nyc_geocoded_projects.csv"))
+boston_geocoded_google <- read_csv(here(digitization_dir, "boston", "boston_geocoded_projects.csv"))
 
 # Combine all geocoded projects into a single dataset
 

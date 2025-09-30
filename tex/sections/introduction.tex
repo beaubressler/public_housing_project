@@ -6,39 +6,112 @@ The Congress hereby declares that the general welfare and security of the Nation
 \hfill \textit{--- Housing Act of 1949}
 
 
+%Public housing represents one of the most ambitious yet controversial urban policy initiatives of the 20th century in the United States.
+Between the 1930s and 1970s, the United States constructed approximately 1.4 million federally-funded public housing units in one of the most ambitious urban policy initiatives of the 20th century (\cite{schwartzHousingPolicyUnited2021}).
+Designed to clear slums, address urban housing shortages, and provide affordable housing to low-income families, the American public housing program has, to many, become synonymous with policy failure.
+Prominent accounts in urban history and sociology have argued that the program created and entrenched racial and economic segregation (e.g., \cite{rothsteinColorLawForgotten2017, hirschMakingSecondGhetto1998, masseyAmericanApartheidSegregation2003}), and accelerated mid-century urban decline (\cite{jacksonCrabgrassFrontierSuburbanization1985}).
+Large, megablock projects such as Cabrini-Green, Pruitt-Igoe, and the Robert Taylor Homes became infamous, criticized for concentrating poverty, promoting crime, and destroying the urban fabric of neighborhoods (\cite{jacobsDeathLifeGreat1961,newmanDefensibleSpaceCrime1972}).
+Federal policy since the 1970s has reflected this negative view through a retreat from public housing:
+The government has shifted funding toward market-based alternatives like Housing Choice Vouchers and the Low Income Housing Tax Credit, while simultaneously dismantling the existing stock through the HOPE VI program, which has funded the demolition or removal of roughly 30\% of the original federal public housing stock since the early 1990s (\cite{schwartzHousingPolicyUnited2021}).
+%The Faircloth Amendment of 1998 capped the total number of units at 1998 levels, limiting the ability of public housing authorities to build new units.
 
-Public housing represents one of the most ambitious yet controversial urban policy initiatives in 20th century United States.
-Between the 1930s and 1970s, the United States government constructed approximately 1.4 million housing units with the explicit goals of neighborhood improvement, addressing urban housing shortages, and providing affordable housing (\cite{schwartzHousingPolicyUnited2021}). 
+Yet the evidence for public housing's failure is mixed.
+Some scholars contend that the program has been unfairly maligned by its most notorious examples and argue its poor reputation partially reflects broader social and economic challenges faced by American cities in the post-war period (\cite{baumanPublicHousingDreadful1994, bloomPublicHousingMyths2015,goetzNewDealRuins2013}).
+Indeed, despite widespread criticism of the program, approximately two-thirds of public housing residents reported being "satisfied" or "very satisfied" with their housing as late as 1999 (\cite{schwartzHousingPolicyUnited2021}), and some causal evidence from economists suggests that living in public housing either has neutral or positive effects on individual outcomes (\cite{currieArePublicHousing2000a,jacobPublicHousingHousing2004,pollakowskiChildhoodHousingAdult2022}), which could suggest that public housing may not have been as detrimental as some narratives suggest.
+At the same time, disentangling the local effects of public housing from pre-existing neighborhood conditions remains challenging.
+Given that projects were often sited in already-distressed areas as part of slum clearance efforts, did public housing cause neighborhood decline, or simply reflect the targeting of struggling areas?
+A full understanding of the public housing program has high stakes as cities grapple with housing affordability: The question of what role public housing can and should play in addressing urban housing challenges remains highly relevant.
+%Moreover, as many American cities today grapple with housing affordability, the question of what role public housing can and should play in addressing urban housing challenges remains highly relevant.
 
-%The legacy of this large-scale intervention in America's urban landscape remains deeply contested.
-The broader historical narrative has argued that the program was largely a failure. Prominent historical narrratives have attributed the public housing program with creating and entrenching racial and economic segregation (e.g. \cite{rothsteinColorLawForgotten2018, hirschMakingSecondGhetto1998, masseyAmericanApartheidSegregation2003})) and accelerating urban decline (\cite{jacksonCrabgrassFrontierSuburbanization2006}). Large, megablock projects were criticized for concentrating poverty, promoting crime, and destroying the urban fabric of neighborhoods (\cite{jacobsDeathLifeGreat1992,newmanCreatingDefensibleSpace1997})
-The history of the policy reflects this negative view, as the federal government has shifted away from the public housing program, largely moving towards housing vouchers and the Low Income Housing Tax Credit as the primary means of providing affordable housing. Through the HOPE VI program, public housing authorities have demolished about 30\% of the total public housing stock through the HOPE VI program (\cite{schwartzHousingPolicyUnited2021}), while the Faircloth Amendment of 1998 capped the total number of public housing units that could be operated by public housing authorities at 1998 levels.
+% TODO: Revisit this
+Resolving these debates requires systematic evidence on where public housing was built and how it shaped neighborhoods over the long run.
+Yet such an analysis has been hindered by the lack of a comprehensive public dataset linking projects to their construction dates and precise locations.
+This paper addresses this research gap by constructing a new dataset on American public housing.
+Combining previously digitized data, public data sources, and newly digitized materials, I obtain the locations, construction dates, and characteristics, such as project size and racial composition, of over 7,000 public housing projects containing over 1 million units nationwide.
+I then integrate this dataset with a consistent-area panel of Census tract-level data from 1930-2000 that I build using both existing Census tract data and geolocated full count Census data from 1930 and 1940, all concorded to 1950 tract boundaries.
+I also merge these data with three other sources: Home Owners' Loan Corporation (HOLC) "redlining" maps from the late 1930s,\footnote{Recent research has shown that the HOLC maps themselves likely did not greatly influence lending decisions and should not be thought of as redlining maps (\cite{fishbackNewEvidenceRedlining2024}). However, these maps provide detailed information about neighborhood characteristics as of the late 1930s.} maps with the locations of Urban Renewal projects, and the locations of interstate highways.
+This new dataset enables me to examine several fundamental questions about the siting and long-run neighborhood consequences of the U.S. public housing program.
 
-Still, others scholars contend that the mid-century public housing program has been unfairly maligned by its most notorious examples, and that its poor reputation partially reflects broader social and economic challenges faced by American cities in the mid-century (\cite{baumanPublicHousingDreadful1994, bloomPublicHousingMyths2015}). And despite widespread criticism of the program, in 1999, about two-thirds of public housing residents reported being "satisfied" or "very satisfied" with their housing (\cite{schwartzHousingPolicyUnited2021}).
-And as many American cities today grapple with housing affordability, the question of what role public housing can and should play in addressing urban housing challenges remains highly relevant.
+First, what neighborhood characteristics influenced public housing site selection?
+This is important for understanding the political economy of public housing and for informing my identification strategy for estimating the neighborhood effects of public housing construction.
+In particular, I am interested in whether public housing was specifically targeted towards Black neighborhoods, as some historical accounts suggest (\cite{hirschMakingSecondGhetto1998, rothsteinColorLawForgotten2017}), or whether it was more broadly targeted towards poor and working-class neighborhoods.
+To answer this, I estimate linear probability models to explore how pre-existing neighborhood characteristics, including demographic, socioeconomic, housing market, and institutional factors, predicted the placement of public housing projects.
+I find that public housing projects were more likely to be built in neighborhoods that were initially poorer, more populated, and had higher shares of Black residents, consistent with the program's slum clearance goals and the racialized politics of housing policy in the mid-20th century.
+I also find that neighborhoods that were designated as "Hazardous" in the 1930s by the Home Owners' Loan Corporation (HOLC) were significantly more likely to receive public housing projects, and that neighborhoods that received public housing were also more likely to be affected by urban renewal, another large mid-century urban policy that targeted predominantly Black neighborhoods (\cite{lavoiceLongrunImplicationsSlum2024}).
+Finally, I find that public housing projects built in poorer neighborhoods and neighborhoods with higher Black population shares tended to have higher shares of Black residents themselves, indicating that public housing reinforced rather than disrupted existing residential segregation patterns.
+These results are consistent with historical narratives and case study evidence about the politics of public housing site selection (e.g., \cite{meyersonPoliticsPlanningPublic1955,baumanPublicHousingDreadful1994,hirschMakingSecondGhetto1998}).
+% 9/25/2025: Possible sentence: Still, neighborhoods that received public housing were not necessarily extremely Black when the projects were built.
+
+Second, what were the short- and long-run effects of public housing construction on both the recipient and surrounding neighborhoods? 
+To answer this question, I employ a \textbf{stacked matched difference-in-differences strategy}.
+For each neighborhood that received a public housing project, I use nearest-neighbor propensity score matching to identify a comparable control neighborhood in the same county based on the pre-treatment characteristics that I demonstrated were key determinants of site selection.
+I then treat each matched pair as a separate "sub-experiment" and stack these sub-experiments into a single analytic dataset. 
+This design ensures each treated neighborhood is compared only to its matched control both before and after public housing construction, while also allowing me to test for differential pre-trends.
+Importantly, the stacked framework also avoids the econometric pitfalls that arise in staggered adoption settings when treatment effects are heterogeneous across cohorts and over time (\cite{wingStackedDifferenceDifferences2024}).
+I extend this methodology to analyze the geographic spillovers of the projects by conducting a similar exercise for neighborhoods adjacent to public housing neighborhoods, thereby estimating the broader geographic effects of the projects. 
+
+In the public housing ("treated") neighborhoods, I find large increases in total population driven particularly by large increases in the Black population, resulting in substantial increases in Black population shares.
+I also find large decreases in median rents, along with declines in median incomes and various other measures of economic well-being, including lower labor force participation rates and higher unemployment rates.
+These results, in conjunction with the site selection results, suggest that while public housing was targeted towards poorer, minority neighborhoods, the construction of the projects further accelerated demographic changes and socioeconomic decline in these neighborhoods over the long run.
+
+In terms of geographic spillovers, I find that adjacent neighborhoods experienced decreases in median incomes, but showed little evidence of large changes in racial composition, population, or housing market outcomes on average.
+This suggests that while public housing may have had some negative spillovers on surrounding neighborhoods, these effects were more muted than some historical narratives have suggested (e.g. \cite{jacksonCrabgrassFrontierSuburbanization1985}).
+
+I also explore the heterogeneity of these effects along several dimensions.
+First, I explore the heterogeneity by the initial racial composition of the neighborhood.
+I find that treated and nearby neighborhoods that initially had Black population shares within a potential "tipping range" (between 1 and 12\%, based on work by \cite{cardTippingDynamicsSegregation2008}) saw outflows of white residents, whereas neighborhoods that were initially more Black did not.
+This suggests that public housing construction may have triggered racial tipping dynamics in some neighborhoods.
+I also find that the long-run effects of public housing construction on neighborhoods were larger for projects built before 1960, and that the effects of the projects that I detect were largely driven by neighborhoods that were not treated by the urban renewal program.
+
+In Appendix \ref{app:philadelphia_site_selection}, I use a georeferenced map of proposed-but-not-selected public housing sites in Philadelphia (from \cite{baumanPublicHousingRace1987}) to further examine the site selection process and to assess the potential for using these rejected sites as an alternative control group.
+I find that these rejected sites were in neighborhoods that differed markedly from the sites where projects were ultimately built:
+they were higher-income areas with very low Black population shares.
+This shows that, while appealing in principle, using rejected sites as controls is not a viable strategy in the public housing context.
+I also use these sites in a placebo test of my matched difference-in-differences strategy, treating them as pseudo-treatments, and find no effects on neighborhood outcomes.
+
+I also conduct two supplementary exercises using data collected for particular cities. 
+In Appendix \ref{app:chicago_land_values}, I use a long-run panel of historical land values in Chicago at small geographic scale to study the effects of public housing construction on land values.
+Using a stacked, spatial difference-in-differences strategy, I find little evidence that public housing projects had large negative effects on land values, and if anything, that small projects had positive effects on land values.
+
+%Insert bit about heterogeneity here
+
+This paper contributes to several literatures in urban and public economics and economic history.
+First, it contributes to the literature on the local effects of affordable housing programs (\cite{baum-snowEffectsLowIncome2009, diamondWhoWantsAffordable2019}) and revitalization policies (\cite{collinsSlumClearanceUrban2013, lavoiceLongrunImplicationsSlum2024, rossi-hansbergHousingExternalities2010}) by estimating the neighborhood effects of one of the largest urban policies in American history.
+More directly, a recent literature has studied the effects of HOPE VI public housing demolitions on neighborhood (\cite{tachPublicHousingRedevelopment2017, blancoKnockingItMixing2023, aliprantisBlowingItKnocking2015, sandlerExternalitiesPublicHousing2017, almagroUrbanRenewalInequality2023}) and individual (\cite{haltiwangerChildrenHOPEVI2024, chynMovedOpportunityLongRun2018}) outcomes.
+This literature has focused on the demolitions of the most distressed public housing projects, and much of it has been focused on a single city (Chicago). 
+There are several reasons to think that these estimates of the effects of demolitions may not generalize to the effects of public housing construction.
+First, the projects that were demolished were often the most poorly managed and distressed, and thus may not be representative of the public housing program more broadly.
+Second, the effects of project construction likely depended on existing neighborhood conditions, which likely varied in ways that they did not for demolitions.
+New projects may have served as local amenities in some neighborhoods but disamenities in others.
+Finally, effects in Chicago may not be representative of other cities.
+
+My findings also complement earlier work from other social sciences on public housing and the concentration of poverty in central cities, which generally used data compiled from one or a small number of cities (e.g. \cite{carterPolarisationPublicHousing1998, masseyPublicHousingConcentration1993a}).
+Relative to this older literature, I use a dataset that covers a much wider set of cities, projects, and time periods, and apply modern econometric techniques to estimate the effects of public housing construction.
+
+My paper adds to the small literature estimating the effects of public housing construction.
+\textcite{shesterLocalEconomicEffects2013} uses digitized data from HUD that contains all federally-funded public housing projects built until 1973, with locations only at the locality level (discussed in Section \ref{sec:data}) to study the effect of public housing construction on a variety of county and city-level outcomes. 
+This paper finds that cities in the same state with more public housing construction saw decreases in median property values, decreases in median family income, and decreases in population density.
+\textcite{shesterConcreteMeasuresRise2019} uses the same dataset to study the effects of public housing construction on the rise in single motherhood at the MSA level.
+I build on this work by merging precise locations to these data, allowing me to study neighborhood effects.
+
+The most closely related contribution is that of \textcite{guennewig-moenertPublicHousingDesign2024}, who studies the effects of the construction of public housing projects in New York City specifically on neighborhood racial composition, rents, and welfare in a structural model.
+I compile data for public housing projects across the country, allowing me to characterize the effects of public housing in the United States more broadly and speak to wider historical debates about the program.
+Scholars have argued that the New York City Housing Authority (NYCHA) was in many ways an exceptional housing authority in terms of its effectiveness in dealing with many of the factors that have plagued public housing authorities in the U.S. (\cite{bloomPublicHousingThat2008}).\footnote{For example, NYCHA was a relatively small participant in HOPE VI and did not demolish any of its high-rise projects through the program (\cite{schwartzHousingPolicyUnited2021}).}
+Our empirical approaches also differ: He uses variation in proximity to public housing to define the control group, while I use similarity in pre-treatment characteristics to define the control group.
+In Appendix X, I show that a pure distance-based approach to define the control group yields significant pre-trend violations in my setting.
+Another related contribution is contemporaneous work by Harris (2025), who uses a different dataset of federally-funded public housing projects to study neighborhood effects in the first decades of the program.
+He finds that public housing initially reduced the concentration of poverty in recipient neighborhoods.
+
+% TODO: Could write more here
+Finally, my paper contributes to the economic literature on the emergence and consequences of segregation in the United States.
+While prior research has documented migration responses to neighborhood demographic change (\cite{shertzerRacialSortingEmergence2019a, boustanWasPostwarSuburbanization2010}), my paper addresses one way in which federal housing policy directly influenced neighborhood sorting. 
+More broadly, this paper contributes to the literature and debates around what role public policy has played in shaping racial and economic segregation in American cities (\cite{rothsteinColorLawForgotten2017,trounstineSegregationDesignLocal2018,boustanRacialResidentialSegregation2013a}).
 
 
-
-Despite extensive commentary about the significance of the US public housing program and its transformative legacy on American cities, a lack of data has limited the ability to thoroughly evaluate the long-term effects of the program on American neighborhoods.
-This paper addresses this gap by constructing a new dataset on American public housing. Combining previously digitized data, public data sources, and newly digitized material, I obtain the locations, construction dates, and characteristics of public housing projects containing over 1 million units nationwide.
-I combine this dataset with eight decades of neighborhood-level Census data to study several fundamental questions about the public housing program.
-First, what neighborhood characteristics determined where public housing was constructed, and did the chracteristics of the neighborhoods determine the chracteristics of the projects themselves? 
-Second, what were the short- and long-run effects of the construction of the projects on the neighborhoods that received them, as well as on surrounding neighborhoods? 
-Employing a matched difference-in-differences strategy, I compare each neighborhood that received a public housing project to a neighborhood that was on a similar trajectory before the project was built. I conduct a similar exercise for the neighborhoods surrounding public housing neighborhoods to estimate the geographic spillovers of the projects. 
-
-In the public housing ("treated") neighborhoods, I find sizable declines in median rents and large increases in the total population and number of housing units. These population increases are concentrated among the Black population. Finally, I find large declines in median incomes and various other measures of socioeconomic status, including lower in high school graduation rates and labor force participation rates, and increases in unemployment rates.
-
-These effects also spilled over beyond the immediate project neighborhoods. Nearby neighborhoods experienced long-term socioeconomic decline, rent decreases, increases in Black population share, and possible reductions in home values and housing units. This evidence suggests that public housing projects had a "degentrifying" effect that radiated outward into surrounding communities. 
-
-This paper contributes to several literatures in urban and public economics and economic history. First, it extends work on the local effects of affordable housing programs (e.g. \cite{baum-snowEffectsLowIncome2009, diamondWhoWantsAffordable2019}) and revitalization policies (\cite{collinsSlumClearanceUrban2013, lavoiceLongRunImplicationsSlum, rossi-hansbergHousingExternalities2010}) by providing estimates of the neighborhood effects of one of the largest urban policies in American history, which historical narratives suggest may have had large and transformative effects on American neighborhoods.
-More directly, a recent literature has studied the effects of the HOPE VI public housing demolitions in recent decades 
-on neighborhood (\cite{tachPublicHousingRedevelopment2017, blancoKnockingItMixing2023, aliprantisBlowingItKnocking2015, sandlerExternalitiesPublicHousing2017, almagroUrbanRenewalInequality2023}) and individual (\cite{haltiwangerChildrenHOPEVI2024, chynMovedOpportunityLongRun2018}) outcomes. However, there has been little work studying effects of the construction of the projects.
-
-My findings complement earlier work on public housing and the concentration of poverty rates in central cities, using data compiled from one or a small number of cities (\cite{carterPolarisationPublicHousing1998, masseyPublicHousingConcentration1993a}).
-\textcite{shesterLocalEconomicEffects2013, shesterConcreteMeasuresRise2019} use digitized data from HUD (discussed in Section \ref{sec:data}) to study the effect of public housing construction on a variety of county and city-level outcomes. The most related contribution is that of \textcite{guennewig-moenertPublicHousingDesign2024}, who studies the effects of the construction of public housing projects by the New York City Housing Authority (NYCHA) on the population, racial composition, and welfare of New York City neighborhoods. I focus on a wider set of cities, allowing me to characterize the effects of public housing in the United States more broadly\footnote{Indeed, scholars have argued that the NYCHA is in many ways an exceptional housing authority in terms of its effectiveness in dealing with many of the factors that have plagued public housing authorities in the U.S. (\cite{bloomPublicHousingThat2008}). In fact, NYCHA was a relatively small participant in HOPE VI, and did not demolish any of its high-rise projects through the program (\cite{schwartzHousingPolicyUnited2021})}, and use a different empirical approach that I argue is more suited to my setting. Contemporaneous work by Harris (2025) builds a dataset of early public housing projects, focusing on the role of these on reducing the concentration of poverty when they were first built. My paper looks at longer-run outcomes, studies a broader set of  outcomes, and focuses on a later period of the public housing program, speaking more to its eventual decline.
-%\footnote{As discussed in the Appendix, the stacked spatial difference-in-differences strategy used by \textcite{guennewig-moenertPublicHousingDesign2023} does not yield good counterfactuals for many of my cities, whose Census tracts are often larger and further apart than those of New York City.}.
-
-This paper also contributes to the economic literature on the emergence and consequences of segregation in the United States. While prior research has documented migration responses to neighborhood demographic change (\cite{shertzerRacialSortingEmergence2019a, boustanWasPostwarSuburbanization2010}), my analysis quantifies how federal housing policy directly influenced neighborhood sorting, and demonstrates the importance of urban policy in shaping segregation in American neighborhoods.
-
-The paper proceeds as follows. Section \ref{sec:background} describes the history of the public housing program. Section \ref{sec:data} describes data sources and construction. Section \ref{sec:site_selection} analyzes the determinants of public housing site selection. Section \ref{sec:neighborhood_effeffects} presents the empirical strategy and estimates of neighborhood effects. Section \ref{sec:conclusion} concludes.
+The paper proceeds as follows.
+Section \ref{sec:background} describes the history of the public housing program.
+Section \ref{sec:data} describes data sources and construction.
+Section \ref{sec:site_selection} analyzes the determinants of public housing site selection.
+Section \ref{sec:neighborhood_effects} presents the empirical strategy and estimates of neighborhood effects.
+Section \ref{sec:conclusion} concludes.
 

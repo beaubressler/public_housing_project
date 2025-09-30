@@ -51,6 +51,20 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
     summarize(mean_outcome = mean(!!sym(outcome_var), na.rm = TRUE)) %>%
     pull(mean_outcome)
   
+  # calculate baseline outcome variable (in event_time == 10)
+  baseline_outcome <-
+    data %>%
+    filter(event_time == -10) %>%
+    select(GISJOIN_1950, !!sym(outcome_var)) %>%
+    dplyr::rename(baseline_outcome = !!sym(outcome_var)) %>% 
+    distinct() %>% 
+    # convert to deciles
+    mutate(baseline_outcome = ntile(baseline_outcome, 10))
+  
+  data <- 
+    data %>%
+    left_join(baseline_outcome, by = "GISJOIN_1950") 
+  
   # ---
   # Estimate Models
   # ---
