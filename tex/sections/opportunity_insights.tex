@@ -1,0 +1,30 @@
+\section{Did Public Housing Create Low-Opportunity Neighborhoods}\label{sec:opportunity_insights}
+
+I have shown that public housing had large and persistent effects on neighborhood population, racial and economic composition, and housing markets.  
+I next ask whether these changes translated to differences in long-run neighborhood opportunity for children who grew up in these neighborhoods.
+
+I explore this question by merging in tract-level data from the Opportunity Atlas (\cite{chettyOpportunityAtlasMapping2018}).
+These data contain measures of long-run upward mobility and incarceration for children born from 1978-1983 who had parents at the 25th percentile of the national income distribution.
+I will refer to these children as ``low-income children''.
+In particular, I use tract-level measures of the mean household income rank in adulthood in 2014-2015 and the share of these children who were incarcerated as of April 1st, 2010, at the 2010 Census tract level.
+I concord these data to 1950 tract boundaries using my tract crosswalks along with population counts for the number of relevant children in each tract contained in the Opportunity Atlas data.
+I then match these data to the matched pairs of public housing tracts, nearby tracts, and controls tracts used in Section \ref{sec:neighborhood_effects}.
+
+I then estimate the following regression model separately for public housing tracts and nearby tracts:
+\begin{equation}\label{eq:opportunity_insights}
+Y_{im} = \beta \text{Treated}_{i} + \mu_{m} + \epsilon_{im}
+\end{equation}
+
+where $Y_{i}$ is the Opportunity Atlas outcome of interest (mean income rank or incarceration rate for low-income children) in tract $i$.
+$\beta$ captures the average difference in average outcome between each public housing (or nearby) tract and its matched control tract.
+
+Table \ref{tab:opportunity_insights_ph} presents results for public housing tracts and nearby tracts.
+Columns 1 and 2 present results for public housing tracts, while Columns 3 and 4 present results for nearby tracts.
+Low-income children who lived in public housing tracts, as well as the nearby tracts, have significantly lower upward mobility rates and higher incarceration rates compared to their matched controls:
+They have on average a 1.7 percentage point lower income rank in adulthood (Column 1) and a 0.6 percentage point higher incarceration rate (Column 2).
+This translates to a 4.6\% (.24 standard deviation) lower income rank, and an 18.8\% (.23 standard deviation) higher incarceration rate compared to matched controls.
+The difference between nearby tracts and their matched controls is about half as large (Columns 3 and 4) but are still statistically significant.
+
+These results suggest that the presence of public housing projects may have created lasting low-opportunity neighborhoods.
+Still, one should take these results as suggestive, rather than causal:
+Since we do not observe mobility and incarceration rates before public housing is constructed, one cannot rule out the possibility that the treated and nearby neighborhoods were already lower-opportunity areas prior to public housing construction.

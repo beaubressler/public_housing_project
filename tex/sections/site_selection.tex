@@ -1,63 +1,93 @@
 \section{Site Selection}\label{sec:site_selection}
 
 In this section, I study the placement of the public housing projects in my sample.
-Understanding these dynamics is both important for understanding the political economy of the program and for informing my empirical strategy in Section \ref{sec:neighborhood_effects}.
-Historical case studies in several cities suggest that projects were often targeted to poorer and minority neighborhoods, both because the program was justified as a slum clearance initiative and because of local political pressures (\cite{hirschMakingSecondGhetto1998, baumanPublicHousingDreadful1994,sugrueOriginsUrbanCrisis2005}).
-However, we lack systematic evidence on whether these dynamics held more broadly across the country.
+Understanding these dynamics is important for several reasons. 
+First, the site selection process of mid-century public housing was one of the main criticisms of the program. 
+Historical case studies in several cities suggest that projects were often targeted to poorer and minority neighborhoods, both because of the program's slum clearance goals and because of local backlash in white neighborhoods against construction of projects (\cite{meyersonPoliticsPlanningPublic1955a,baumanPublicHousingDreadful1994,sugrueOriginsUrbanCrisis2005}).
+Second, these site selection dynamics have had important legal implications: Lawsuits in several cities have alleged that public housing site selection was discriminatory and in violation of Civil Rights Law, most famously Gautreaux v. Chicago Housing Authority (1966), but also in cities like Dallas (Walker v. HUD 1985) and Baltimore (Thompson v. HUD 2005).
+Still, there has been little systematic evidence on the nationwide patterns of public housing site selection.
+Finally, understanding these site selection dynamics is important for thinking about how to estimate the neighborhood effects of public housing, as well as how to interpret those effects.
 
-First, I estimate which pre-existing neighborhood characteristics predict public housing locations.
-I also test whether the placement of public housing projects was related to the locations of other mid-century urban policies, particularly urban renewal and the interstate highway system. 
-Finally, I examine whether the racial composition of the projects themselves varied systematically with the initial characteristics of the neighborhoods in which they were built.
+To begin, in Section \ref{sec:site_selection_where}, I estimate which pre-existing neighborhood characteristics predict the eventual locations of public housing projects.
+I also test whether the placement of public housing projects was related to the locations of other mid-century urban policies, particularly urban renewal and the interstate highway system.
+Then, in Section \ref{sec:philadelphia_site_selection}, I zoom in on a particular case study of site selection by examining the locations of proposed-but-not-built public housing in Philadelphia in Section \ref{sec:philadelphia_site_selection}.
+This example illustrates the political dynamics around site selection decisions.
+
+Finally, in Section \ref{sec:site_selection_who}, I examine whether the racial composition of the projects themselves varied systematically with the initial characteristics of the neighborhoods in which they were built.
 
 \subsection{Where were the projects built?}\label{sec:site_selection_where}
 
-First, I estimate the relationship between pre-treatment neighborhood characteristics and the probability of receiving a public housing project within my balanced neighborhood sample.
-To do this, I estimate linear probability models predicting whether a census tract ever received a public housing project from 1941-1973, using neighborhood characteristics measured in 1940.
+I estimate the relationship between pre-treatment neighborhood characteristics and the probability of receiving a public housing project within my balanced neighborhood sample.
+To do this, I estimate linear probability models predicting whether a census tract ever received a public housing project from 1941-1973 using neighborhood characteristics measured in 1940.
 In particular, I estimate:
 
-%\begin{equation}
-%P(\text{Treated}_{i} = 1) = \Phi(\alpha + \boldsymbol{X}_{i,t-1}'\boldsymbol{\beta} + \gamma_c + \epsilon_i)
-%\end{equation}
-
 \begin{equation}
-    \text{Treated}_{ic} = \gamma_c + \boldsymbol{X}_{i,t-10}'\boldsymbol{\beta} + \epsilon_{ic}
+    \text{Treated}_{ic} = \gamma_{c} + \boldsymbol{X}_{i,1940}'\boldsymbol{\beta} + \epsilon_{ic}
 \end{equation}
 
-where $\text{Treated}_{ic}$ indicates whether tract $i$ in county $c$ received a public housing project from 1941-1973 and $\boldsymbol{X}_{i,t-10}$ represents a vector of pre-treatment neighborhood characteristics, $\gamma_c$ denotes county fixed effects. 
+where $\text{Treated}_{ic}$ indicates whether tract $i$ in county $c$ received a public housing project from 1941-1973, $\boldsymbol{X}_{i,1940}$ represents a vector of 1940 neighborhood characteristics, and $\gamma_c$ denotes county fixed effects. 
 %The key covariates include demographic characteristics (total population, Black population share, median income, high school graduation rate, unemployment rate), housing market conditions (median rent, median home value, share of housing needing major repairs), urban structure variables (population density, distance from central business district), and institutional factors (HOLC redlining designation).
-I include county fixed effects to control for time-invariant differences in implementation by different local public housing authorities.
-I adjust standard errors for spatial correlation following \textcite{conleyGMMEstimationCross1999} within a radius of 2 kilometers.
+I include county fixed effects to control for differences in implementation by different local public housing authorities.
+I adjust standard errors for spatial correlation following \textcite{conleyGMMEstimationCross1999}, allowing for correlation of residuals across census tracts within a 2-kilometer radius.
 
-I choose variables based on historical narratives around public housing site selection along with the stated intentions of the program. First, as described in Section \ref{sec:background},
-the public housing program was largely intended as a "slum clearance" program, so we might expect that neighborhoods with lower socioeconomic status and worse housing market conditions would be more likely to receive public housing.
+I choose variables based on historical narratives around public housing site selection along with the stated intentions of the program.
+First, as described in Section \ref{sec:background}, the public housing program was largely intended as a "slum clearance" program, so we might expect that neighborhoods with lower socioeconomic status and worse housing market conditions would be more likely to receive public housing.
 Second, historical case studies in multiple cities have documented the key role of race in determining where public housing was built (e.g. \cite{hirschMakingSecondGhetto1998, baumanPublicHousingDreadful1994}), so I include the Black population share as a key predictor of public housing placement.
 I also include the HOLC redlining designation to capture long-term patterns of racial segregation, discrimination and disinvestment. 
 
-The results from these linear probability models are shown in columns (1) and (2) in Table \ref{tab:site_selection_1940_lpm}. 
-To avoid concerns about multicollinearity between these neighborhood characteristics and to test coefficient stability, I estimate a stripped down model with several key characteristics in Column (1) and a more saturated model in Column (2).
-Consistent with the historical narrative, I find that public housing projects tended to be targeted towards poorer, minority neighborhoods: Census tracts that were initially more populated, had higher Black population shares, lower median incomes and labor force participation rates, higher unemployment rates, had lower rents, and were designated as redlined by the HOLC maps were more likely to receive public housing projects during this period.
+The results from these linear probability models are shown in Columns 1-4 in Table \ref{tab:site_selection_1940_lpm}. 
+Column 1 shows a parsimonious model with several key neighborhood characteristics, while Column 2 shows a more saturated model including all neighborhood characteristics.
+Column 3 adds the share of housing units deemed in need of major repairs in 1940, which is missing for about 5\% of tracts.
+Consistent with the historical narrative, I find that public housing projects tended to be targeted towards poorer, minority neighborhoods:
+Census tracts that were initially more populated, had higher Black population shares, lower median incomes and labor force participation rates, higher unemployment rates, had lower rents, and were designated as "hazardous" by the HOLC maps were more likely to receive public housing projects during this period.
+The share of housing units needing major repairs is also positively associated with public housing placement, although the estimate does not reach statistical significance in the fully saturated model.
+These findings reflect the slum clearance motivation of the public housing program, and are also consistent with historical accounts emphasizing the racial targeting of public housing siting:
+Even after controlling for local economic and housing market conditions, the Black population share remains a strong and significant predictor of public housing placement.
 
-These effects are quantitatively meaningful. For example, note that 10.6\% of the census tracts in the sample received public housing projects during this period.
-Based on model (2), the coefficient on the redlined indicator suggests that neighborhoods that were designated as redlined were 4.98 percentage points more likely to receive public housing in subsequent decades, representing a 47\% increase relative to the baseline probability.
-A one standard deviation increase in Black population share increased selection probability by 2.7 percentage points (25\% increase), while a one standard deviation increase in unemployment rate increased the probability by 2.4 percentage points (23\% increase) and a one standard deviation decrease in median income increased the probability by 1.7 percentage points (16\% increase). 
-These findings reflect the slum clearance motivation of the public housing program, and are also consistent with historical narratives about the racial targeting of public housing site selection: Even after controlling for income and local economic and housing market conditions, the Black population share remains a strong, significant predictor of public housing placement.
-
-I also test whether neighborhoods that ultimately received public housing were also more likely to be affected by two other transformative mid-century urban policies, in particular urban renewal and the interstate highway system.
+Column 4 additionally tests whether neighborhoods that ultimately received public housing were more likely to be affected by two other transformative mid-century urban policies: urban renewal and the interstate highway system.
 Evidence and historical narrative suggest that these programs may have affected many of the neighborhoods that were also targeted for public housing.
 The Urban Renewal program, in particular, was directly related to public housing in many cities, as public housing projects were used to house individuals displaced by urban renewal (\cite{baumanPublicHousingDreadful1994, hirschMakingSecondGhetto1998}).
-Column (3) adds distance to an interstate highway and an urban renewal indicator, as defined in Section \ref{sec:data}, to the linear probability models.
-I find that neighborhoods that received public housing were also more likely to be affected by urban renewal, but that distance to an interstate highway was not significantly related to public housing placement.
-The coefficient on urban renewal is substantial: 
-Neighborhoods that were eventually selected as urban renewal tracts were 7.8\% more likely to receive public housing, representing a 73.6\% increase relative to the baseline probability.
-This result further confirms the interplay between these two programs and will also motivates accounting for urban renewal in my empirical strategy in Section \ref{sec:neighborhood_effects}.
+I find that neighborhoods that received public housing were also much more likely to be affected by urban renewal, whereas proximity to an interstate highway was not significantly related to public housing placement.
+This result further confirms the interplay between these two programs and motivates accounting for urban renewal in my empirical strategy in Section \ref{sec:neighborhood_effects}.
 
-\input{../output/regression_results/site_selection/combined/site_selection_1940_lpm.tex}
+
+Quantitatively, these effects are sizable. 
+The baseline probability that a census tract in the sample received a public housing project between 1941 and 1973 is 12.6\%.
+Based on the estimates from Column (4), the coefficient on the redlined indicator suggests that neighborhoods that were designated as redlined were 4.3 percentage points more likely to receive public housing in subsequent decades, representing a 33.8\% increase relative to the baseline probability.
+A one standard deviation increase in Black population share increased public housing selection probability by 3.6 percentage points (28.4\% increase), a one standard deviation increase in unemployment rate increased the probability by 4.4 percentage points (34.7\% increase), and a one standard deviation decrease in median income increased the probability by 2.1 percentage points (16.6\% increase). 
+Finally, neighborhoods that were eventually targeted by urban renewal were 7.8 percentage points (73.6\%) more likely to receive public housing.
+
+
+\subsection{A Philadelphia Case Study}\label{sec:philadelphia_site_selection}
+
+Historical accounts of public housing site selection have highlighted the political battles that surrounded the placement of projects in particular cities, for example in Chicago (\cite{meyersonPoliticsPlanningPublic1955}), Philadelphia (\cite{baumanPublicHousingDreadful1994}), and Detroit (\cite{sugrueOriginsUrbanCrisis2005}).
+These accounts have emphasized the conflict between public housing authorities and white working-class neighborhoods that resisted the construction of public housing projects in their communities.
+Here, I present a case study of site selection in Philadelphia, drawing on the historical treatment and maps from \textcite{baumanPublicHousingRace1987}. 
+This case study is illustrative of the political dynamics that shaped site selection decisions in many cities (\cite{huntWas1937US2005}).
+
+Following the 1954 Housing Act, the Philadelphia Housing Authority proposed a series of 21 public housing projects across the city. 
+Upon announcement, many of these proposed projects faced significant backlash from local white communities, leading to their eventual cancellation.
+I identified these proposed Philadelphia public housing locations by scanning and georeferencing a historical map from \textcite{baumanPublicHousingRace1987}, shown in Figure \ref{fig:bauman_philadelphia_fan}.
+I georeferenced the historical map using QGIS, aligning it to a modern basemap using identifiable landmarks such as major roads and rivers.
+Then, I located the proposed public housing sites on the georeferenced map, and matched these points to 1950 census tracts. 
+In total, I identify 12 neighborhoods with proposed-but-not-built public housing sites in Philadelphia.
+
+
+I then compare the baseline characteristics of proposed-but-not-built locations to actual public housing locations in Philadelphia.
+Table \ref{tab:philadelphia_proposed_vs_actual} presents the balance table.
+We can see that proposed locations were very different from actual public housing locations.
+Most notably, these proposed-but-not-built locations had very low initial Black population shares.
+They were also further from the central business district, less populated, and had lower unemployment rates.
+These differences first illustrate the dynamics around site selection in one city, in which whiter neighborhoods often resisted public housing construction.
+Secondly, they show that an identification strategy based on proposed-but-not-built locations would likely be invalid, as these locations likely do not represent a good counterfactual for actual public housing locations.
+
+
 
 \subsection{Did project demographics vary with neighborhood characteristics?}\label{sec:site_selection_who}
 
-I next examine how the racial composition of the public housing projects themselves varied with the initial neighborhood characteristics in which the projects were built. 
+I now examine how the racial composition of the public housing projects themselves varied with the initial neighborhood characteristics in which the projects were built. 
 The key question is whether projects reinforced existing patterns of residential segregation or disrupted them.
-I focus on the share of Black residents in each project, using data for the 540 census tracts in my balanced sample for which project-level racial composition is available for the 1970s.
+I focus on the share of Black residents in each project, using data for the 771 census tracts in my balanced sample for which I have information on project-level racial composition is available in the 1970s.
 Although ideally I would observe information on the racial composition of the projects at the time of construction, this information is not systematically available.
 % TODO: Review this
 Still, to the extent that the racial composition of the projects was relatively stable over time, the 1970s data should provide a reasonable proxy for the initial demographics of the projects.
@@ -71,10 +101,8 @@ Whereas the regressions in Section \ref{sec:site_selection_where} used 1940 cova
 The results are shown in Table \ref{tab:project_targeting}.
 Column (1) presents a parsimonious specification with only baseline Black share and median income, column (2) includes a fuller set of neighborhood characteristics including rent, population, unemployment, distance to the CBD, and redlining status, while column (3) adds county fixed effects.
 I again include the distance from an interstate highway and urban renewal designation. 
-The core finding is robust across specifications: public housing projects largely matched the racial composition of their surrounding neighborhoods, reinforcing rather than disrupting existing residential segregation patterns.
+
+The core result is robust across specifications: public housing projects largely matched the racial composition of their surrounding neighborhoods, reinforcing rather than disrupting existing residential segregation patterns.
 Based on the coefficient in column (3), a 10 percentage point increase in baseline neighborhood Black share predicts a 2.7 percentage point increase in project Black share.
 Furthermore, projects built in poorer neighborhoods, even conditional on race, tended to be more heavily Black, as indicated by the negative coefficient on median income and positive coefficient on unemployment rate. 
-%The key takeaway is that not only were public housing projects targeted towards particular neighborhoods, but the demographics of the projects themselves depending on the neighborhoods in which they were built: Projects built in neighborhoods with a higher initial Black population share and lower median income tended to have a higher share of Black residents. Conversely, whiter projects were built in whiter, wealthier neighborhoods. 
-
-\input{../output/tables/site_selection/combined/project_demographics_targeting.tex}\label{tab:project_targeting}
 

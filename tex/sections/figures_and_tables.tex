@@ -1,0 +1,268 @@
+\clearpage % flush any queued floats
+\section*{Figures and Tables}
+
+%%%% DATA 
+
+\begin{figure}[H]
+\caption{Public Housing Projects and Spillover Areas: Chicago}
+\label{fig:chicago_spillover}
+\includegraphics[width=1\textwidth]{../output/figures/chicago_spillover_all_tracts_clean.pdf}
+\note{This map shows census tracts in Chicago containing public housing projects built between 1941-1973 (red) and
+adjacent spillover areas (blue) defined using the contiguity-and-distance criteria described in the text.}
+\end{figure}
+
+
+\begin{table}[t!]
+    \centering
+    \scalebox{0.95}[1]{
+    \begin{threeparttable}
+    \caption{Sample Attrition}
+    \label{tab:sample_attrition}
+    \input{../output/tables/sample_attrition_table.tex}
+    \begin{tablenotes}
+    \small
+    \item \textit{Notes:} This table shows the impact of sample restrictions on the number of census tracts,
+          1940 population (in millions), CBSAs, treated tracts, public housing projects, and housing units. Tract counts
+          are based on year 2000 geography (concorded to 1950 boundaries).
+    \end{tablenotes}
+\end{threeparttable}}
+\end{table}
+
+
+
+\begin{figure}[H]
+\caption{Geographic Coverage of CBSAs in Analysis Sample}
+\label{fig:cbsa_coverage}
+\includegraphics[width=0.9\textwidth]{../output/figures/exploratory/cbsa_coverage_map.pdf}
+\small
+\note{This map shows the 45 Core-Based Statistical Areas (CBSAs) included in the balanced panel analysis. Shaded
+areas represent metropolitan areas with sufficient tract coverage and public housing projects to meet the sample
+selection criteria described in Section \ref{sec:data}.}
+\end{figure}
+
+
+\begin{table}[H]
+    \centering
+    \scalebox{1}[1]{
+    \begin{threeparttable}
+    \caption{Census Tract Summary Statistics (1940 vs 1990)}
+    \input{../output/tables/summary_statistics/tract_summary_statistics_1940_1990.tex}
+    \label{tab:tract_summary_statistics}
+    \begin{tablenotes}
+    \small
+    \item \textit{Notes:} This table presents summary statistics for census tracts in the balanced panel sample. Statistics shown are for time-invariant geographic characteristics (Constant), baseline characteristics (1940), and end-of-sample characteristics (1990). Sample includes 6,622 census tracts across 47 CBSAs. All monetary values are adjusted to 2023 dollars.
+    \end{tablenotes}
+  \end{threeparttable}}
+\end{table}
+
+\clearpage
+%%%% SITE SELECTION
+
+\begin{table}[t!]
+    \centering
+    %\scalebox{1.2}[1.2]{
+    %\resizebox{0.7\textwidth}{!}{
+    \begin{threeparttable}
+    \caption{Site Selection: Predicting Public Housing Placement from 1940 Neighborhood Characteristics}
+    \input{../output/regression_results/site_selection/combined/site_selection_1940_lpm.tex}
+    \label{tab:site_selection_1940_lpm}
+    \begin{tablenotes}
+    \small
+    \item \textit{Notes:} This table reports results from linear probability models estimating the relationship between 1940 neighborhood characteristics and the probability that a census tract received a public housing project between 1941 and 1973. 
+    The dependent variable equals 1 if a tract ever received a project and 0 otherwise. 
+    All specifications include county fixed effects, and standard errors are adjusted for spatial correlation following \textcite{conleyGMMEstimationCross1999} within a 2-kilometer radius. 
+    Key predictors include demographic, socioeconomic, housing market, and urban structure characteristics measured in 1940, as well as indicators for HOLC redlining and urban renewal and proximity to interstate highways. 
+    Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+
+    \end{tablenotes}
+  \end{threeparttable}
+\end{table}
+
+
+
+\begin{figure}[h!]
+  \centering
+    \caption{Historical Map of Proposed and Actual Philadelphia Public Housing Sites, 1956}
+    \label{fig:bauman_philadelphia_fan}
+    \includegraphics[width=0.75\textwidth]{../georeferencing/philadelphia/bauman_philadelphia_fan_for_paper.pdf}
+    \note{This map shows the distribution of proposed and actual public housing sites in Philadelphia. Proposed-but-not-built sites serve as placebo treatments in our analysis.
+     Source: \textcite{baumanPublicHousingRace1987}, georeferenced by author.}
+\end{figure}
+
+
+\begin{table}[t!]
+    \centering
+    \begin{threeparttable}
+    \caption{1940 Neighborhood Characteristics: Proposed vs Actual Public Housing Locations in Philadelphia}
+    \input{../output/regression_results/philadelphia_placebo/combined/philadelphia_proposed_vs_actual_characteristics.tex}
+    \label{tab:philadelphia_placebo}
+    \begin{tablenotes}
+    \small
+    \item \textit{Notes:} Sample includes 12 proposed-only locations and 47 actual public housing locations. Difference column shows mean difference (Proposed - Actual) with standard errors in parentheses where applicable. Statistical significance is denoted by: *p$<$0.05, **p$<$0.01, ***p$<$0.001.
+    \end{tablenotes}
+  \end{threeparttable}
+\end{table}
+
+
+
+\begin{table}[t!]
+    \centering
+    %\scalebox{1.2}[1.2]{
+    %\resizebox{0.7\textwidth}{!}{
+    \begin{threeparttable}
+    \caption{Site Selection: Predicting Public Housing Placement from 1940 Neighborhood Characteristics}
+    \input{../output/regression_results/site_selection/combined/project_demographics_targeting.tex}
+    \label{tab:project_targeting}
+    \begin{tablenotes}
+    \small
+    \item \textit{Notes:} This table reports results from linear probability models estimating the relationship between 1940 neighborhood characteristics and the probability that a census tract received a public housing project between 1941 and 1973. 
+    The dependent variable equals 1 if a tract ever received a project and 0 otherwise. 
+    All specifications include county fixed effects, and standard errors are adjusted for spatial correlation following \textcite{conleyGMMEstimationCross1999} within a 2-kilometer radius. 
+    Key predictors include demographic, socioeconomic, housing market, and urban structure characteristics measured in 1940, as well as indicators for HOLC redlining and urban renewal and proximity to interstate highways. 
+    Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \end{tablenotes}
+  \end{threeparttable}
+\end{table}
+
+
+
+
+%%%% Neighborhood Effects 
+\begin{comment}
+
+%%%%% Treated Neighborhoods
+\begin{table}[t!]
+    \centering
+    \begin{threeparttable}
+    \caption{Pre-Period Treatment Balance: Treated Neighborhoods vs Matched Controls}
+    \input{../output/balance_tables/matched_did/combined/baseline/tables/balance_table_treated_neighborhoods_2yr.tex}
+    \label{tab:matched_did_balance_treated_baseline}
+    \begin{tablenotes}
+    \small
+    \item \textit{Notes:}  Statistical significance is denoted by: *p$<$0.05, **p$<$0.01, ***p$<$0.001.
+    \end{tablenotes}
+  \end{threeparttable}
+\end{table}
+\end{comment}
+
+
+\begin{figure}[htbp]
+      \caption{Pre-period Balance: Treated Neighborhoods vs Matched Controls}
+    \includegraphics[width=1\textwidth]{../output/balance_tables/matched_did/combined/baseline/plots/slides/balance_plot_treated_2yr.pdf}
+    \label{fig:matched_did_balance_treated_baseline}
+    \note{This figure displays standardized mean differences (SMD) between treated neighborhoods and matched controls across key baseline covariates in the pre-period. Each point represents the SMD for the given year relative to public housing construction. Successful matching is indicated by SMDs close to zero. The reference period is 10 years before the construction decade (event time = -10). The vertical dotted line indicates the timing of public housing construction.}
+\end{figure}
+
+
+
+\begin{figure}[htbp]
+    \caption{Population and Racial Composition Effects in Treated Neighborhoods}
+    \label{fig:log_pop_treated_baseline}
+    \includegraphics[width=1\textwidth]{../output/regression_results/matched_did/combined/baseline/2_year/slides/event_study_pop_log_by_race_treated.pdf}
+    \note{This figure displays event study estimates of public housing effects on log total population, log Black population, and log white population in treated neighborhoods compared to matched controls. Each line represents the difference-in-differences estimate for the given year relative to public housing construction. The reference period is 10 years before the construction decade (event time = -10). The vertical dotted line indicates the timing of public housing construction.}
+\end{figure}
+
+  \begin{figure}[htbp]
+  \caption{Effects on Estimated Private Population, Treated Neighborhoods}
+  \label{fig:log_priv_pop_treated_baseline}
+  \includegraphics[width=1\textwidth]{../output/regression_results/matched_did/combined/baseline/2_year/slides/event_study_private_pop_log_treated.pdf}
+  \note{This figure shows event study estimates of public housing effects on log private population by race in treated neighborhoods compared to matched controls. Private population is estimated by subtracting public housing residents from total tract population. Each line represents the difference-in-differences estimate for the given year relative to public housing construction. The reference period is 10 years before the construction decade (event time = -10).}
+\end{figure}
+
+  \begin{figure}[htbp]
+  \caption{Effects on Racial Composition Shares in Treated Neighborhoods}
+  \label{fig:pop_shares_treated_baseline}
+  \includegraphics[width=1\textwidth]{../output/regression_results/matched_did/combined/baseline/2_year/slides/event_study_pop_shares_treated.pdf}
+  \note{This figure shows event study estimates of public housing effects on Black population share and white population share in treated neighborhoods compared to matched controls. Each line represents the difference-in-differences estimate for the given year relative to public housing construction. The reference period is 10 years before the construction decade (event time = -10).}
+\end{figure}
+
+
+\begin{figure}[htbp]
+    \caption{Economic and Housing Effects in Treated Neighborhoods}
+    \label{fig:log_rent_income_treated_baseline}
+    \includegraphics[width=1\textwidth]{../output/regression_results/matched_did/combined/baseline/2_year/slides/event_study_rent_income_treated.pdf}
+    \note{This figure displays event study estimates of public housing effects on log median rent and log median household income in treated neighborhoods compared to matched controls. Each line represents the difference-in-differences estimate for the given year relative to public housing construction. The reference period is 10 years before the construction decade (event time = -10).}
+\end{figure}
+
+
+%%%% Spillover Effects
+
+
+\begin{figure}[htbp]
+    \centering
+    \caption{Pre-period Balance: Nearby Neighborhoods vs Matched Controls}
+    \label{fig:matched_did_balance_nearby_baseline}
+    \includegraphics[width=1\textwidth]{../output/balance_tables/matched_did/combined/baseline/plots/slides/balance_plot_spillover_2yr.pdf}
+    \note{This figure displays standardized mean differences (SMD) between spillover neighborhoods (those contiguous to treated neighborhoods) and matched controls across key baseline covariates in the pre-period. Spillover neighborhoods inherit the matched control group from their corresponding treated neighborhood. Each point represents the SMD for the given year relative to nearby public housing construction. The reference period is 10 years before the construction decade (event time = -10).}
+\end{figure}
+
+
+\begin{figure}[htbp]
+    \caption{Spillover Effects: Population and Racial Composition in Adjacent Neighborhoods}
+    \label{fig:log_pop_nearby_baseline}
+    \includegraphics[width=1\textwidth]{../output/regression_results/matched_did/combined/baseline/2_year/slides/event_study_pop_log_by_race_spillover.pdf}
+    \note{This figure displays event study estimates of public housing spillover effects on log total population, log Black population, and log white population in adjacent neighborhoods (those contiguous to treated neighborhoods) compared to matched controls. Each line represents the difference-in-differences estimate for the given year relative to nearby public housing construction. The reference period is 10 years before the construction decade (event time = -10). The vertical dotted line indicates the timing of public housing construction.}
+\end{figure}
+
+\begin{figure}[htbp]
+    \caption{Spillover Effects: Economic and Housing Outcomes in Adjacent Neighborhoods}
+    \label{fig:log_rent_income_nearby_baseline}
+    \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/baseline/2_year/slides/event_study_rent_income_spillover.pdf}
+    \note{This figure displays event study estimates of public housing spillover effects on log median rent and log median household income in adjacent neighborhoods (those contiguous to treated neighborhoods) compared to matched controls. Each line represents the difference-in-differences estimate for the given year relative to nearby public housing construction. The reference period is 10 years before the construction decade (event time = -10). The vertical dotted line indicates the timing of public housing construction.}
+\end{figure}
+
+%%%% Robustness
+
+\begin{figure}[htbp]
+  \caption{Robustness Checks: Treated Neighborhoods}
+  \subfloat[Demographics]{
+    \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/robustness_comparison/2_year/robustness_four_panel_treated_demographics.pdf}
+  }
+  \\
+  \subfloat[Income \& Rent]{
+    \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/robustness_comparison/2_year/robustness_two_panel_treated_income_rent.pdf}
+  }
+  \label{fig:robustness_matching_treated}
+  \note{This figure compares baseline results with alternative specifications for treated neighborhoods, including different matching algorithms, outcome transformations, and control variable sets.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \caption{Robustness Checks: Inner Ring Spillover}
+  \subfloat[Demographics]{
+    \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/robustness_comparison/2_year/robustness_four_panel_inner_demographics.pdf}
+  }
+  \\
+  \subfloat[Income \& Rent]{
+    \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/robustness_comparison/2_year/robustness_two_panel_inner_income_rent.pdf}
+  }
+  \label{fig:robustness_matching_nearby}
+  \note{This figure compares baseline results with alternative specifications for inner ring (spillover) neighborhoods, including different matching algorithms, outcome transformations, and control variable sets.}
+\end{figure}
+
+
+%%%% Mechanisms and Heterogeneity
+
+
+
+
+%%%%% OPPORTUNITY ATLAS
+
+\begin{table}[t!]
+    \centering
+    %\scalebox{1.2}[1.2]{
+    %\resizebox{0.7\textwidth}{!}{
+    \begin{threeparttable}
+    \caption{Opportunity Atlas Results: Public Housing Tracts vs Matched Controls}
+    \input{../output/opportunity_insights/baseline/oi_combined_results.tex}
+    \label{tab:opportunity_insights_ph}
+    \begin{tablenotes}
+    \small
+    \item \textit{Notes:} This table reports summary results from OLS estimation of Equation \ref{eq:opportunity_insights} for tracts that received public housing and those nearby.
+    Columns 1 and 3 reports results for mean income rank in adulthood in 2014-2015 for low-income children born between 1978-1983. 
+    Columns 2 and 4 reports results for the share of these children who were incarcerated as of April 1st, 2010.
+    All specifications include matched pair fixed effects.
+    Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+
+    \end{tablenotes}
+  \end{threeparttable}
+\end{table}

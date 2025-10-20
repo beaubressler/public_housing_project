@@ -7,124 +7,80 @@ To do so, I employ a \textbf{stacked matched difference-in-differences} approach
 I proceed as follows.
 
 First, I identify a donor pool of potential control tracts for matching. 
-I define these as the set of census tracts that never received public housing in my period and were never classified as nearby tracts, as defined in Section \ref{sec:data}.
+I define these as the set of census tracts that never received public housing during my analysis period and are not classified as nearby tracts, as defined in Section \ref{sec:data}.
 Excluding these nearby neighborhoods from the donor pool helps avoid concerns about spillover effects.
-In Section \ref{sec:spillover_effects}, I will directly test the effects of the construction of the projects on the nearby neighborhoods themselves.
+In Section \ref{sec:spillover_effects}, I directly test the effects of the construction of the projects on these nearby neighborhoods.
 
-Second, having identified a set of potential controls, I use propensity-score-based nearest neighbor matching with replacement to select comparison neighborhoods that are similar to the treated neighborhoods before public housing is constructed, specifically in terms of characteristics that predicted public housing placement.
-In particular, I match on those pre-treatment characteristics which I found in Section \ref{sec:site_selection} were strongly statistically significant predictors of the placement of public housing projects: Total population, Black population share, median income, unemployment rate, labor force participation rate, median rent, and redlined status.
-I require an exact match on redlined status, and whether a tract was an urban renewal tract, in order to avoid conflating the effects of these two policies.\footnote{While the site selection analysis in Section \ref{sec:site_selection_where} presented results using log transformations for population, incomes and rents, I match on levels to ensure treated and control neighborhoods are similar in absolute terms.}
-My baseline specification also requires that the matched control be in the same county as the treated neighborhood.
-%I also show in that results are similar when I require the matched control be in a different CBSA.
-For each treated neighborhood, I identify the control with the closest propensity score.\footnote{Under these somewhat restrictive exact matching criteria, I do not find matches for 30 of the treated tracts.
-I drop these neighborhoods from the analysis, but show that the results do not change if I loosen the criteria to allow matches with different redlined status.} 
-Table \ref{tab:balance_treated} shows balance statistics for the treated neighborhoods and their matched controls, which shows fairly good balance on all pre-treatment characteristics. 
+Second, I match each treated neighborhood to a comparison neighborhood from this donor pool using propensity-score-based nearest neighbor matching with replacement.
+Critically, I perform this matching procedure separately for each treatment year.
+This ensures that treated and control neighborhoods are comparable based on their characteristics in the decades immediately prior to the construction of public housing.
+
+The matching procedure works as follows.
+For neighborhoods treated in a given year, I match on the previous two decades of characteristics that predicted public housing placement, as identified in Section \ref{sec:site_selection}: total population, Black population share, median income, unemployment rate, and labor force participation rate.
+I also match on median rent, which was not statistically significant in the fully saturated models but captures local housing market conditions. 
+By matching on these variables over the prior two decades, I ensure that treated and control tracts followed similar trajectories before public housing construction.
+Additionally, I require an exact match on three dimensions: (1) whether the tract was redlined, (2) whether it was designated as an urban renewal tract, and (3) the county in which the tract was located.
+The exact matching on urban renewal ensures that the control neighborhoods were subject to the same urban renewal policies as the treated neighborhoods to avoid conflating the effects of the two policies.
+For each treated neighborhood, I select the control tract from the donor pool with the closest propensity score.% TODO: \footnote{Under these somewhat restrictive exact matching criteria, I do not find matches for 30 of the treated tracts. I drop these neighborhoods from the analysis, but show that the results do not change if I loosen the criteria to allow matches with different redlined status.} 
+Figure \ref{tab:matched_did_balance_treated_baseline} shows absolute standard mean differences across pre-treatment characteristics for the treated neighborhoods and their matched controls, which show fairly good balance on all pre-treatment characteristics.
+Still, given the restrictiveness of my exact matching, the balance is imperfect, with absolute standard mean differences of above 0.1 for some covariates.
+I show in Section \ref{robustness} that results are robust to alternative matching procedures that achieve better balance.
 %The matching procedure achieves good balance on all pre-treatment characteristics, with standardized differences below 0.1 for all variables.
 
-\input{../output/balance_tables/matched_did/combined/balance_table_treated_neighborhoods.tex}
-
 Third, I create a stacked analytic dataset in which each treated neighborhood and its matched control appear for the full panel of years from 1930 to 2000. 
-Each treated neighborhood and its matched pair is assigned the same treatment year and is identified with a matched pair identifiers.
-Note that control neighborhoods may appear multiple times in the stacked dataset if they are matched to multiple treated neighborhoods.
+Each treated neighborhood and its matched control is assigned a common treatment year (the year the treated neighborhood received public housing) a unique matched pair identifiers.
+Note that control neighborhoods may appear multiple times in the stacked dataset if serve as matches for multiple treated neighborhoods.
 
 Finally, I implement a stacked difference-in-differences design that compares changes in outcomes over time between each treated neighborhood and its matched control. 
 In particular, for tract $i$ in matched pair $m$ at time $t$, I estimate the following event-study specification:
 
 \begin{equation}\label{eq:matched_did}
-y_{imt} = \alpha_i + \sum_{\tau\neq-10} \beta_\tau (D_{imt}^\tau \times \text{Treated}_i) + \sum_{\tau\neq-10} (\delta_m \times D_{imt}^\tau) + \varepsilon_{imt}
+y_{imt} = \alpha_{im} + \sum_{\tau\neq-10} \beta_\tau (D_{imt}^\tau \times \text{Treated}_i) + \sum_{\tau\neq-10} (\delta_m \times D_{imt}^\tau) + \varepsilon_{imt}
 \end{equation}
 
-where $y_{imt}$ is the outcome of interest for tract $i$ in matched pair $m$ at time $t$, $\alpha_i$ are tract fixed effects, $D_{imt}^\tau = \mathbb{1}[(t - T_{im}) = \tau]$ are indicators for event time $\tau$ relative to treatment year, $\text{Treated}_i$ indicates whether tract $i$ is a treated tract, and $\delta_m$ are matched pair fixed effects. 
+where $y_{imt}$ is the outcome of interest for tract $i$ in matched pair $m$ at time $t$, $\alpha_{im}$ are tract-by-match group fixed effects, $D_{imt}^\tau = \mathbb{1}[(t - T_{im}) = \tau]$ are indicators for event time $\tau$ relative to treatment year,
+$\text{Treated}_i$ indicates whether tract $i$ is a treated tract, and $\delta_m$ are matched pair fixed effects. 
+Tract-by-match group fixed effects control for time-invariant differences between each treated tract and its matched control.\footnote{In practice, because I have a balanced panel for each tract, this is equivalent to including only tract fixed effects. I implement it this way to emphasize that identification only comes from within-pair comparison.}
 By interacting each matched pair fixed effect is interacted with event time dummies, I ensure that each treated tract is explicitly compared to its matched control at each event time.
-The $\beta_\tau$ terms measure the difference in outcomes between treated and control neighborhoods at each time period relative to the construction of public housing.
+The $\beta_\tau$ terms capture the effect of the arrival of public housing on outcomes in each treated tract relative to its matched control.
+Since all fixed effects are implemented within sub-experiment defined by each matched pair, identification solely relies on within-matched-pair comparisons.
 
-This event-study specification allows me to examine both pre-trends and dynamic treatment effects over time.\footnote{My balancing procedure ensures that I have at least one pre-trend estimate for each matched pair. Event times t=-30 and t=30 may not be observed for all matched pairs.}
+This event-study specification allows me to examine both pre-trends and dynamic treatment effects over time.\footnote{My balancing procedure ensures that I have at least one pre-trend estimate for each matched pair. Event time t=30 may not be observed for all matched pairs.}
 Operationally, this specification is equivalent to a stacked difference-in-differences design in which each matched pair can be considered its own "sub-experiment" (\cite{wingStackedDifferenceDifferences2024}).
 I weight each observation equally: since each treated unit is matched to a single control unit, one does not need to adjust for imbalances in treatment/control composition through weighting as outlined in \textcite{wingStackedDifferenceDifferences2024}.
 By explicitly comparing matched pairs at each event time, this setup avoids econometric issues that have plagued the staggered adoption difference-in-differences setting (\cite{callawayDifferenceinDifferencesMultipleTime2021}).
 Standard errors are adjusted for spatial correlation following \cite{conleyGMMEstimationCross1999} within a radius of 2 kilometers, allowing for dependence between nearby tracts.
-Results are robust to using standard errors clustered at the tract level.
 
 \subsection{Validity of the Research Design}
 The key identification assumption is that, in the absence of public housing, the treated neighborhoods would have followed similar trends as their matched controls.
 I cannot directly test this assumption, but I find no evidence of systematic pre-treatment trends in the two decades prior to construction.
 Furthermore, funding for public housing was limited, and public housing authorities could not and did not build projects in every neighborhood that potentially could have received it.
-As a result, many neighborhoods similar to those that received projects ultimately did not receive them, which creates plausible counterfactuals.
+As a result, neighborhoods that were initially similar to those that received projects ultimately did not receive them, which creates plausible counterfactuals.
 The benefit of matching to a neighborhood within the same county is that these control neighborhoods were subject to the same local political conditions and economic shocks.
-
-On the other hand, one limitation with this restriction is that the quality of the matches may be limited by the availability of suitable controls within the county.
-As a robustness check, I will  also show results where I require the matched control to be in a different CBSA, which increases the pool of potential controls and avoids concerns about within-county spillovers.
-These results are shown in Appendix X.
-
-%However, there remain several threats to identification, which I address below. 
-%First, one potential concern would be if there were unobserved shocks that differentially affected the treated tracts.
-%For example, if public housing was built in neighborhoods that saw an influx of Black residents in the years between t=-10 and t=0, the year that the project was built, the effects of public housing would be conflated with the effects of that shock.
-%Furthermore, we might be concerned that neighborhoods that were chosen for public housing different on other unobservable characteristics from their matched controls.%\footnote{Other recent work on similar targeted policies has used proximity to the treatment to define the control group. For example, \textcite{blancoKnockingItMixing2025} estimate the effects of public housing regenerations in the UK on nearby neighborhoods by using slightly further neighborhoods/housing prices as a control group. In my setting, it is challenging to find a suitable control group purely using a distance-based approach that exhibits parallel pre-trend estimates. This may be due to the geographic size of Census tracts in some cities, especially in 1950. In Appendix \ref{sec:spatial_did_appendix}, I show estimates of the effects of public housing using a stacked spatial difference-in-differences approach, where the control tracts are defined purely by their proximity to the treated tracts.}
-
-% TODO: Can fill this out
-
-I will note that one could consider several other designs to estimate the effects of public housing construction.
-One design would be to identify locations that were proposed for public housing but not ultimately selected.
-
-
-For example, one could consider a distance-based stacked difference-in-differences design, where the control group is defined as tracts that are further away from the treated tracts, as in \textcite{blancoKnockingItMixing2025,guennewig-moenertPublicHousingDesign2024}.
-I show in Appendix X that this design does not yield parallel pre-trends in my setting.
-Another counterfactual could be to use the later-treated tracts as a control for the earlier-treated tracts, similar to the design in \textcite{deshpandeWhoScreenedOut2019}.
-In Appendix X, I show that the later-treated tracts are systematically different from the earlier-treated tracts in my setting, 
-
+In Section \ref{sec:robustness}, I show that results are robust to matching on control neighborhooods in different metropolitan areas.
 
 
 \subsection{Effects on Treated Neighborhoods}\label{sec:effects_treated}
-Figure \ref{fig:population_demographics_treated} presents the effects of public housing construction on population and racial composition in the treated neighborhoods.
-The results show large and persistent demographic changes relative to the matched control neighborhoods.
-Total population in the public housing neighborhoods increased substantially, with log population rising by $\approx$ 14\% in the immediate decade following construction.
-This increase was driven by very large increases in the total Black population (56\%), with little effect on total white population on average. 
-Relative to the control neighborhoods, Black population shares increased by 2.4 percentage points in the first decade following construction, and continued to increase up to approximately 4.2 percentage points in the third decade after construction (t=20). This represents a 15.5\% increase in the Black population share relative to the baseline share of 27.8\%.
+Figure \ref{fig:log_pop_treated_baseline} presents the effects of public housing construction on population by race.
+Following public housing construction, total population in the public housing neighborhoods increased substantially, with log population rising by $\approx$ 13\% in the immediate decade following construction, increasing to 16-17\% in the following decades.
+This increase was driven by very large increases in the total Black population, a 57.2\% increase relative to the matched control.
+On average, we see no little to no effect on white population. 
+These large population increases reflect the influx of public residents themselves:
+Figure \ref{fig:log_priv_pop_treated_baseline} shows the results on the non-public housing population (subtracting the public housing population from the total population), and shows a large average decline in private population, both white and Black, following public housing construction.
 
-Figure \ref{fig:private_population_treated} decomposes the population effects by examining changes in the estimated private population separately from the total population changes shown above.
-This shows that the sizable increases in population were driven by increases in public housing population, which displaced residents in private housing.\footnote{As discussed in Section \ref{sec:data}, I do not have data on the population and racial composition for all projects, so these estimates are on a smaller sample of projects.}
+Figure \ref{pop_shares_treated_baseline} shows that these population changes led to changes in the racial composition of the treated neighborhoods.
+Relative to the control neighborhoods, Black population shares increased by 2.9 percentage points in the first decade following construction, and continued to increase up to approximately 5.8 percentage points in the third decade after construction (t=20).
+The latter estimate represents a 20.9\% increase in the Black population share relative to the baseline share of 27.8\%.
 
+Figure \ref{fig:log_rent_income_treated_baseline} shows the effects of public housing on median rent and income, showing broad declines in both.
+Median incomes fall sharply following public housing construction, and fall even more in the long-run: median income falls by 9.5\% in the first decade following construction, falling to 15.3\% by the third decade.
+Median rents fall increasingly over time, with statistically insignificant declines in t=0 but reaching -10.1\% by t=20. 
 
-  \begin{figure}[htbp]
-      \centering
-      \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/event_study_population_demographics_treated.pdf}
-      \caption{Population and Racial Composition Effects in Treated
-  Neighborhoods}
-      \label{fig:population_demographics_treated}
-      \footnotesize{\textit{Note:} This figure shows event study estimates
-  comparing treated neighborhoods to matched controls. Each point represents
-  the difference-in-differences estimate for the given year relative to
-  public housing construction, with 95\% confidence intervals shown as shaded ribbons. The reference
-  period is 10 years before the construction decade (event time = -10). The vertical dotted line indicates the timing of public housing construction.}
-  \end{figure}
-
-   \begin{figure}[htbp]
-    \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/event_study_population_private_treated.pdf}
-    \caption{Effects on Estimated Private Population, Treated Neighborhoods}
-    \label{fig:private_population_treated}
-    \footnotesize{\textit{Note:} This figure shows event study estimates for private population (excluding public
-housing residents) comparing treated neighborhoods to matched controls. Private population is estimated by subtracting
-public housing residents from total tract population. Each line represents the difference-in-differences estimate for
-the given year relative to public housing construction, with 95\% confidence intervals shown as shaded ribbons. The
-reference period is 10 years before the construction decade (event time = -10).}
-\end{figure}
+These changes in racial composition could reflect mechanical changes due to the influx of public housing residents facing income and rent limits, or they could reflect broader neighborhood changes induced by public housing construction.
+In Section \ref{sec:heterogeneity}, I explore heterogeneity in these effects to better understand the mechanisms behind these neighborhood changes, and argue that these changes do not purely reflect mechanical changes due to the public housing residents themselves.
 
 
-Figure \ref{fig:economic_housing} shows the effects of public housing on local neighborhood housing and labor market outcomes. 
-Median rents fall by 0.03 log points immediately and reach -0.14 by 20 years and -0.36 by 40 years post-construction.
-These median rents include public housing residents, and likely reflect the fact that public housing rents were capped. 
-Median income declines sharply, with log median income falling by 0.10 immediately upon construction and reaching -0.18 to -0.20 by 10-20 years post-construction, representing roughly an 18-20\%  decline in neighborhood median income.
-Public housing neighborhoods also saw sizable increases in unemployment rates and falls in labor force participation rates, suggesting that public housing construction was associated with a decline in local economic activity.
-
-  \begin{figure}[htbp]
-      \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/event_study_economic_housing_treated.pdf}
-      \caption{Economic and Housing Effects in Treated Neighborhoods}
-      \label{fig:economic_housing}
-      \footnotesize{\textit{Note:} This figure shows event study estimates
-  comparing treated neighborhoods to matched controls. Each point represents
-  the difference-in-differences estimate for the given year relative to
-  public housing construction, with 95\% confidence intervals shown as shaded ribbons. The reference period is 10 years before the construction decade (event time = -10).}
-  \end{figure}
+%Public housing neighborhoods also saw sizable increases in unemployment rates and falls in labor force participation rates, suggesting that public housing construction was associated with a decline in local economic activity.
 
 
 % TODO
@@ -136,67 +92,66 @@ Public housing neighborhoods also saw sizable increases in unemployment rates an
 %Appendix Figure \ref{fig:outofcity_robustness} shows that the estimated dynamic effects are very similar to the main results shown in Figures \ref{fig:population_demographics_treated} and \ref{fig:economic_housing}.
 %This similarity rules out the concern that the main results are driven by peculiarities of within-city donor scarcity or city-specific siting decisions by local housing authorities.
 
-These results ultimately demonstrate that the mid-century public housing program did not achieve its stated goals of neighborhood improvement and slum clearance, and instead concentrated poverty and segregation in the neighborhoods where it was built.
-Even conditional on the fact that public housing was built in neighborhoods with higher Black population shares, lower incomes, and higher unemployment rates, the construction of these projects exacerbated these pre-existing disparities in the long-run. 
-The results provide quantitative evidence supporting critics' claims that public housing contributed to neighborhood segregation and concentrated disadvantage.
-Rather than achieving the "slum clearance" and neighborhood improvement goals articulated in the 1949 Housing Act, public housing construction reinforced and extended patterns of racial and economic segregation in the neighborhoods where it was built.
-Of course, many of these effects shown thus far are likely mechanical in nature, as the program grew to house the most disadvantaged populations.
-A perhaps more interesting question is to what degree these effects persisted in neighborhoods beyond the immediate vicinity of the public housing projects.
-
+%These results ultimately demonstrate that the mid-century public housing program did not achieve its stated goals of neighborhood improvement and slum clearance, and instead concentrated poverty and segregation in the neighborhoods where it was built.
+%Even conditional on the fact that public housing was built in neighborhoods with higher Black population shares, lower incomes, and higher unemployment rates, the construction of these projects exacerbated these pre-existing disparities in the long-run. 
+%The results provide quantitative evidence supporting critics' claims that public housing contributed to neighborhood segregation and concentrated disadvantage.
+%Rather than achieving the "slum clearance" and neighborhood improvement goals articulated in the 1949 Housing Act, public housing construction reinforced and extended patterns of racial and economic segregation in the neighborhoods where it was built.
 
 \subsection{Effects on nearby neighborhoods}\label{sec:spillover_effects}
 A primary source of backlash against the mid-century public housing program has been the concern it precipitated a broader urban decline and white flight, with negative spillovers on surrounding communities (\cite{jacksonCrabgrassFrontierSuburbanization1985}).
-Understanding these potential spillovers is crucial for understanding the overall impact of the program. 
+Understanding these potential spillovers is crucial for assessing the overall impact of the program. 
 To test this, I estimate the geographic spillover effects of public housing on nearby neighborhoods.
 
 As described in Section \ref{sec:data}, I define the nearby neighborhoods as the set of census tracts that are contiguous to the treated neighborhoods and are within 1 km of a public housing project.
 Then, I apply the same nearest neighbor propensity score matching with replacement discussed in Section \ref{sec:research_design} to identify matched controls for these nearby neighborhoods.
-Balance statistics for the nearby neighborhoods are shown in Table \ref{tab:balance_spillover}.
+Balance statistics for the nearby neighborhoods are shown in Figure \ref{fig:matched_did_balance_nearby_baseline}, showing good balance on all pre-treatment characteristics, with only the distance from the central business district showing a standardized mean difference above 0.1.
 
-\input{../output/balance_tables/matched_did/combined/balance_table_spillover_neighborhoods.tex}
-\label{tab:balance_spillover}
-
-% TODO: Explain the results correctly 
 I then estimate the treatment effects for these nearby neighborhoods using the same stacked difference-in-differences design as in Equation \ref{eq:matched_did}. 
-Figures \ref{fig:spillover_population_demographics} and \ref{fig:spillover_economic_housing} present the effects on nearby neighborhoods.
-I find relatively limited evidence of spillover effects on population and racial composition in the nearby neighborhoods.
 
-Relative to the matched controls, I find that the nearby neighborhoods to public housing saw some, but relatively limited neighborhood and housing market changes on average.
-In particular, I estimate statistically significant declines in median income in the short- and long-run.
-I find potential evidence of small long-run declines total population and white population, and small increases in the Black population share in these nearby neighborhoods as well, though these results do not reach statistical significance.
-Ultimately, this evidence suggests that the geographic spillovers of public housing construction on nearby neighborhoods were relatively limited, and that the most pronounced effects of the program were largely concentrated in the neighborhoods where the projects were built.
+Figure \ref{fig:log_pop_nearby_baseline} shows the effects of public housing construction on population by race in the nearby neighborhoods.
+As opposed to the treated neighborhoods, I find that the spillover neighborhoods saw small population declines overall.
+I do not find evidence of substantial changes in Black or white population in these nearby neighborhoods, suggesting that public housing construction did not, on average, precipitate large-scale white flight or Black population increases in the nearby neighborhoods.
+
+Figure \ref{fig:log_rent_income_nearby_baseline} shows the effects of public housing construction on median rent and income in the nearby neighborhoods.
+I find small but statistically significant declines in median income in nearby neighborhoods, with median income falling by 2.7\% in the first decade following construction and by 4.8\% in the second decade.
+Effects in later years become statistically insignificant, though the point estimates remain negative.
+This may indicate some degree of economic decline or sorting in these nearby neighborhoods. 
+However, I find no effect on median rent in these nearby neighborhoods, suggesting that the housing market effects of public housing construction were not widespread.
+
+This evidence suggests that the geographic spillovers of public housing construction on nearby neighborhoods were relatively limited on average, and that the most pronounced effects of the program were largely concentrated in the neighborhoods where the projects were built.
+
+\subsection{Robustness Checks}\label{sec:robustness}
+One might worry that the results are sensitive to the specific matching specification.
+In particular, one might be concerned that the exact matching criteria are too restrictive, leading to imperfect nearest neighbor matches.
+Indeed, the balance achieved in the main specifications above is imperfect, with some standardized mean differences above 0.1.
+I run several alternative matching specifications to test the robustness of these results.
+First, I run a specification where I drop poor matches: In particular, I apply a caliper where I drop matches with a propensity score difference of more than 0.25.
+Second, I loosen the exact matching restriction on county, and instead require a match from a neighborhood within any other metropolitan area.
+This expands the donor pool, particularly for treated neighborhoods in smaller cities.
+A comparison of the results from these alternative specifications for the public housing neighborhoods are show in Figure \ref{fig:robustness_matching_treated} and \ref{fig:robustness_matching_nearby}.
+Overall, the estimates are largely quite similar across these alternative specification, both in sign and magnitude. 
 
 
+%However, there remain several threats to identification, which I address below. 
+%First, one potential concern would be if there were unobserved shocks that differentially affected the treated tracts.
+%For example, if public housing was built in neighborhoods that saw an influx of Black residents in the years between t=-10 and t=0, the year that the project was built, the effects of public housing would be conflated with the effects of that shock.
+%Furthermore, we might be concerned that neighborhoods that were chosen for public housing different on other unobservable characteristics from their matched controls.%\footnote{Other recent work on similar targeted policies has used proximity to the treatment to define the control group. For example, \textcite{blancoKnockingItMixing2025} estimate the effects of public housing regenerations in the UK on nearby neighborhoods by using slightly further neighborhoods/housing prices as a control group. In my setting, it is challenging to find a suitable control group purely using a distance-based approach that exhibits parallel pre-trend estimates. This may be due to the geographic size of Census tracts in some cities, especially in 1950. In Appendix \ref{sec:spatial_did_appendix}, I show estimates of the effects of public housing using a stacked spatial difference-in-differences approach, where the control tracts are defined purely by their proximity to the treated tracts.}
+
+% TODO: Can fill this out
+
+%I will note that one could consider several other designs to estimate the effects of public housing construction.
+%One design would be to identify locations that were proposed for public housing but not ultimately selected.
 
 
-
-  \begin{figure}[htbp]
-      \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/event_study_spillover_population_demographics.pdf}
-      \caption{Spillover Effects: Population and Racial Composition in Adjacent Neighborhoods}
-      \label{fig:spillover_population_demographics}
-      \footnotesize{\textit{Note:} This figure shows event study estimates
-  comparing adjacent neighborhoods (those contiguous to treated
-  neighborhoods) to matched controls. Each point represents the
-  difference-in-differences estimate for the given year relative to public
-  housing construction, with 95\% confidence intervals shown as shaded
-  ribbons. The reference period is 10 years before the construction decade (event time =-10). The vertical dotted line indicates the timing of public housing
-  construction.}
-  \end{figure}
-
-  \begin{figure}[htbp]
-      \includegraphics[width=0.9\textwidth]{../output/regression_results/matched_did/combined/event_study_spillover_economic_housing.pdf}
-      \caption{Spillover Effects: Economic and Housing Outcomes in Adjacent Neighborhoods}
-      \label{fig:spillover_economic_housing}
-      \footnotesize{\textit{Note:} This figure shows event study estimates comparing adjacent neighborhoods (those contiguous to treated
-  neighborhoods) to matched controls. Each point represents the difference-in-differences estimate for the given year relative to public
-  housing construction, with 95\% confidence intervals shown as shaded ribbons. The reference period is 10 years before the construction decade (event time =
-   -10). The vertical dotted line indicates the timing of public housing construction.}
-  \end{figure}
+%For example, one could consider a distance-based stacked difference-in-differences design, where the control group is defined as tracts that are further away from the treated tracts, as in \textcite{blancoKnockingItMixing2025,guennewig-moenertPublicHousingDesign2024}.
+%I show in Appendix X that this design does not yield parallel pre-trends in my setting.
+%Another counterfactual could be to use the later-treated tracts as a control for the earlier-treated tracts, similar to the design in \textcite{deshpandeWhoScreenedOut2019}.
+%In Appendix X, I show that the later-treated tracts are systematically different from the earlier-treated tracts in my setting, 
 
 
 %In the "inherited spillover approach", I find less evidence of these strong spillover effects. I do find similar declines in median incomes, and small declines in white population shares in the spillover neighborhoods. None of the other estimates, however, reach statistical signficance. The pre-treatment characteristics of these inherited spillover tracts, however, are less similar to the matched control group.
 
-\section{Heterogeneity Analysis}\label{sec:heterogeneity}
+\section{Mechanisms and Heterogeneity}\label{sec:heterogeneity}
 
 In this section, I explore heterogeneity in the neighborhood effects of the public housing program.
 For simplicity, I show estimates at t=20, or 20 years after the first decade of public housing construction, which capture the long-run effects of the program.
@@ -218,17 +173,6 @@ I find large differences in the effects of public housing on the racial composit
 Treated neighborhoods that were almost entirely non-Black and those in the "tipping range" saw sizable increases in Black population in responses to public housing construction, while those with high initial Black shares saw no change in Black population, and if anything, some increase in white population.
 Similarly, nearby neighborhoods in the "tipping range" also saw sizable declines in white population, potentially suggesting some degree of white flight in response to public housing construction for neighborhoods around this range. 
 
-\begin{figure}[htbp]
-\includegraphics[width=0.9\textwidth]{../output/regression_results/baseline_black_share_heterogeneity_t20.pdf}
-\caption{Heterogeneity by Initial Neighborhood Racial Composition}
-\label{fig:baseline_black_share_heterogeneity}
-\footnotesize{\textit{Note:} This figure compares the effects of public housing construction in neighborhoods with
-  very low (less than 1\%), medium (1-12\%) and high (greater than 12\%) baseline Black shares. Baseline is
-measured at t=-10. The top panels show effects on treated neighborhoods, and bottom
-panels show spillover effects on nearby neighborhoods.}
-\end{figure}
-
-
 I also test whether the effects of the projects varied based on when the projects were built.
 Comparing the effects of the projects built in the 1940s and 1950s to those built after 1960 may highlight how the changing political and social context surrounding public housing influenced its neighborhood effects.
 Figure \ref{fig:construction_decade_heterogeneity} shows the results of this analysis at t=20.
@@ -238,15 +182,6 @@ I am still exploring the mechanisms behind this result.
 One possibility is that this reflects the changing racial composition of American cities over this period and reflects the same racial tipping mechanisms as in Figure \ref{fig:baseline_black_share_heterogeneity}:
 For projects built earlier on, the Black population in the average neighborhood was much lower.  
 
-  \begin{figure}[htbp]
-  \includegraphics[width=0.9\textwidth]{../output/regression_results/early_vs_late_programs_race_income_t20.pdf}
-  \caption{Long-Run Effects of Early vs Later Public Housing Projects}
-  \label{fig:early_vs_late_programs_race_income_t20}
-  \footnotesize{\textit{Note:} This figure compares the effects of public housing construction in neighborhoods with
-  very low (less than 1\%), medium (1-12\%) and high (greater than 12\%) baseline Black shares. Baseline is
-measured at t=-10. The top panels show effects on treated neighborhoods, and bottom
-panels show spillover effects on nearby neighborhoods.}
-  \end{figure}
 
 
 Finally, I test whether these effects differed in neighborhoods that were also affected by the urban renewal program.
@@ -256,11 +191,5 @@ I find null effects on median income, and population by race in neighborhoods th
 In contrast, in neighborhoods not targeted by urban renewal, I find similar effects as in the main analysis.
 %One interesting finding is that in urban renewal tracts that were nearby public housing, I find sharp declines in long-run Black population.
 %This is consistent with the historical narrative that public housing often served to house individuals displaced by urban renewal (\cite{baumanPublicHousingDreadful1994, hirschMakingSecondGhetto1998}), and may reflect the fact that urban renewal displaced many Black residents from these neighborhoods.
-
-  \begin{figure}[htbp]
-  \includegraphics[width=0.9\textwidth]{../output/regression_results/urban_renewal_heterogeneity_race_income_t20.pdf}
-  \caption{Long-Run Effects of Early vs Later Public Housing Projects}
-  \label{fig:urban_renewal_heterogeneity}
-  \end{figure}
 
 

@@ -103,32 +103,28 @@ I choose 1 kilometer as a distance threshold based on previous literature showin
 For timing, spillover tracts inherit the earliest treatment year of their adjacent treated tracts.
 Figure \ref{fig:chicago_spillover} illustrates this spillover definition using Chicago as an example, showing public housing projects (treated tracts) and the adjacent spillover areas.
 
-  \begin{figure}[H]
-  \includegraphics[width=1\textwidth]{../output/figures/chicago_spillover_all_tracts_clean.pdf}
-  \caption{Public Housing Projects and Spillover Areas: Chicago}
-  \label{fig:chicago_spillover}
-  \note{This map shows census tracts in Chicago containing public housing projects built between 1941-1973 (red) and
-   adjacent spillover areas (blue) defined using the contiguity-and-distance criteria described in the text. Other
-  areas (gray) represent tracts used as controls in the spatial difference-in-differences analysis.}
-  \end{figure}
 
 
  \subsection{Sample Selection}
 My empirical analysis focuses on projects built between 1941 and 1973, with neighborhood outcomes measured from 1930 to 2000.
 I restrict the sample in several ways to ensure that I have a balanced panel of neighborhoods with sufficient pre-treatment data to estimate the effects of public housing construction.
-First, I drop tracts for which I cannot calculate population by race, median income, median rent, labor force participation rates, and unemployment rates for all years.  
 
-I make several further sample restrictions. I exclude tracts with public housing built before my analysis period (pre-1941).
-I also drop outlier population tracts that are above the 98th percentile ($14,651$) or below the 2nd percentile ($98.2$) of population in any year.
-I exclude metropolitan areas that either have few total tracts ($< 50$ total tracts), or have a very high share of treated tracts ($> 30\%$ of tracts treated), to ensure sufficient within-city control variation for credible counterfactuals.
-The resulting balanced sample includes $7,279$ Census tracts across 45 CBSAs, and 687 projects with 294,022 total public housing units located in 628 treated tracts.
+Table \ref{tab:sample_attrition} shows the impact of each filtering step on the sample composition.
+Starting from the original sample of 12,062 census tracts representing 38.1 million people in 1940 (approximately 29\% of the U.S. population), I apply the following restrictions.
+First, I require that tracts exist in all years from 1930 to 2000, which drops 25\% of tracts, primarily due to new tracts created in later decades or areas that lacked tract coverage in early years.
+Second, I drop tracts for which I cannot calculate population by race, median income, median rent, labor force participation rates, and unemployment rates for all years, which removes an additional 5\% of tracts.
+Third, I exclude tracts with public housing built before 1941 to preserve 1930 and 1940 as clean pre-treatment periods, which removes 91 treated tracts containing 70 projects.
+Fourth, I drop metropolitan areas with fewer than 30 total tracts to ensure sufficient within-city variation.
+Finally, I exclude outlier tracts with populations below 500 or above the 98th percentile (14,651) in any year, and I drop CBSAs where more than 30\% of tracts are treated, to ensure credible control groups.
+
+The resulting balanced sample includes 6,430 census tracts across 45 CBSAs, representing 27.2 million people in 1940 (approximately 21\% of the U.S. population).
+The sample contains 640 public housing projects with 265,505 total units located in 719 treated tracts.
+Overall, the filtering process retains 53\% of the original census tracts and 55\% of the original public housing projects, with the largest attrition occurring from the balanced panel requirements and population outlier exclusions.
 Figure \ref{fig:cbsa_coverage} shows the geographic distribution of CBSAs included in the analysis.
 
-\begin{figure}[H]
-\includegraphics[width=0.9\textwidth]{../output/figures/exploratory/cbsa_coverage_map.pdf}
-\caption{Geographic Coverage of CBSAs in Analysis Sample}
-\label{fig:cbsa_coverage}
-\note{This map shows the 45 Core-Based Statistical Areas (CBSAs) included in the balanced panel analysis. Shaded
-areas represent metropolitan areas with sufficient tract coverage and public housing projects to meet the sample
-selection criteria described in Section \ref{sec:data}.}
-\end{figure}
+
+
+\subsection{Summary Statistics}
+
+Table \ref{tab:tract_summary} shows summary statistics for census tract characteristics in 1940 and 1990.
+

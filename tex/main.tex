@@ -1,7 +1,7 @@
 \documentclass[reqno, hidelinks, 12pt]{article}
 \usepackage{amsmath,amsthm,fancyhdr,setspace,graphicx,booktabs,pdflscape,url,fancyvrb}
 \usepackage[position=above]{subfig}
-\usepackage{caption}
+\usepackage[position=top]{caption}
 \usepackage[left=1in, right=1in, top=1in, bottom=1in]{geometry}
 \usepackage[charter]{mathdesign}
 \usepackage[dvipsnames]{xcolor}
@@ -11,7 +11,8 @@
 \usepackage{tabularx}
 \usepackage{nameref}
 \usepackage{longtable}
-
+\usepackage{threeparttable, subcaption}
+\usepackage{comment}
 
 % For modelsummary tables
 \usepackage{tabularray}
@@ -29,6 +30,13 @@
 % for formatting tables
 \usepackage{pdflscape}
 \usepackage{adjustbox}
+
+% Footnote formatting
+\usepackage[bottom]{footmisc}  % Forces footnotes to page bottom
+\setlength{\footnotesep}{0.7\baselineskip}  % Space between footnotes
+\interfootnotelinepenalty=10000  % Discourages breaking footnotes across pages
+
+
 
 % Bibliography
 %\usepackage[style=apa, backend=biber]{biblatex} % Choose your style
@@ -88,7 +96,7 @@
 
 \title{\Large Building Segregation: The Long-Run Neighborhood Effects of American Public Housing
 \thanks{I am grateful to Giovanni Peri, Santiago Perez, Chris Meissner and Marianne Bitler for their valuable feedback.
-I would also like to thank Alessandro Caiumi, Rowena Gray, and seminar participants of the UC Davis applied micro and economic history seminars.
+I would also like to thank Alessandro Caiumi, Rowena Gray, and seminar participants of the UC Davis applied micro and economic history seminars for helpful comments.
 Thank you to Max Guennewig-Moenert for sharing data on New York City public housing populations and to D. Bradford Hunt for sharing data on Chicago public housing. 
 Stephanie Smith, Reece Doyle, and Andrew Shamardin provided excellent help in digitizing and checking data.}}
 
@@ -114,11 +122,19 @@ Stephanie Smith, Reece Doyle, and Andrew Shamardin provided excellent help in di
 
 \input{sections/introduction}
 \input{sections/historical_background}
+\input{sections/framework}
 \input{sections/data}
 \input{sections/site_selection}
 \input{sections/neighborhood_effects}
+\input{sections/opportunity_insights}
 \input{sections/conclusion}
 
+\newpage
+\printbibliography
+
+\input{sections/figures_and_tables}
+
+\clearpage
 \newpage
 \appendix
 
@@ -127,12 +143,10 @@ Stephanie Smith, Reece Doyle, and Andrew Shamardin provided excellent help in di
 %\input{appendices/appendix_data_construction}
 %\input{appendices/spatial_did_appendix}
 %\input{appendices/callaway_santanna_appendix}
+\input{appendices/robustness_appendix}
 \input{appendices/appendix_chicago_land_values}
-\input{appendices/philadelphia_site_selection_appendix}
+%\input{appendices/philadelphia_site_selection_appendix}
 
-\newpage
-\printbibliography
 %\bibliography{bibliography/full_library}  % No .bib extension
-
 
 \end{document}
