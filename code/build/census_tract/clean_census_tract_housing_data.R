@@ -1,6 +1,11 @@
 ####
-# Read in raw NHGIS tract-level data from
-
+# Fixes crosswalk weighting for median housing variables
+#
+# Key change: For years with reported medians (1940, 1980, 1990, 2000), uses weighted average
+# instead of weighted sum. Years with distributions (1930, 1960, 1970) use weighted sum.
+#
+# Output saved to: data/derived/census/tract_housing_data.gpkg
+#
 # To start, get tract level:
 # 1. Median rents
 # 2. Median home value
@@ -753,38 +758,101 @@ tract_housing_data_2000 <-
 # and for which we have to calculate medians (1930, 1960, 1970)
 # for the latter, we should reweight populations in each group
 
-# still, can loop through them all the same
+# CORRECTED VERSION: Handle distributions vs reported medians separately
+#
+# Years with DISTRIBUTIONS (1930, 1960, 1970): Use weighted sum (correct)
+# Years with REPORTED MEDIANS (1940, 1980, 1990, 2000): Use weighted average (FIXED)
 
-# 04/30/2024: Actually... maybe I can just do this for all years at once... trying now
+cat("\n=== CORRECTED CROSSWALK PROCEDURE ===\n")
+cat("1930, 1960, 1970: Distribution-based (weighted sum) - unchanged\n")
+cat("1940, 1980, 1990, 2000: Reported medians (weighted average) - CORRECTED\n\n")
 
-# 1. Join on crosswalk to get GISJOIN_1950 and weights
-# 2. Weight medians (or group values) by "weight" and collapse to GISJOIN_2000
-# 3. Merge geography information from 1950 NHGIS file
+# Process years with DISTRIBUTIONS (1930, 1960, 1970) - original method is correct
+years_with_distributions <- c(1930, 1960, 1970)
 
-years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000)
+for (year in years_with_distributions) {
+  cat("Processing", year, "(distributions - original method)\n")
 
-for (year in years) {
-  # Construct variable names and file names dynamically based on the year
   tract_housing_data_var <- paste0("tract_housing_data_", year)
   tract_crosswalk_var <- paste0("tract_crosswalk_", year)
   tract_housing_data_concorded_var <- paste0("tract_housing_data_", year, "_concorded")
-  
-  # Execute the operations inside the loop
-  assign(tract_housing_data_concorded_var, 
-         get(tract_housing_data_var) %>% 
-           # join on crosswalk
+
+  assign(tract_housing_data_concorded_var,
+         get(tract_housing_data_var) %>%
            left_join(get(tract_crosswalk_var), by = c("GISJOIN" = paste0("GISJOIN_", year))) %>%
-           # weight populations
-           mutate_at(vars(contains(c("rent", "home_value", "units", "age_group"))), ~ . * weight) %>%
-           st_drop_geometry() %>% 
-           # collapse to GISJOIN_1950
-           group_by(GISJOIN_1950, YEAR) %>% 
-           summarise_at(vars(contains(c("rent", "home_value", "units", "age_group"))), sum, na.rm = TRUE) %>%
-           ungroup()  %>%
-           # merge on 1950 tract IDs for each GISJOIN 
-           left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN")) 
+           # For distributions: weight counts by area weight (correct)
+           mutate_at(vars(contains(c("rent_group", "home_value_group", "units", "age_group"))), ~ . * weight) %>%
+           st_drop_geometry() %>%
+           group_by(GISJOIN_1950, YEAR) %>%
+           summarise_at(vars(contains(c("rent_group", "home_value_group", "units", "age_group"))), sum, na.rm = TRUE) %>%
+           ungroup() %>%
+           left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN"))
   )
 }
+
+# Process years with REPORTED MEDIANS (1940, 1980, 1990, 2000) - CORRECTED method
+years_with_medians <- c(1940, 1980, 1990, 2000)
+
+for (year in years_with_medians) {
+  cat("Processing", year, "(reported medians - CORRECTED weighted average)\n")
+
+  tract_housing_data_var <- paste0("tract_housing_data_", year)
+  tract_crosswalk_var <- paste0("tract_crosswalk_", year)
+  tract_housing_data_concorded_var <- paste0("tract_housing_data_", year, "_concorded")
+
+  data_to_process <- get(tract_housing_data_var) %>%
+    left_join(get(tract_crosswalk_var), by = c("GISJOIN" = paste0("GISJOIN_", year)))
+
+  # Identify which variables are medians vs counts
+  median_vars <- names(data_to_process)[grepl("median_.*_reported", names(data_to_process))]
+  count_vars <- names(data_to_process)[grepl("rent_group|home_value_group|units|age_group", names(data_to_process))]
+
+  # Process medians with weighted average and counts with weighted sum
+  if (length(median_vars) > 0 && length(count_vars) > 0) {
+    # Both medians and counts
+    assign(tract_housing_data_concorded_var,
+           data_to_process %>%
+             # Weight medians and counts
+             mutate(across(all_of(median_vars), ~ . * weight, .names = "{.col}_weighted")) %>%
+             mutate(across(all_of(count_vars), ~ . * weight)) %>%
+             st_drop_geometry() %>%
+             group_by(GISJOIN_1950, YEAR) %>%
+             summarise(
+               # Medians: weighted average
+               across(ends_with("_weighted"), ~ sum(.x, na.rm = TRUE) / sum(weight[!is.na(.x)]), .names = "{str_remove(.col, '_weighted')}"),
+               # Counts: weighted sum
+               across(all_of(count_vars), ~ sum(.x, na.rm = TRUE)),
+               .groups = 'drop'
+             ) %>%
+             left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN"))
+    )
+  } else if (length(median_vars) > 0) {
+    # Only medians
+    assign(tract_housing_data_concorded_var,
+           data_to_process %>%
+             mutate(across(all_of(median_vars), ~ . * weight, .names = "{.col}_weighted")) %>%
+             st_drop_geometry() %>%
+             group_by(GISJOIN_1950, YEAR) %>%
+             summarise(
+               across(ends_with("_weighted"), ~ sum(.x, na.rm = TRUE) / sum(weight[!is.na(.x)]), .names = "{str_remove(.col, '_weighted')}"),
+               .groups = 'drop'
+             ) %>%
+             left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN"))
+    )
+  } else if (length(count_vars) > 0) {
+    # Only counts
+    assign(tract_housing_data_concorded_var,
+           data_to_process %>%
+             mutate(across(all_of(count_vars), ~ . * weight)) %>%
+             st_drop_geometry() %>%
+             group_by(GISJOIN_1950, YEAR) %>%
+             summarise(across(all_of(count_vars), ~ sum(.x, na.rm = TRUE)), .groups = 'drop') %>%
+             left_join(tract_info_1950_gisjoin, by = c("GISJOIN_1950" = "GISJOIN"))
+    )
+  }
+}
+
+cat("\nCrosswalk processing complete!\n\n")
 
 ## Clean 1950 data to same format as concorded data  ----
 tract_housing_data_1950_concorded <-
@@ -1293,10 +1361,15 @@ tract_housing_data_concorded <-
   filter(!st_is_empty(geometry))
 
 
-# Save ----
+# Save output ----
+cat("\n=== SAVING OUTPUT ===\n")
+cat("File: data/derived/census/tract_housing_data.gpkg\n\n")
+
 # save concorded tract_housing_data as shapefile
 st_write(tract_housing_data_concorded, "data/derived/census/tract_housing_data.gpkg",
                    append = FALSE, layer = "points", driver = "GPKG")
+
+cat("\nHousing data processing complete!\n")
 
 
 # Analysis-----

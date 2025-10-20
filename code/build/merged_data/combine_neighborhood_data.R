@@ -40,7 +40,7 @@ read_census_data <- function() {
     st_drop_geometry() %>%
     dplyr::select(any_of(tract_id_variables), contains("median"), total_units, vacancy_rate,
            share_needing_repair, share_no_water, housing_density)
-  
+
   census_income_data <- read_sf(here(census_data_path, "tract_income_data.gpkg")) %>%
     st_drop_geometry() %>%
     dplyr::select(any_of(tract_id_variables), contains("median"))
@@ -148,7 +148,11 @@ census_tract_data_full <-
     lfp_rate = coalesce(lfp_rate, lfp_rate_fc),
     unemp_rate = coalesce(unemp_rate, unemp_rate_fc)
   ) %>% 
-  select(-ends_with("_fc"))
+  select(-ends_with("_fc")) %>% 
+  # recalculate area and population density
+  mutate(area_m2 = as.numeric(st_area(geom)),
+         population_density = total_pop / area_m2)
+
 
 # variables that are in the full count data but not in the tract-level data
 
