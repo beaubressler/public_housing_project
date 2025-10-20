@@ -99,6 +99,12 @@ source(here(merged_build_dir, "create_spatial_did_data.R"))
 
 # --------- LEARN -------
 
+
+# Summary stats and tables
+source(here(learn_dir, "create_summary_statistics_tables.R"))
+source(here(learn_dir, "create_project_attrition_table.R"))
+source(here(learn_dir, "create_data_source_table.R"))
+
 ## Data exploration
 # source(here(exploratory_dir, "explore_public_housing_data.R"))
 source(here(exploratory_dir, "graph_census_data.R"))
@@ -106,15 +112,19 @@ source(here(exploratory_dir, "graph_census_data.R"))
 ## Regressions -----
 ### Site selection regressions
 source(here(site_selection_dir, "site_selection_analysis.R"))
+source(here(site_selection_dir, "project_demographics_analysis.R"))
 
 ### Run spatial DiD
 # 5/2025: For now, don't really need to do this
 #source(here(stacked_did_dir, "run_spatial_did_regressions.R"))
 
 ### Matched DiD -----
-source(here(matched_did_dir, "run_matching_algorithms.R"))
-source(here(matched_did_dir, "assess_matching_and_balance.R"))
-source(here(matched_did_dir, "matched_did_with_rings.R"))
+# Run complete matched DiD analysis (all matching variants + heterogeneity)
+source(here(matched_did_dir, "run_complete_analysis.R"))
+
+### Callaway-Sant'Anna staggered DiD -----
+# source(here(learn_dir, "staggered_did", "run_callaway_santanna.R"))
+# source(here(learn_dir, "staggered_did", "run_callaway_santanna_spillovers.R"))
 
 
 

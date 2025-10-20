@@ -1,7 +1,6 @@
 ####
-# Matching Algorithms with Replacement
-# This script runs propensity score matching WITH replacement to maximize sample size
-# while maintaining strong identification through better individual matches
+# Genetic Matching with Replacement
+# Uses genetic algorithm to optimize covariate weights for maximum balance
 ####
 
 library(MatchIt)
@@ -18,25 +17,35 @@ library(tableone)
 library(kableExtra)
 library(tinytable) # for formatting balance tables
 
-rm(list=ls())
+# rm(list=ls())  # Commented out to preserve loop variables in complete analysis script
 
-# 0. Set seed and parameters -----
+# 0. Load shared configuration -----
+source(here("code", "learn", "matched_did", "matching", "matching_config.R"))
 
-# !! choose which data to use:
-# choices are "digitized", "cdd_large", "cdd_small", or "combined"
-data_type <- "combined"
+# output directory
+variant <- "genetic"
 
-set.seed(123456L)
-# set number of nearest neighbors for KNN matching
-knn_neighbors <- 1
+# Load helper functions
+source(here("code", "learn", "matched_did", "helpers", "balance_table_creation.R"))
+source(here("code", "learn", "matched_did", "helpers", "time_series_plotting.R"))
+
 
 # define directories
 merged_data_dir <- here("data", "derived", "merged", data_type)
 map_output_dir <- here("output", "figures", "matched_did", data_type)
-figures_dir <- here("output", "figures", "matched_did", data_type)
-balance_table_dir <- here("output", "balance_tables", "matched_did", data_type)
 
-output_data_dir <- here("data", "derived", "merged", data_type, "matched_dataset")
+output_data_dir <- here("data", "derived", "merged", data_type, "matched_dataset", variant)
+dir.create(output_data_dir, recursive = TRUE, showWarnings = FALSE)
+
+
+figures_dir <- here("output", "figures", "matched_did", data_type, variant)
+dir.create(figures_dir, recursive = TRUE, showWarnings = FALSE)
+
+balance_table_dir <- here("output", "balance_tables", "matched_did", data_type, variant)
+dir.create(balance_table_dir, recursive = TRUE, showWarnings = FALSE)
+
+
+set.seed(123)
 
 # define file paths
 tract_with_treatment_status_filepath <-
@@ -77,8 +86,10 @@ source(here("code", "helpers", "matching_functions.R"))
 
 # get treated tracts, unique, and merge onto census tract sample
 treated_tracts_panel <-
-  treated_tracts_panel_raw %>% 
-  distinct(GISJOIN_1950, total_public_housing_units)
+  treated_tracts_panel_raw %>%
+  distinct(GISJOIN_1950, total_public_housing_units,
+           total_original_project_size, largest_original_project_size,
+           has_highrise_project)
 
 census_tract_data <-
   census_tract_sample_raw %>% 
@@ -119,29 +130,13 @@ census_tract_data <-
   # merge on inner ring units
   left_join(inner_ring_units, by = c("GISJOIN_1950" = "GISJOIN_1950"))
 
-# Define group types and matching variables -----
-group_types <- c("treated", "inner")
+# Use exact matching variables to match baseline variant
+exact_matching_vars <- c("county_id", "ur_binary_5pp")
 
-# Matching variables based on site selection analysis: 
-matching_vars <- c(
-  #"asinh_distance_from_cbd",     # Geographic/transportation access
-  #"asinh_pop_total",             # Neighborhood size
-  "total_pop",
-  "black_share",                 # Racial composition
-  #"black_pop",
-  "lfp_rate",
-  "unemp_rate",                  # Economic conditions
-  # "asinh_median_income",         # Socioeconomic status
-  "median_income",
-  "median_rent_calculated"
-  #"asinh_median_rent_calculated"      # Housing market conditions
-  )
+genetic_matching_vars <- c("asinh_pop_total", "asinh_pop_black", "black_share",
+                           "asinh_median_income", "asinh_median_rent_calculated",
+                           "lfp_rate", "unemp_rate")
 
-exact_matching_vars <- c(
-  "county_id", 
-  "redlined_binary_80pp", 
-  "ur_binary_5pp"
-)
 
 # Function to perform matching with replacement
 perform_matching_with_replacement <- function(data, treatment_year, match_vars, nearest_neighbors, group_type,
@@ -224,16 +219,17 @@ perform_matching_with_replacement <- function(data, treatment_year, match_vars, 
   cat("Treatment units:", sum(matching_data_wide$treatment_group == 1), "\n")
   cat("Control units:", sum(matching_data_wide$treatment_group == 0), "\n")
   
-  # Perform matching WITH REPLACEMENT
+  # Perform genetic matching WITH REPLACEMENT
   m.out <- matchit(match_formula,
                    data = matching_data_wide,
                    exact = exact_match_vars,
-                   method = match_type,
+                   method = "genetic",
                    distance = distance_option,
                    ratio = nearest_neighbors,
-                   link = match_link,
+                   replace = TRUE,
+                   pop.size = 100,  # genetic algorithm population size
                    caliper = caliper,
-                   replace = TRUE)
+                   std.caliper = TRUE)
   
   # Print matching summary
   cat("Matched units:", sum(m.out$weights[m.out$weights > 0]), "\n")
@@ -247,7 +243,7 @@ perform_matching_with_replacement <- function(data, treatment_year, match_vars, 
   # Add treatment year and group type information
   matched_data$matched_treatment_year <- treatment_year
   matched_data$group_type <- group_type
-  matched_data$match_type <- match_type
+  matched_data$match_type <- "genetic"
   
   # Get variable names for reshaping
   year_vars <- grep("^year_", names(matched_data), value = TRUE)
@@ -287,7 +283,7 @@ for (group in group_types) {
       result <- perform_matching_with_replacement(
         data = census_tract_data, 
         treatment_year = year, 
-        match_vars = matching_vars,
+        match_vars = genetic_matching_vars,
         nearest_neighbors = knn_neighbors, 
         group_type = group,
         pre_treatment_decades = nyear,
@@ -321,36 +317,51 @@ all_matched_data_1_year_replacement <-
   select(GISJOIN_1950, matched_treatment_year, subclass, group_type) %>%
   distinct() %>% 
   mutate(weights = 1)
-# %>%
-#   # 8/11/2025: Do NOT use these weights. Just set weights equal to 1
-#   group_by(GISJOIN_1950) %>%
-#   mutate(
-#     times_matched = n(),                    # How many unique matches this tract has
-#     weights = 1/times_matched,    # for controls that matched k times, weight = 1/k
-#   ) %>%
-#   ungroup()
+
+# Combine 2-year pretreatment matching
+all_matched_data_2_year <- bind_rows(
+  matched_datasets_replacement$matched_data_treated_2pretreatment_1950_replacement,
+  matched_datasets_replacement$matched_data_treated_2pretreatment_1960_replacement,
+  matched_datasets_replacement$matched_data_treated_2pretreatment_1970_replacement,
+  matched_datasets_replacement$matched_data_treated_2pretreatment_1980_replacement,
+  matched_datasets_replacement$matched_data_inner_2pretreatment_1950_replacement,
+  matched_datasets_replacement$matched_data_inner_2pretreatment_1960_replacement,
+  matched_datasets_replacement$matched_data_inner_2pretreatment_1970_replacement,
+  matched_datasets_replacement$matched_data_inner_2pretreatment_1980_replacement
+) %>%
+  select(GISJOIN_1950, matched_treatment_year, subclass, group_type) %>%
+  distinct() %>%
+  mutate(weights = 1)
+
 
 # Merge matching information back to original dataset
-tract_data_matched_1_year_replacement <- census_tract_data %>%
+tract_data_matched_1_year <- census_tract_data %>%
   left_join(all_matched_data_1_year_replacement,
             by = "GISJOIN_1950",
             relationship = "many-to-many") %>% 
   # Create match group identifier
   mutate(
     match_group = ifelse(!is.na(matched_treatment_year),
-                    #     paste(cbsa_title, matched_treatment_year, subclass, sep = "_"),
                     paste(matched_treatment_year, subclass, sep = "_"),
                          NA)
   ) %>% 
   # Keep only matched observations
   filter(!is.na(match_group))
 
+# Merge for 2-year
+tract_data_matched_2_year <- census_tract_data %>%
+  left_join(all_matched_data_2_year, by = "GISJOIN_1950", relationship = "many-to-many") %>%
+  mutate(match_group = ifelse(!is.na(matched_treatment_year),
+                              paste(matched_treatment_year, subclass, sep = "_"), NA)) %>%
+  filter(!is.na(match_group))
+
+
 # Summary statistics -----
 cat("\n=== MATCHING WITH REPLACEMENT SUMMARY ===\n")
 cat("Original treated tracts (all years):", 
     nrow(census_tract_data %>% filter(location_type == "treated") %>% distinct(GISJOIN_1950)), "\n")
 
-matched_summary <- tract_data_matched_1_year_replacement %>%
+matched_summary <- tract_data_matched_1_year %>%
   group_by(group_type, location_type) %>%
   summarise(
     n_obs = n(),
@@ -367,7 +378,7 @@ print(matched_summary)
 # For each match group, if ANY observation has missing private_population_estimate,
 # set ALL observations in that match group to NA for private population variables
 
-tract_data_matched_1_year_replacement <- tract_data_matched_1_year_replacement %>%
+tract_data_matched_1_year <- tract_data_matched_1_year %>%
   group_by(match_group, group_type) %>%
   mutate(
     has_missing_private_pop = any(is.na(private_population_estimate)),
@@ -385,7 +396,7 @@ tract_data_matched_1_year_replacement <- tract_data_matched_1_year_replacement %
 
 # Extract spillover characteristics for inner ring match groups
 # Get one spillover value per inner ring match group (from the inner ring tract)
-inner_spillover_characteristics <- tract_data_matched_1_year_replacement %>%
+inner_spillover_characteristics <- tract_data_matched_1_year %>%
   filter(group_type == "inner", location_type == "inner", 
          !is.na(total_public_housing_units_built_nearby)) %>%
   select(match_group, total_public_housing_units_built_nearby) %>%
@@ -401,8 +412,8 @@ inner_spillover_characteristics <- tract_data_matched_1_year_replacement %>%
   )
 
 # Merge spillover characteristics to all observations in inner ring match groups
-tract_data_matched_1_year_replacement <- 
-  tract_data_matched_1_year_replacement %>%
+tract_data_matched_1_year <- 
+  tract_data_matched_1_year %>%
   select(-total_public_housing_units_built_nearby) %>% 
   left_join(inner_spillover_characteristics, 
             by = "match_group") %>% 
@@ -414,7 +425,7 @@ tract_data_matched_1_year_replacement <-
   )
 
 cat("\n=== SPILLOVER SIZE DATA MERGED ===\n")
-spillover_check <- tract_data_matched_1_year_replacement %>%
+spillover_check <- tract_data_matched_1_year %>%
   filter(group_type == "inner") %>%
   group_by(location_type) %>%
   summarise(
@@ -427,183 +438,24 @@ print(spillover_check)
 
 cat("\nShould see spillover data for BOTH inner ring tracts and their matched donor pool controls\n")
 
+# Create balance tables using modularized function ----
+create_balance_tables(tract_data_matched_1_year, tract_data_matched_2_year, balance_table_dir)
 
-# Check balance -----
-cat("\n=== BALANCE CHECK ===\n")
-
-# Covariates for balance checking
-covariates <- c("total_pop", "black_share", 
-                "black_pop",
-                "median_income", 
-                "median_rent_calculated",
-                "median_home_value_calculated", 
-                "unemp_rate", "lfp_rate",
-                "distance_from_cbd")
-
-# Balance for treated group - use actual t=-10 for each project
-balance_data_treated <- tract_data_matched_1_year_replacement %>%
-  filter(group_type == "treated") %>%
-  # Calculate t=-10 year for each project and filter
-  mutate(pre_treatment_year = matched_treatment_year - 10) %>%
-  filter(year == pre_treatment_year)
-
-if (nrow(balance_data_treated) > 0) {
-  balance_table_treated <- CreateTableOne(
-    vars = covariates,
-    strata = "location_type",
-    data = balance_data_treated,
-    test = TRUE
-  )
-  
-  cat("Balance for TREATED group matching:\n")
-  print(balance_table_treated, smd = TRUE)
-}
-
-# Balance for inner group - use actual t=-10 for each project
-balance_data_inner <- tract_data_matched_1_year_replacement %>%
-  filter(group_type == "inner") %>%
-  # Calculate t=-10 year for each project and filter
-  mutate(pre_treatment_year = matched_treatment_year - 10) %>%
-  filter(year == pre_treatment_year)
-
-if (nrow(balance_data_inner) > 0) {
-  balance_table_inner <- CreateTableOne(
-    vars = covariates,
-    strata = "location_type",
-    data = balance_data_inner,
-    test = TRUE
-  )
-  
-  cat("Balance for INNER group matching:\n")
-  print(balance_table_inner, smd = TRUE)
-}
-
-
-# Create publication-ready balance tables -----
-cat("\n=== CREATING BALANCE TABLES ===\n")
-
-# Create directories for balance tables
-dir.create(balance_table_dir, recursive = TRUE, showWarnings = FALSE)
-
-# Function to convert CreateTableOne output to publication table
-format_balance_table <- function(tableone_obj, group_name) {
-  
-  # Extract the printed output as data frame
-  table_matrix <- print(tableone_obj, smd = TRUE, printToggle = FALSE)
-  
-  # Convert to data frame and clean up
-  balance_df <- as.data.frame(table_matrix) %>%
-    rownames_to_column("Variable") %>%
-    # Remove the first row (sample sizes) - we'll add back manually  
-    filter(Variable != "n") %>%
-    # Clean variable names - remove (mean (SD)) suffixes and map to clean names
-    mutate(
-      Variable = str_replace_all(Variable, "\\s*\\(mean \\(SD\\)\\)", ""),  # Remove (mean (SD)) suffix
-      Variable = case_when(
-        str_detect(Variable, "total_pop") ~ "Total Population",
-        str_detect(Variable, "black_pop") ~ "Black Population",
-        str_detect(Variable, "black_share") ~ "Black Share", 
-        str_detect(Variable, "white_share") ~ "White Share",
-        str_detect(Variable, "median_income") & !str_detect(Variable, "asinh") ~ "Median Income",
-        str_detect(Variable, "asinh_median_income") ~ "Median Income (asinh)",
-        str_detect(Variable, "median_rent_calculated") ~ "Median Rent",
-        str_detect(Variable, "median_home_value_calculated") ~ "Median Home Value",
-        str_detect(Variable, "unemp_rate") ~ "Unemployment Rate",
-        str_detect(Variable, "lfp_rate") ~ "Labor Force Participation Rate", 
-        str_detect(Variable, "distance_from_cbd") ~ "Distance from CBD (km)",
-        str_detect(Variable, "asinh_pop_total") ~ "Total Population (asinh)",
-        TRUE ~ Variable
-      )
-    ) %>%
-    # Select and rename columns
-    select(Variable, donor_pool, !!sym(group_name), SMD) %>%
-    rename(
-      "Control" = donor_pool,
-      "Std. Diff." = SMD
-    )
-  
-  # Rename the treatment column based on group type
-  if (group_name == "treated") {
-    balance_df <- balance_df %>% rename("Treated" = treated)
-  } else if (group_name == "inner") {
-    balance_df <- balance_df %>% rename("Spillover" = inner)  
-  }
-  
-  # Add sample sizes back
-  # Extract n from the original table
-  n_control <- table_matrix["n", "donor_pool"]
-  n_treated <- table_matrix["n", group_name]
-  
-  balance_df <- balance_df %>%
-    add_row(
-      Variable = "N (Tracts)",
-      Control = n_control,
-      !!names(balance_df)[3] := n_treated,  # Dynamic column name
-      `Std. Diff.` = "",
-      .before = 1
-    )
-  
-  return(balance_df)
-}
-
-# Create balance table for treated neighborhoods
-if (nrow(balance_data_treated) > 0 & exists("balance_table_treated")) {
-  cat("Creating balance table for treated neighborhoods...\n")
-  
-  treated_balance_formatted <- format_balance_table(balance_table_treated, "treated")
-  
-  # Format with tinytable and add title with label
-  treated_table <- tt(treated_balance_formatted,
-                     caption = "Pre-treatment Covariate Balance: Treated Neighborhoods\\label{tab:balance_treated}",
-                     notes = "\\footnotesize \\textit{Notes:} Sample includes all treated neighborhoods and their matched controls from the propensity score matching procedure."
-                     ) %>%
-    style_tt(font_size = 0.9) %>%
-    format_tt(escape = FALSE) %>%  # Don't escape LaTeX commands in caption
-    theme_tt("resize") 
-  # Save to LaTeX
-  save_tt(treated_table, 
-          file.path(balance_table_dir, "balance_table_treated_neighborhoods.tex"),
-          overwrite = TRUE)
-  
-  cat("Treated balance table saved to:", 
-      file.path(balance_table_dir, "balance_table_treated_neighborhoods.tex"), "\n")
-}
-
-
-# Create balance table for spillover neighborhoods  
-if (nrow(balance_data_inner) > 0 & exists("balance_table_inner")) {
-  cat("Creating balance table for spillover neighborhoods...\n")
-  
-  inner_balance_formatted <- format_balance_table(balance_table_inner, "inner")
-  
-  # Format with tinytable and add title with label
-  inner_table <- tt(inner_balance_formatted,
-                   caption = "Pre-treatment Covariate Balance: Spillover Neighborhoods\\label{tab:balance_spillover}",
-                   notes = paste0("\\footnotesize \\textit{Notes:} Sample includes all neighborhoods contiguous to public housing neighborhoods (within 1km of public housing projects) and their matched controls",
-                                  "from the propensity score matching procedure.")) %>%
-    style_tt(font_size = 0.9) %>%
-    format_tt(escape = FALSE) %>%  # Don't escape LaTeX commands in caption
-    theme_tt("resize")
-
-  # Save to LaTeX
-  save_tt(inner_table,
-          file.path(balance_table_dir, "balance_table_spillover_neighborhoods.tex"),
-          overwrite = TRUE)
-  
-  cat("Spillover balance table saved to:", 
-      file.path(balance_table_dir, "balance_table_spillover_neighborhoods.tex"), "\n")
-}
-
-cat("\n=== BALANCE TABLES COMPLETE ===\n")
-cat("\n=== MATCHING WITH REPLACEMENT COMPLETE ===\n")
 
 # Save datasets -----
 cat("\n=== SAVING DATASETS ===\n")
 
-write_csv(tract_data_matched_1_year_replacement, 
-          here(output_data_dir, "tract_data_matched_1_year_replacement.csv"))
+write_csv(tract_data_matched_1_year, 
+          here(output_data_dir, "tract_data_matched_1_year.csv"))
 
-cat("Dataset saved to:", here(output_data_dir, "tract_data_matched_1_year_replacement.csv"), "\n")
+write_csv(tract_data_matched_2_year,
+          here(output_data_dir, "tract_data_matched_2_year.csv"))
+
+
+cat("Datasets saved to:\n",
+    here(output_data_dir, "tract_data_matched_1_year.csv"), "\n",
+    here(output_data_dir, "tract_data_matched_2_year.csv"), "\n")
+
 
 # Save matching objects for diagnostics
 # saveRDS(m_out_objects_replacement, 
@@ -618,7 +470,7 @@ all_treated_tracts <- census_tract_data %>%
   distinct(GISJOIN_1950, treatment_year, county_id, redlined_binary_80pp, ur_binary_5pp, cbsa_title)
 
 # Get treated tracts that successfully matched
-matched_treated_tracts <- tract_data_matched_1_year_replacement %>%
+matched_treated_tracts <- tract_data_matched_1_year %>%
   filter(location_type == "treated") %>%
   distinct(GISJOIN_1950, matched_treatment_year, county_id, redlined_binary_80pp, ur_binary_5pp, cbsa_title) %>%
   rename(treatment_year = matched_treatment_year)
@@ -662,103 +514,7 @@ if (nrow(unmatched_tracts) > 0) {
 
 cat("\n=== DROPOUT ANALYSIS COMPLETE ===\n")
 
-# Function to create time series graphs for any variable ----
-create_time_series_plots <- function(data, variable_name, variable_label = NULL, 
-                                   use_percent = FALSE, save_plots = TRUE) {
-  
-  # Set default label if not provided
-  if (is.null(variable_label)) {
-    variable_label <- str_to_title(str_replace_all(variable_name, "_", " "))
-  }
-  
-  # Prepare data for time series analysis
-  time_series_data <- data %>%
-    filter(location_type %in% c("treated", "inner", "donor_pool")) %>%
-    group_by(year, location_type, group_type) %>%
-    summarise(
-      mean_value = mean(.data[[variable_name]], na.rm = TRUE),
-      median_value = median(.data[[variable_name]], na.rm = TRUE),
-      n_tracts = n(),
-      .groups = "drop"
-    ) %>%
-    # Create cleaner labels
-    mutate(location_label = case_when(
-      location_type == "treated" ~ "Treated Tracts",
-      location_type == "inner" ~ "Nearby neighborhoods", 
-      location_type == "donor_pool" ~ "Matched Controls"
-    ))
-  
-  # Set y-axis formatting
-  if (use_percent) {
-    y_scale <- scale_y_continuous(labels = scales::percent_format())
-  } else {
-    y_scale <- scale_y_continuous(labels = scales::comma_format())
-  }
-  
-  # Create faceted plot: Treated vs Controls and Nearby vs Controls
-  facet_data <- time_series_data %>%
-    mutate(
-      comparison = case_when(
-        group_type == "treated" ~ "Treated vs Controls",
-        group_type == "inner" ~ "Nearby vs Controls"
-      )
-    ) %>%
-    filter(!is.na(comparison))
-  
-  p_faceted <- facet_data %>%
-    ggplot(aes(x = year, y = mean_value, color = location_label, linetype = location_label)) +
-    geom_line(size = 1.2) +
-    geom_point(size = 2) +
-    scale_color_manual(values = c("Treated Tracts" = "red", "Nearby neighborhoods" = "orange", "Matched Controls" = "blue")) +
-    scale_linetype_manual(values = c("Treated Tracts" = "solid", "Nearby neighborhoods" = "solid", "Matched Controls" = "dashed")) +
-    y_scale +
-    scale_x_continuous(breaks = seq(1930, 1990, 10)) +
-    facet_wrap(~ comparison, ncol = 2) +
-    labs(
-      title = paste(variable_label, "Over Time: Treatment vs Control Comparisons"),
-      x = "Year", 
-      y = paste("Mean", variable_label),
-      color = "Tract Type",
-      linetype = "Tract Type",
-      caption = "Based on matched difference-in-differences sample"
-    ) +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      plot.title = element_text(size = 14, face = "bold"),
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      strip.text = element_text(size = 12, face = "bold")
-    )
-  
-  # Save plots if requested
-  if (save_plots) {
-    clean_var_name <- str_replace_all(variable_name, "[^a-zA-Z0-9_]", "_")
-    ggsave(here(figures_dir, paste0("time_series_faceted_", clean_var_name, ".pdf")), 
-           p_faceted, width = 12, height = 6)
-    
-    # Save time series data
-    write_csv(time_series_data, 
-              here(output_data_dir, paste0("time_series_", clean_var_name, "_by_group.csv")))
-    
-    cat("\nTime series faceted graph for", variable_name, "saved to:", here(figures_dir), "\n")
-    cat("Time series data saved to:", here(output_data_dir, paste0("time_series_", clean_var_name, "_by_group.csv")), "\n")
-  }
-  
-  # Print summary statistics
-  cat("\nTime series summary for", variable_label, ":\n")
-  print(time_series_data %>% arrange(year, location_type) %>% select(year, location_label, mean_value, n_tracts))
-  
-  # Return plot and data
-  return(list(
-    faceted_plot = p_faceted,
-    data = time_series_data
-  ))
-}
-
-# Create time series graphs ----
-cat("\n=== CREATING TIME SERIES GRAPHS ===\n")
-
-# Example: Create graphs for multiple variables
+# Create time series plots using modularized function ----
 variables_to_plot <- list(
   list(var = "black_share", label = "Black Share", percent = TRUE),
   list(var = "black_pop", label = "Black pop", percent = FALSE),
@@ -766,26 +522,20 @@ variables_to_plot <- list(
   list(var = "median_income", label = "Median Income (1950$)", percent = FALSE)
 )
 
-create_time_series_plots(data = tract_data_matched_1_year_replacement,
-                         variable_name = "black_share",
-                         variable_label = "Total pop", use_percent = FALSE, save_plots = FALSE)
+# Create time series for 1-year matched sample
+cat("\n=== CREATING TIME SERIES FOR 1-YEAR MATCHED SAMPLE ===\n")
+create_multiple_time_series(
+  data = tract_data_matched_1_year,
+  variables_to_plot = variables_to_plot,
+  figures_dir = here("output", "time_series", data_type, variant, "1yr")
+)
 
-# Generate plots for each variable
-for (var_info in variables_to_plot) {
-  if (var_info$var %in% names(tract_data_matched_1_year_replacement)) {
-    cat("\nCreating plots for:", var_info$label, "\n")
-    plots <- create_time_series_plots(
-      data = tract_data_matched_1_year_replacement,
-      variable_name = var_info$var,
-      variable_label = var_info$label,
-      use_percent = var_info$percent,
-      save_plots = TRUE
-    )
-  } else {
-    cat("\nVariable", var_info$var, "not found in data\n")
-  }
-}
-
-cat("\n=== TIME SERIES ANALYSIS COMPLETE ===\n")
+# Create time series for 2-year matched sample
+cat("\n=== CREATING TIME SERIES FOR 2-YEAR MATCHED SAMPLE ===\n")
+create_multiple_time_series(
+  data = tract_data_matched_2_year,
+  variables_to_plot = variables_to_plot,
+  figures_dir = here("output", "time_series", data_type, variant, "2yr")
+)
 
 

@@ -6,18 +6,21 @@ library(tidyverse)
 library(fixest)
 library(here)
 library(modelsummary)
-library(tinytable) # for formatting output
+library(tinytable)
 library(sf)
 library(scales)
 
 rm(list = ls())
+
+# Load table utilities helper
+source(here("code", "helpers", "table_utilities.R"))
 
 # Parameters -----
 data_type <- "combined"
 merged_data_dir <- here("data", "derived", "merged", data_type)
 
 results_dir <- here("output", "regression_results", "site_selection", data_type)
-tables_dir <- here("output", "tables", "site_selection", data_type)
+tables_dir <- here("output", "regression_results", "site_selection", data_type)
 
 # Create output directories
 dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
@@ -29,8 +32,8 @@ balanced_data <- st_read(here(merged_data_dir, "census_tract_sample_with_treatme
   st_drop_geometry()
 
 treated_tracts_info <-
-  st_read(here(merged_data_dir, "treated_tracts_panel_balanced.gpkg")) %>% 
-  st_drop_geometry() %>% 
+  st_read(here(merged_data_dir, "treated_tracts_panel_balanced.gpkg")) %>%
+  st_drop_geometry() %>%
   distinct(GISJOIN_1950, total_public_housing_units, treatment_year)
 
 
@@ -101,11 +104,11 @@ project_demographics <- balanced_data %>%
          baseline_black_share, baseline_white_share, baseline_log_income, baseline_log_rent,
          baseline_pop_density, baseline_unemp_rate, baseline_lfp_rate,
          baseline_dissimilarity,
-         baseline_distance_cbd, cbd, 
+         baseline_distance_cbd, cbd,
          baseline_distance_highway, redlined, ur_binary_10pp, ur_binary_5pp,
          # Project characteristics
          total_public_housing_units, project_size_log,
-         project_black_share, project_white_share) 
+         project_black_share, project_white_share, has_highrise) 
 #%>% 
  # filter(!is.infinite(project_black_share), !is.infinite(project_white_share)) 
 
@@ -211,6 +214,57 @@ model_black_share_simple <- feols(
 cat("\nSimple models:\n")
 model_black_share_simple
 
+## High-rise placement analysis ----
+cat("\n=== HIGH-RISE PLACEMENT ANALYSIS ===\n")
+
+# Summary by building type
+cat("\nBaseline characteristics by building type:\n")
+project_demographics %>%
+  filter(!is.na(has_highrise)) %>%
+  mutate(building_type = if_else(has_highrise == 1, "High-rise", "Non-high-rise")) %>%
+  group_by(building_type) %>%
+  summarise(
+    n_projects = n(),
+    mean_baseline_black = mean(baseline_black_share, na.rm = TRUE),
+    mean_baseline_income = mean(exp(baseline_log_income), na.rm = TRUE),
+    mean_baseline_distance_cbd = mean(exp(baseline_distance_cbd), na.rm = TRUE),
+    mean_project_size = mean(total_public_housing_units, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  print()
+
+# Regression: What predicts high-rise placement?
+model_highrise_no_fe <- feols(
+  has_highrise ~ baseline_black_share + baseline_log_income + baseline_log_rent +
+                 baseline_asinh_pop_total + baseline_unemp_rate + baseline_lfp_rate +
+                 baseline_distance_cbd + cbd +
+                 baseline_distance_highway + redlined +
+                 ur_binary_5pp,
+  data = project_demographics %>% filter(!is.na(has_highrise)),
+  cluster = ~COUNTY
+)
+
+feols(
+  has_highrise ~ baseline_black_share + baseline_log_income + baseline_log_rent,
+  data = project_demographics %>% filter(!is.na(has_highrise)))
+
+
+model_highrise_fe <- feols(
+  has_highrise ~ baseline_black_share + baseline_log_income + baseline_log_rent +
+                 baseline_asinh_pop_total + baseline_unemp_rate + baseline_lfp_rate +
+                 baseline_distance_cbd + cbd +
+                 baseline_distance_highway + redlined +
+                 ur_binary_5pp | COUNTY,
+  data = project_demographics %>% filter(!is.na(has_highrise)),
+  cluster = ~COUNTY
+)
+
+cat("\nHigh-rise placement (no FE):\n")
+model_highrise_no_fe
+
+cat("\nHigh-rise placement (county FE):\n")
+model_highrise_fe
+
 # ## Project size models ----
 # # 8/22/2025: The problem with these project size models is that I split the projects up among multiple tracts
 # # if they intersect multiple tracts. This means that I am not really running a "project" level regression. This could explain
@@ -290,23 +344,48 @@ racial_comp_table <- modelsummary(
   ),
   add_rows = data.frame(term = "County FE", "(1)" = "No", "(2)" = "No", "(3)" = "Yes",
                         check.names = FALSE),
-  title = "Project Black share by initial neighborhood characteristics\\label{tab:project_targeting}",
-  # split long footnotes into separate lines
-  notes = paste(
-    "Regression of project Black share on baseline neighborhood characteristics.",
-    "Standard errors clustered by county.", sep = " " 
-  ),
-  output = "tinytable",         # get a tinytable object for post-processing
-  width  = 1,                   # pass-through to tinytable::tt(): use full \linewidth
-  theme  = "resize",            # scale to fit if needed (LaTeX)
-  align  = "lccc"                # wider first column for variable names
-)
-
-# Optional polish: slightly smaller font & a bit more row height for readability
-racial_comp_table <- style_tt(racial_comp_table, font_size = 0.95, height = 1.2)
+  output = "tinytable"
+) |>
+  theme_tt(theme = "tabular")
 
 # save to .tex
-tinytable::save_tt(racial_comp_table, file.path(tables_dir, "project_demographics_targeting.tex"), overwrite = TRUE)
+racial_comp_path <- file.path(tables_dir, "project_demographics_targeting.tex")
+save_tt(racial_comp_table, racial_comp_path, overwrite = TRUE)
+remove_table_wrappers(racial_comp_path)
+
+# High-rise placement table
+highrise_models <- list(
+  "(1)" = model_highrise_no_fe,
+  "(2)" = model_highrise_fe
+)
+
+highrise_table <- modelsummary(
+  highrise_models,
+  stars = TRUE,
+  fmt = 3,
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
+  coef_rename = c(
+    "baseline_black_share" = "Black Share",
+    "baseline_log_income" = "Asinh Median Income",
+    "baseline_log_rent" = "Asinh Median Rent",
+    "baseline_asinh_pop_total" = "Asinh Population",
+    "baseline_unemp_rate" = "Unemployment Rate",
+    "baseline_lfp_rate" = "LFP Rate",
+    "baseline_distance_cbd" = "Asinh Dist. to CBD",
+    "cbd" = "CBD",
+    "baseline_distance_highway" = "Asinh Dist. to Highway",
+    "redlined" = "Redlined (HOLC)",
+    "ur_binary_5pp" = "Urban Renewal Area"
+  ),
+  add_rows = data.frame(term = "County FE", "(1)" = "No", "(2)" = "Yes",
+                        check.names = FALSE),
+  output = "tinytable"
+) |>
+  theme_tt(theme = "tabular")
+
+highrise_path <- file.path(tables_dir, "highrise_placement.tex")
+save_tt(highrise_table, highrise_path, overwrite = TRUE)
+remove_table_wrappers(highrise_path)
 
 # Save descriptive tables
 write_csv(baseline_black_summary, file.path(results_dir, "descriptive_by_baseline_black.csv"))

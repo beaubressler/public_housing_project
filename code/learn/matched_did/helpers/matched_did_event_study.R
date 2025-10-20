@@ -11,8 +11,8 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   
   # For testing, comment out otherwise
   # input_data <- tract_data_matched_2_year
-  # outcome_var <- "black_share"
-  # treatment_group <- "treated"
+  # outcome_var <- "asinh_pop_black"
+  # treatment_group <- "inner"
   # size = NULL
   # city_filter = NULL
   # initial_share = NULL
@@ -38,9 +38,9 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
     mutate(
       group_treatment_year = min(matched_treatment_year, na.rm = TRUE),
       event_time = year - group_treatment_year,
-      treated = ifelse(location_type == treatment_group, 1, 0)) %>% 
+      treated = ifelse(location_type == treatment_group, 1, 0)) %>%  # treated always on if in treatment group
     ungroup() %>% 
-    # exclude extreme event times
+    # exclude event times for which we don't have full overlap
     filter(event_time >= -20, event_time <= 30)
   
   
@@ -55,15 +55,13 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   baseline_outcome <-
     data %>%
     filter(event_time == -10) %>%
-    select(GISJOIN_1950, !!sym(outcome_var)) %>%
+    select(GISJOIN_1950, match_group, !!sym(outcome_var)) %>%
     dplyr::rename(baseline_outcome = !!sym(outcome_var)) %>% 
-    distinct() %>% 
-    # convert to deciles
-    mutate(baseline_outcome = ntile(baseline_outcome, 10))
+    distinct()
   
   data <- 
     data %>%
-    left_join(baseline_outcome, by = "GISJOIN_1950") 
+    left_join(baseline_outcome, by = c("GISJOIN_1950", "match_group") )
   
   # ---
   # Estimate Models
@@ -71,15 +69,40 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   
   # Create the formula for the event study
   # baseline model
-  # Note: city-year does nothing in this model with matched FE
-  formula <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | GISJOIN_1950 +  match_group^event_time"))
+  # Conditional fixed effects based on variant
+  variant <- get0("VARIANT", ifnotfound = "baseline")
+  if (variant %in% c("no_cbsa", "cem")) {
+    # Cross-city matching (no_cbsa) or CEM with anti-exact CBSA:
+    # Add cbsa^year to control for city-specific calendar-year shocks
+    # match_group^event_time already ensures within-match-group identification
+    formula <- as.formula(paste(outcome_var,
+                                "~ i(event_time, treated, ref = -10)",
+                               #"+ i(event_time, baseline_outcome, ref = -10)",
+    "| GISJOIN_1950^match_group +  match_group^event_time"))
+    # Wing et al 2024: equation (3)
+    # formula <- as.formula(paste0(
+    #   outcome_var, " ~ i(event_time, treated, ref = -10) | treated +  match_group"
+    # ))
+
+  } else {
+    # Within-city matching (baseline): standard specification
+    formula <- as.formula(paste(outcome_var,
+                                "~ i(event_time, treated, ref = -10) ",
+                             #   "+ i(event_time, baseline_outcome, ref = -10)",
+                                "| GISJOIN_1950^match_group +  match_group^event_time"))
+
+    # Wing et al 2024 equation 3
+    # formula <- as.formula(paste0(
+    #   outcome_var, " ~ i(event_time, treated, ref = -10) | treated + match_group + cbsa_title^year"))
+  }
+  
   model <- feols(formula, data = data, weights = ~weights, cluster = ~GISJOIN_1950)
   model_conley <- feols(formula, data = data, weights = ~weights,
                         vcov = vcov_conley(lat = "lat", lon = "lon", 
                                            cutoff = 2)) 
   
   # Model without matching
-  formula_no_match <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | GISJOIN_1950"))
+  formula_no_match <- as.formula(paste(outcome_var, "~ i(event_time, treated, ref = -10) | GISJOIN_1950 + cbsa_title^year"))
   model_no_match <- feols(formula_no_match, data = data, weights = ~weights, cluster = ~GISJOIN_1950)
   model_no_match_conley <- feols(formula_no_match, data = data, weights = ~weights,
                                  vcov = vcov_conley(lat = "lat", lon = "lon", 
