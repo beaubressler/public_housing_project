@@ -11,6 +11,7 @@
 library(tidyverse)
 library(tidycensus)
 library(ipumsr)
+library(sf)
 library(here)
 
 
@@ -442,10 +443,8 @@ tract_population_data_1950 <-
 
 # GISJOIN + tract IDs
 tract_info_1950_gisjoin <-
-  tract_population_data_1950 %>% 
-  select(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, TRACTA) %>% 
-  # calculate area in square meters
-  mutate(area_m2 = st_area(geometry))
+  tract_population_data_1950 %>%
+  select(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, TRACTA)
   
 
 ### 1960 ----
@@ -669,6 +668,7 @@ tract_population_data_original_tracts <-
   bind_rows(tract_population_data_1930, tract_population_data_1940,
             tract_population_data_1950, tract_population_data_1960, tract_population_data_1970, 
             tract_population_data_1980, tract_population_data_1990, tract_population_data_2000) %>%
+  ungroup() %>% 
   # calculate area in square meters
   mutate(area_m2 = st_area(geometry)) %>% 
   # fix total population data if sum of components are bigger than total population (adjust total pop)
@@ -689,18 +689,22 @@ tract_population_data_concorded <-
             tract_population_data_1950_concorded, tract_population_data_1960_concorded,
             tract_population_data_1970_concorded, tract_population_data_1980_concorded,
             tract_population_data_1990_concorded, tract_population_data_2000_concorded) %>%
+  ungroup() %>% 
   # merge on CBD indicator
-  left_join(cbd_tracts_1950)  %>% 
-  mutate(cbd = ifelse(is.na(cbd), 0, cbd)) %>% 
+  left_join(cbd_tracts_1950)  %>%
+  mutate(cbd = ifelse(is.na(cbd), 0, cbd)) %>%
+  # recalculate area from geometry for all tracts
+  mutate(area_m2 = as.numeric(st_area(geometry))) %>%
   # fix total population data if sum of components are bigger than total population (adjust total pop)
-  mutate(total_pop = pmax(total_pop, white_pop + black_pop + other_pop)) %>% 
+  mutate(total_pop = pmax(total_pop, white_pop + black_pop + other_pop)) %>%
   # calculate white, black and other share, as well as foreign white share
   mutate(white_share = white_pop / total_pop,
          foreign_white_share = foreign_white_pop / total_pop,
          black_share = black_pop / total_pop,
          other_share = other_pop / total_pop,
          population_density = total_pop/area_m2) %>%
-  select(any_of(tract_background_variables), contains("pop"), contains("share"), population_density, cbd) %>% 
+  select(any_of(tract_background_variables), contains("pop"), contains("share"), 
+         population_density, cbd) %>%
   # drop rows with missing geometry
   filter(!st_is_empty(geometry)) 
 

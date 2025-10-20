@@ -28,12 +28,14 @@ treated_tracts_panel_filepath <- here(merged_data_dir, dataset_choice,
 cleaned_projects_filepath <- here(ph_data_dir, "cleaned_housing_projects.gpkg")
 
 # balanced sample filepaths
-balanced_sample_filepath <- 
+balanced_sample_filepath <-
   here(merged_data_dir, dataset_choice, "census_tract_sample_with_treatment_status_balanced.gpkg")
-balanced_treated_tracts_panel_filepath <- 
+balanced_treated_tracts_panel_filepath <-
   here(merged_data_dir, dataset_choice, "treated_tracts_panel_balanced.gpkg")
 public_housing_sample_filepath <-
   here(ph_data_dir, dataset_choice, "public_housing_sample_balanced.gpkg")
+public_housing_sample_first_year_filepath <-
+  here(ph_data_dir, dataset_choice, "public_housing_sample_balanced_first_year.gpkg")
 
 # read in data ----
 # census tracts 
@@ -252,18 +254,18 @@ census_tract_sample_with_treatment_status_balanced <-
 # Keep tracts with at least 100 people in 1940: Avoid these tiny tracts
 # that could mess things up
 
-small_tracts_1940 <- 
-  census_tract_sample_with_treatment_status_balanced %>%
-  filter(YEAR == 1940) %>%
-  filter(total_pop < 100) %>%
-  st_drop_geometry() %>%
-  mutate(small_tract_1940 = TRUE) %>% 
-  dplyr::select(GISJOIN_1950, small_tract_1940)
-
-census_tract_sample_with_treatment_status_balanced <-
-  census_tract_sample_with_treatment_status_balanced %>% 
-  left_join(small_tracts_1940) %>% 
-  mutate(small_tract_1940 = ifelse(is.na(small_tract_1940), FALSE, small_tract_1940))
+# small_tracts_1940 <- 
+#   census_tract_sample_with_treatment_status_balanced %>%
+#   filter(YEAR == 1940) %>%
+#   filter(total_pop < 100) %>%
+#   st_drop_geometry() %>%
+#   mutate(small_tract_1940 = TRUE) %>% 
+#   dplyr::select(GISJOIN_1950, small_tract_1940)
+# 
+# census_tract_sample_with_treatment_status_balanced <-
+#   census_tract_sample_with_treatment_status_balanced %>% 
+#   left_join(small_tracts_1940) %>% 
+#   mutate(small_tract_1940 = ifelse(is.na(small_tract_1940), FALSE, small_tract_1940))
 
 
 
@@ -278,6 +280,8 @@ pop_quantiles <- census_tract_sample_with_treatment_status_balanced %>%
     q02 = quantile(total_pop, 0.02, na.rm = TRUE),
     q05 = quantile(total_pop, 0.05, na.rm = TRUE),
     q10 = quantile(total_pop, 0.10, na.rm = TRUE),
+    q15 = quantile(total_pop, 0.15, na.rm = TRUE),
+    q20 = quantile(total_pop, 0.20, na.rm = TRUE),
     q95 = quantile(total_pop, 0.95, na.rm = TRUE),
     q98 = quantile(total_pop, 0.98, na.rm = TRUE)
   )
@@ -287,10 +291,10 @@ pop_quantiles <- census_tract_sample_with_treatment_status_balanced %>%
 tracts_to_remove <- 
   census_tract_sample_with_treatment_status_balanced %>%
   st_drop_geometry() %>%
-  filter(total_pop < pop_quantiles$q02 | total_pop > pop_quantiles$q98) %>%
+  filter(total_pop < pop_quantiles$q05 | total_pop > pop_quantiles$q98) %>%
+  #filter(total_pop < pop_quantiles$q02 | total_pop > pop_quantiles$q98) %>%
   pull(GISJOIN_1950) %>% 
   unique()
-
 
 ## Apply filters ----
 balanced_sample <- 
@@ -318,12 +322,11 @@ share_of_treated_tracts <-
   arrange(-share_treated)
 
 # merge with balanced sample, filter out cities with too high a share of treated tracts 
-# NOTE (11/6/24): Now that I am using CBSAs, there are no cities above 20% treated
-balanced_sample <- 
-  balanced_sample %>% 
-  left_join(share_of_treated_tracts) %>% 
-  # drop if more than 30% of tracts are treated
-  filter(share_treated <= .3)
+# balanced_sample <- 
+#   balanced_sample %>% 
+#   left_join(share_of_treated_tracts) %>% 
+# #   # drop if more than 30% of tracts are treated
+#   filter(share_treated <= .3)
 
 ## Create new treated tracts panel ----
 # filter out tracts that are not in balanced sample
@@ -369,16 +372,17 @@ cities_not_in_balanced <-
 # 1. Ensure public housing data is in sf format
 public_housing_data <-
   public_housing_data %>%
-  st_transform(st_crs(balanced_sample)) %>% 
+  st_transform(st_crs(balanced_sample)) %>%
   mutate(project_id = row_number())
 
 # 2. Spatial join between treated tracts and public housing projects
-treated_tracts_with_projects <- 
+# This identifies "first-wave" projects used in the main DiD analysis
+treated_tracts_with_projects <-
   treated_tracts_panel_balanced %>%
-  filter(YEAR == treatment_year) %>% 
+  filter(YEAR == treatment_year) %>%
   st_as_sf(coords = c("longitude", "latitude"), crs = st_crs(balanced_sample)) %>%
   st_join(public_housing_data %>% dplyr::select(project_id, project_name, project_code,
-                                                year_completed, treatment_year) %>% 
+                                                year_completed, treatment_year) %>%
             dplyr::rename(project_treatment_year = treatment_year))
 
 # 3. Clean up the result
@@ -386,15 +390,34 @@ treated_tracts_with_projects <-
   treated_tracts_with_projects %>%
   filter(!is.na(project_code)) %>%  # Remove any rows where no project was matched
   # remove projects where treatment_year of project is not the same as treatment_year of tract
-  filter(treatment_year == project_treatment_year) 
+  filter(treatment_year == project_treatment_year)
 
-# Public housing projects that are ultimately in the sample
-public_housing_in_sample <- 
+# 4. Public housing projects used in main analysis (first-wave only)
+# These are projects whose treatment timing matches the tract's assigned treatment year
+public_housing_in_analysis <-
   public_housing_data %>%
   filter(project_code %in% treated_tracts_with_projects$project_code)
 
+# 5. ALL public housing projects in balanced sample tracts (for reporting/documentation)
+# This includes "second-wave" projects built later in already-treated tracts
+balanced_sample_tracts_geom <- balanced_sample %>%
+  filter(YEAR == 2000) %>%
+  select(GISJOIN_1950, geom)
+
+projects_with_tracts <- st_join(
+  public_housing_data,
+  balanced_sample_tracts_geom,
+  join = st_intersects
+)
+
+public_housing_in_sample <-
+  projects_with_tracts %>%
+  filter(!is.na(GISJOIN_1950)) %>%
+  # Keep only the project columns (drop the joined tract ID)
+  select(all_of(names(public_housing_data)))
+
 # Final counts -----
-# Numbers (Updated 7/24/2025)
+# Numbers (Updated 10/13/2025)
 
 # unique tracts
 nrow(balanced_sample %>% filter(YEAR == 2000) %>% select(GISJOIN_1950) %>% distinct())
@@ -402,24 +425,30 @@ nrow(balanced_sample %>% filter(YEAR == 2000) %>% select(GISJOIN_1950) %>% disti
 # unique CBSAs
 n_distinct(balanced_sample$cbsa_title)
 
-# 294022
-sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE)
+# Projects used in main DiD analysis (first-year treatment only)
+cat("Projects in analysis (first-year):",
+    nrow(public_housing_in_analysis %>% filter(!is.na(total_public_housing_units))), "\n")
+cat("Units in analysis (first-year):",
+    sum(public_housing_in_analysis$total_public_housing_units, na.rm = TRUE), "\n")
 
-# Number of projects: 687 (8/19)
-nrow(public_housing_in_sample %>% filter(!is.na(total_public_housing_units)))
+# ALL projects in balanced sample tracts (for documentation)
+cat("Projects in sample (all):",
+    nrow(public_housing_in_sample %>% filter(!is.na(total_public_housing_units))), "\n")
+cat("Units in sample (all):",
+    sum(public_housing_in_sample$total_public_housing_units, na.rm = TRUE), "\n")
 
-# projects per city
-projects_per_city <- 
+# projects per city (all projects in sample)
+projects_per_city <-
   public_housing_in_sample %>%
-  pull(locality) %>% 
+  pull(locality) %>%
   table()
 
-# number of treated tracts: 628
-nrow(treated_tracts_with_projects %>% select(GISJOIN_1950) %>% distinct())
+# number of treated tracts
+nrow(treated_tracts_panel_balanced %>% select(GISJOIN_1950) %>% distinct())
 
 
 
-# CHECKING BOSTON
+# CHECKING BOSTON MAP -----
 library(sf)
 library(ggplot2)
 library(dplyr)
@@ -437,7 +466,7 @@ boston_map <- ggplot(boston_tracts) +
     name = "Treatment Status"
   ) +
   labs(
-    title = "Public Housing Treatment Status - Boston-Cambridge-Quincy CBSA",
+    title = "Public Housing Treatment Status - X CBSA",
     subtitle = paste0("Total tracts: ", nrow(boston_tracts),
                       " | Treated: ", sum(boston_tracts$treated),
                       " (", round(mean(boston_tracts$treated)*100, 1), "%)")
@@ -492,8 +521,12 @@ st_write(balanced_sample, balanced_sample_filepath,
 st_write(treated_tracts_panel_balanced, balanced_treated_tracts_panel_filepath,
          append = FALSE, layer = "tracts", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
 
-# public housing projects that are in the sample
+# public housing projects in sample (ALL projects in balanced tracts, for documentation)
 st_write(public_housing_in_sample, public_housing_sample_filepath,
+         append = FALSE, layer = "points", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
+
+# public housing projects used in analysis (first-year treatment only, for main DiD)
+st_write(public_housing_in_analysis, public_housing_sample_first_year_filepath,
          append = FALSE, layer = "points", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
 
 
@@ -564,121 +597,194 @@ lost_final_step <- (census_tract_sample_with_treatment_status_balanced %>%
 
 table(lost_final_step$cbsa_title)
 
-# # Create 1950-1990 balanced sample -----
-# # As a robustness check, I can use this dataset for site selection analysis
-# 
-# # This isn't working, troubleshoot
-# years_range_1950 <- seq(1950, 1990, 10)
-# 
-# # Identify tracts that appear in all years 1950–1990
-# tracts_by_year_1950 <- 
-#   census_tract_sample_with_treatment_status %>%
-#   filter(YEAR %in% years_range_1950) %>%
-#   select(GISJOIN_1950, YEAR) %>%
-#   st_drop_geometry() %>%
-#   distinct()
-# 
-# tracts_all_years_1950 <- 
-#   tracts_by_year_1950 %>%
-#   group_by(GISJOIN_1950) %>%
-#   summarise(num_years = n()) %>%
-#   ungroup() %>%
-#   filter(num_years == length(years_range_1950)) %>%
-#   mutate(exists_all_years_1950 = 1)
-# 
-# # Filter census tracts to those that exist all years 1950–1990
-# census_tract_sample_balanced_1950 <- 
-#   census_tract_sample_with_treatment_status %>%
-#   select(-num_years) %>% 
-#   left_join(tracts_all_years_1950) %>%
-#   filter(!is.na(exists_all_years_1950)) %>%
-#   select(-exists_all_years_1950)
-# 
-# # Check for complete variable coverage
-# tracts_with_complete_vars_1950 <- 
-#   census_tract_sample_balanced_1950 %>%
-#   filter(YEAR %in% years_range_1950)%>%
-#   st_drop_geometry() %>%
-#   group_by(GISJOIN_1950) %>%
-#   summarise(across(all_of(balance_vars_core), ~ sum(!is.na(.)) == length(years_range_1950))) %>%
-#   mutate(has_complete_data_1950 = if_all(all_of(balance_vars_core), ~ . == TRUE)) %>%
-#   filter(has_complete_data_1950) %>%
-#   select(GISJOIN_1950) %>% 
-#   mutate(has_complete_data_1950 = 1)
-# 
-# census_tract_sample_balanced_1950 <- 
-#   census_tract_sample_balanced_1950 %>%
-#   left_join(tracts_with_complete_vars_1950, by = c("GISJOIN_1950")) %>%
-#   filter(!is.na(has_complete_data_1950)) %>%
-#   select(-has_complete_data_1950)
-# 
-# # small tracts in 1950
-# small_tracts_1950 <- 
-#   census_tract_sample_balanced_1950 %>%
-#   filter(YEAR == 1950) %>%
-#   filter(total_pop < 100) %>%
-#   st_drop_geometry() %>%
-#   mutate(small_tract_1950 = TRUE) %>% 
-#   dplyr::select(GISJOIN_1950, small_tract_1950)
-# 
-# census_tract_sample_balanced_1950 <-
-#   census_tract_sample_balanced_1950 %>% 
-#   left_join(small_tracts_1950) %>% 
-#   mutate(small_tract_1950 = ifelse(is.na(small_tract_1950), FALSE, small_tract_1950))
-# 
-# 
-# 
-# # Reapply filters used in 1940–1990 version
-# balanced_sample_1950 <- 
-#   census_tract_sample_balanced_1950 %>%
-#   # exclude early treated
-#   left_join(tracts_treated_1940_or_earlier) %>%
-#   mutate(treated_1940_or_earlier = ifelse(is.na(treated_1940_or_earlier), FALSE, treated_1940_or_earlier)) %>%
-#   filter(treated_1940_or_earlier == FALSE) %>%
-#   # exclude urban renewal tracts
-#   select(-contains('ur_binary')) %>% 
-#   left_join(urban_renewal_tracts) %>%
-#   mutate(ur_binary_5pp = ifelse(is.na(ur_binary_5pp), 0, ur_binary_5pp),
-#          ur_binary_10pp = ifelse(is.na(ur_binary_10pp), 0, ur_binary_10pp)) %>%
-#   filter(ur_binary_5pp == 0) %>%
-#   # exclude small tracts in 1950
-#   filter(small_tract_1950 == FALSE)
-#   
-#   
-# 
-# # Rejoin city information and filter cities with too few tracts
-# num_tracts_1950 <- 
-#   balanced_sample_1950 %>%
-#   filter(YEAR == 1950) %>%
-#   st_drop_geometry() %>%
-#   group_by(cbsa_title) %>%
-#   summarise(num_tracts = n()) %>%
-#   ungroup()
-# 
-# balanced_sample_1950 <- 
-#   balanced_sample_1950 %>%
-#   left_join(num_tracts_1950) %>%
-#   filter(num_tracts >= 50)
-# 
-# 
-# # Create treated tracts panel for 1950–1990 balanced sample
-# treated_tracts_panel_balanced_1950 <- 
-#   treated_tracts_panel %>%
-#   semi_join(balanced_sample_1950 %>% st_drop_geometry(), by = c("GISJOIN_1950"))
-# 
-# 
-# 
-# # Save outputs
-# 
-# balanced_sample_filepath_1950 <- here(merged_data_dir, dataset_choice,
-#                                         "census_tract_sample_with_treatment_status_balanced_1950.gpkg")
-# 
-# balanced_treated_panel_filepath_1950 <- here(merged_data_dir, dataset_choice,
-#                                                "treated_tracts_panel_balanced_1950.gpkg")
-# 
-# 
-# st_write(balanced_sample_1950, balanced_sample_filepath_1950,
-#          append = FALSE, layer = "tracts", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)
-# 
-# st_write(treated_tracts_panel_balanced_1950, balanced_treated_panel_filepath_1950,
-#          append = FALSE, layer = "tracts", driver = "GPKG", overwrite = TRUE, delete_dsn = TRUE)\
+# Create sample attrition table ----
+library(tinytable)
+
+# Helper function to count treated tracts at each step
+count_treated_tracts <- function(df, treated_panel) {
+  tract_ids <- df %>%
+    filter(YEAR == 2000) %>%
+    st_drop_geometry() %>%
+    pull(GISJOIN_1950) %>%
+    unique()
+
+  treated_panel %>%
+    filter(GISJOIN_1950 %in% tract_ids) %>%
+    pull(GISJOIN_1950) %>%
+    unique() %>%
+    length()
+}
+
+# Helper function to count projects and units
+count_projects_units <- function(df, treated_panel, ph_data) {
+  # Get treated tracts in this sample
+  tract_ids <- df %>%
+    filter(YEAR == 2000) %>%
+    st_drop_geometry() %>%
+    pull(GISJOIN_1950) %>%
+    unique()
+
+  # Filter treated panel
+  panel_subset <- treated_panel %>%
+    filter(GISJOIN_1950 %in% tract_ids) %>%
+    filter(YEAR == treatment_year)
+
+  # Spatial join with projects
+  if(nrow(panel_subset) == 0) {
+    return(list(n_projects = 0, n_units = 0))
+  }
+
+  panel_sf <- panel_subset %>%
+    st_as_sf(coords = c("longitude", "latitude"), crs = st_crs(ph_data))
+
+  joined <- panel_sf %>%
+    st_join(ph_data %>% select(project_code, total_public_housing_units)) %>%
+    filter(!is.na(project_code))
+
+  projects <- ph_data %>%
+    filter(project_code %in% joined$project_code)
+
+  list(
+    n_projects = nrow(projects %>% filter(!is.na(total_public_housing_units))),
+    n_units = sum(projects$total_public_housing_units, na.rm = TRUE)
+  )
+}
+
+# Step 0: Original sample
+step0 <- census_tract_sample_with_treatment_status_raw %>% filter(YEAR == 2000) %>% st_drop_geometry()
+projects_units_0 <- count_projects_units(census_tract_sample_with_treatment_status_raw,
+                                         treated_tracts_panel, public_housing_data)
+
+# Step 1: Balanced on years (1930-2000)
+step1_data <- census_tract_sample_with_treatment_status %>%
+  filter(exists_all_years == 1)
+step1 <- step1_data %>% filter(YEAR == 2000) %>% st_drop_geometry()
+projects_units_1 <- count_projects_units(step1_data, treated_tracts_panel, public_housing_data)
+
+# Step 2: Complete variables
+step2_data <- census_tract_sample_with_treatment_status_balanced
+step2 <- step2_data %>% filter(YEAR == 2000) %>% st_drop_geometry()
+projects_units_2 <- count_projects_units(step2_data, treated_tracts_panel, public_housing_data)
+
+# Step 3: Exclude treatments ≤1940
+step3_data <- census_tract_sample_with_treatment_status_balanced %>%
+  filter(treated_1940_or_earlier == FALSE)
+step3 <- step3_data %>% filter(YEAR == 2000) %>% st_drop_geometry()
+projects_units_3 <- count_projects_units(step3_data, treated_tracts_panel, public_housing_data)
+
+# Step 4: Drop small CBSAs (<30 tracts)
+step4_data <- census_tract_sample_with_treatment_status_balanced %>%
+  filter(num_tracts_geq_50 == TRUE) %>%
+  filter(treated_1940_or_earlier == FALSE)
+step4 <- step4_data %>% filter(YEAR == 2000) %>% st_drop_geometry()
+projects_units_4 <- count_projects_units(step4_data, treated_tracts_panel, public_housing_data)
+
+# Step 5: Final balanced (population filters)
+step5 <- balanced_sample %>% filter(YEAR == 2000) %>% st_drop_geometry()
+projects_units_5 <- count_projects_units(balanced_sample, treated_tracts_panel, public_housing_data)
+
+# Build attrition table
+attrition_table <- tibble(
+  Step = c(
+    "Original sample",
+    "Balanced on years (1930-2000)",
+    "Complete variables",
+    "Exclude treatments $\\leq$1940",
+    "Drop CBSAs $<$30 tracts",
+    "Drop population outliers"
+  ),
+  Tracts = c(
+    n_distinct(step0$GISJOIN_1950),
+    n_distinct(step1$GISJOIN_1950),
+    n_distinct(step2$GISJOIN_1950),
+    n_distinct(step3$GISJOIN_1950),
+    n_distinct(step4$GISJOIN_1950),
+    n_distinct(step5$GISJOIN_1950)
+  ),
+  `Pop. 1940 (M)` = c(
+    sum(census_tract_sample_with_treatment_status_raw %>% filter(YEAR == 1940) %>%
+          st_drop_geometry() %>% pull(total_pop), na.rm = TRUE) / 1e6,
+    sum(step1_data %>% filter(YEAR == 1940) %>% st_drop_geometry() %>% pull(total_pop), na.rm = TRUE) / 1e6,
+    sum(step2_data %>% filter(YEAR == 1940) %>% st_drop_geometry() %>% pull(total_pop), na.rm = TRUE) / 1e6,
+    sum(step3_data %>% filter(YEAR == 1940) %>% st_drop_geometry() %>% pull(total_pop), na.rm = TRUE) / 1e6,
+    sum(step4_data %>% filter(YEAR == 1940) %>% st_drop_geometry() %>% pull(total_pop), na.rm = TRUE) / 1e6,
+    sum(balanced_sample %>% filter(YEAR == 1940) %>% st_drop_geometry() %>% pull(total_pop), na.rm = TRUE) / 1e6
+  ),
+  CBSAs = c(
+    n_distinct(step0$cbsa_title),
+    n_distinct(step1$cbsa_title),
+    n_distinct(step2$cbsa_title),
+    n_distinct(step3$cbsa_title),
+    n_distinct(step4$cbsa_title),
+    n_distinct(step5$cbsa_title)
+  ),
+  `Treated Tracts` = c(
+    count_treated_tracts(census_tract_sample_with_treatment_status_raw, treated_tracts_panel),
+    count_treated_tracts(step1_data, treated_tracts_panel),
+    count_treated_tracts(step2_data, treated_tracts_panel),
+    count_treated_tracts(step3_data, treated_tracts_panel),
+    count_treated_tracts(step4_data, treated_tracts_panel),
+    count_treated_tracts(balanced_sample, treated_tracts_panel)
+  ),
+  Projects = c(
+    projects_units_0$n_projects,
+    projects_units_1$n_projects,
+    projects_units_2$n_projects,
+    projects_units_3$n_projects,
+    projects_units_4$n_projects,
+    projects_units_5$n_projects
+  ),
+  Units = c(
+    projects_units_0$n_units,
+    projects_units_1$n_units,
+    projects_units_2$n_units,
+    projects_units_3$n_units,
+    projects_units_4$n_units,
+    projects_units_5$n_units
+  )
+)
+
+# Load table utilities for removing wrappers
+source(here("code", "helpers", "table_utilities.R"))
+
+# Create LaTeX tables - Main version (caption/notes added manually in LaTeX)
+attrition_latex <- attrition_table |>
+  tt() |>
+  format_tt(
+    digits = 1,
+    num_fmt = "decimal",
+    num_mark_big = ",",
+    escape = FALSE
+  ) |>
+  theme_tt(theme = "tabular")
+
+# Create slides version without long note
+attrition_slides <- attrition_table |>
+  tt(caption = "Sample Attrition\\label{tab:sample_attrition}") |>
+  format_tt(
+    digits = 1,
+    num_fmt = "decimal",
+    num_mark_big = ","
+  ) |>
+  theme_tt(theme = "tabular")
+
+# Save tables
+output_dir <- here("output", "tables")
+slides_dir <- here("output", "tables", "slides")
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+if (!dir.exists(slides_dir)) dir.create(slides_dir, recursive = TRUE)
+
+# Save main version and remove table wrappers for threeparttable compatibility
+save_tt(attrition_latex,
+        here(output_dir, "sample_attrition_table.tex"),
+        overwrite = TRUE)
+remove_table_wrappers(here(output_dir, "sample_attrition_table.tex"))
+
+# Save slides version
+save_tt(attrition_slides,
+        here(slides_dir, "sample_attrition_table.tex"),
+        overwrite = TRUE)
+
+# Print table for viewing
+print(attrition_table)
+

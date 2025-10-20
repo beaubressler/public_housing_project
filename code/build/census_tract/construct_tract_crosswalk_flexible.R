@@ -28,11 +28,12 @@ if (!dir.exists(output_path)) {
   dir.create(output_path, recursive = TRUE)
 }
 
-# Years to create crosswalks for (excluding the target year)
-all_years <- c("1930", "1940", "1960", "1970", "1980", "1990", "2000")
-source_years <- all_years[all_years != as.character(TRACT_YEAR)]
+# Years to create crosswalks for (including the target year for self-crosswalk)
+all_years <- c("1930", "1940", "1950", "1960", "1970", "1980", "1990", "2000")
+source_years <- all_years  # Now include ALL years, including target year
 
 cat("Creating crosswalks from years:", paste(source_years, collapse = ", "), "\n")
+cat("Note: Target year", TRACT_YEAR, "will create a self-crosswalk with weight=1\n")
 
 # Loop through the source years
 for (y in source_years) {
@@ -56,6 +57,35 @@ for (y in source_years) {
   if (file.exists(output_file)) {
     cat("Crosswalk already exists:", output_fname, "\n")
     cat("Skipping year", y, "\n")
+    next
+  }
+  
+  # Special case: Self-crosswalk for target year (weight = 1 for each tract)
+  if (y == as.character(TRACT_YEAR)) {
+    cat("  Creating self-crosswalk for target year", y, "...\n")
+    
+    # Read reference shapefile to get all tract IDs
+    shp_reference <- st_read(file.path(reference_path, reference_fname), quiet = TRUE)
+    
+    # Create self-crosswalk with weight = 1
+    self_crosswalk <- shp_reference %>%
+      st_drop_geometry() %>%
+      select(all_of(reference_geoid)) %>%
+      mutate(weight = 1) %>%
+      rename_with(
+        .fn = ~ case_when(
+          . == reference_geoid ~ paste0("GISJOIN_", y),
+          TRUE ~ .
+        )
+      ) %>%
+      # Add target column (same as source for self-crosswalk)
+      mutate(!!get_tract_id_var() := get(paste0("GISJOIN_", y))) %>%
+      select(paste0("GISJOIN_", y), get_tract_id_var(), weight)
+    
+    # Write output
+    cat("  Writing", output_fname, "...\n")
+    write_csv(self_crosswalk, output_file)
+    cat("  Completed self-crosswalk for year", y, "\n\n")
     next
   }
   

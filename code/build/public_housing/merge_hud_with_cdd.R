@@ -42,7 +42,7 @@ psh_2000_raw <- read_xlsx(here(psh_2000_data_dir, "all_projects_2000.xlsx"))
 # PSH 1997 
 psh_1997_raw <- read_xls(here(psh_1997_data_dir, "HUD3_cleaned.xls"))
 
-# PSH 1977 (cleaned version of data from Yana Kucheva)
+# PSH 1977 (data from Yana Kucheva, which I cleaned)
 psh_1977 <- read_dta(here(psh_1977_data_dir, "pic77_data_for_analysis.dta"))
 
 # HUD 951
@@ -201,6 +201,37 @@ ngda_data_buildings <-
          # project code is state_code - city_code - site_code
          project_code = paste0(state_code, "-", city_code, "-", site_code))
 
+# Aggregate NGDA building characteristics by development
+# Classify by unit shares rather than building counts
+ngda_building_summary <- ngda_data_buildings %>%
+  filter(!is.na(building_type_code), !is.na(total_dwelling_units)) %>%
+  group_by(development_code) %>%
+  summarise(
+    total_units = sum(total_dwelling_units, na.rm = TRUE),
+    # Units by type
+    units_elevator = sum(ifelse(building_type_code == "ES", total_dwelling_units, 0), na.rm = TRUE),
+    units_walkup = sum(ifelse(building_type_code == "WU", total_dwelling_units, 0), na.rm = TRUE),
+    units_rowhouse = sum(ifelse(building_type_code == "RW", total_dwelling_units, 0), na.rm = TRUE),
+    units_semidetached = sum(ifelse(building_type_code == "SD", total_dwelling_units, 0), na.rm = TRUE),
+    units_singlefamily = sum(ifelse(building_type_code == "SF", total_dwelling_units, 0), na.rm = TRUE),
+    # Percentages by units
+    pct_units_elevator = 100 * units_elevator / total_units,
+    pct_units_walkup = 100 * units_walkup / total_units,
+    pct_units_rowhouse = 100 * units_rowhouse / total_units,
+    pct_units_semidetached = 100 * units_semidetached / total_units,
+    pct_units_singlefamily = 100 * units_singlefamily / total_units,
+    # Classification based on unit shares
+    building_type = case_when(
+      pct_units_elevator >= 50 ~ "High-rise (elevator)",
+      pct_units_walkup >= 50 ~ "Mid-rise (walk-up)",
+      (pct_units_rowhouse + pct_units_semidetached + pct_units_singlefamily) >= 50 ~ "Scattered-site",
+      TRUE ~ "Mixed"
+    ),
+    .groups = "drop"
+  ) %>%
+  select(development_code, pct_units_elevator, pct_units_walkup, pct_units_rowhouse,
+         pct_units_semidetached, pct_units_singlefamily, building_type)
+
 # New merge algorithm:
 # 1. For each HUD dataset, keep the name, project_code, project_code_full, latitude, longitude and 
 #.   Rename with _psh1997, _psh2000, and _ngda, respectively 
@@ -246,12 +277,10 @@ psh_2000_for_merge_project_code <-
   psh_2000_for_merge_full %>% 
   distinct(project_code_psh2000, .keep_all = TRUE)
 
-# HUD NGDA
+# HUD NGDA (location data only - building data merged separately later)
 ngda_for_merge <-
   ngda_data_developments %>%
-  # 1. keep only columns we need: name, project_code, latitude, longitude
-  select(name, project_code, latitude, longitude) %>% 
-  # 2. rename all variables with _ngda
+  select(name, project_code, latitude, longitude) %>%
   rename_all(~paste0(., "_ngda"))
 
 # HUD 951 
@@ -300,6 +329,17 @@ cdd_data_merged_to_psh_by_project_code <-
 merged_cdd_project_data <-
   bind_rows(cdd_data_merged_to_psh_by_full_code %>% filter(!(is.na(latitude_psh1997) & is.na(latitude_psh2000))),
           cdd_data_merged_to_psh_by_project_code)
+
+# Merge NGDA building characteristics to all CDD projects by project_code
+# Create mapping from development_code to project_code to building data
+ngda_building_for_merge <- ngda_data_developments %>%
+  select(development_code, project_code) %>%
+  inner_join(ngda_building_summary, by = "development_code") %>%
+  select(-development_code) %>%
+  rename_all(~paste0(., "_ngda"))
+
+merged_cdd_project_data <- merged_cdd_project_data %>%
+  left_join(ngda_building_for_merge, by = c("project_code" = "project_code_ngda"))
 
 # 3. Reconcile merges ------
 
@@ -421,40 +461,40 @@ merged_cdd_project_data_with_multiple_yearfullocc <- merged_cdd_project_data %>%
   filter(!is.na(yearfullocc))
 
 # collapse data by project code and treatment year
-collapsed_data <- 
-  merged_cdd_project_data %>% 
-  filter(!is.na(yearfullocc), !is.na(latitude)) %>% 
-  group_by(project_code) %>% 
+# Changed to group by project_code_full to keep A/B/C/D phases separate when at different locations
+collapsed_data <-
+  merged_cdd_project_data %>%
+  filter(!is.na(yearfullocc), !is.na(latitude)) %>%
+  group_by(project_code) %>%
   mutate(treatment_year = case_when(
       yearfullocc %in% 1931:1940 ~ 1940,
       yearfullocc %in% 1941:1950 ~ 1950,
       yearfullocc %in% 1951:1960 ~ 1960,
       yearfullocc %in% 1961:1970 ~ 1970,
-      yearfullocc %in% 1971:1980 ~ 1980)) %>% 
-  group_by(project_code, treatment_year) %>%
-  summarise(name = first(name, na_rm = TRUE),
-            latitude = first(latitude, na_rm = TRUE),
-            longitude = first(longitude, na_rm = TRUE),
-            source = first(source, na_rm = TRUE),
-            locality = first(locality, na_rm = TRUE),
-            state = first(state, na_rm = TRUE),
-            totunits = sum(totunits, na.rm = TRUE),
-            totunitsplanned = sum(totunitsplanned, na.rm = TRUE),
-            totelderly = sum(totelderly, na.rm = TRUE),
-            roomsperunit = mean(roomsperunit, na.rm = TRUE),
-            # I am keeping the LAST yearfullocc and monthfullocc... why?
-            yearfullocc = last(yearfullocc, na_rm = TRUE),
-            monthfullocc = last(monthfullocc, na_rm = TRUE),
-            statefips = first(statefips, na_rm = TRUE),
-            countyfips = first(countyfips, na_rm = TRUE),
-            state_usps = first(state_usps, na_rm = TRUE),
-            slum = first(slum, na_rm = TRUE)) %>% 
+      yearfullocc %in% 1971:1980 ~ 1980)) %>%
+  group_by(project_code_full, treatment_year) %>%
+  summarise(
+    # Variables that should be first/constant across phases
+    across(c(project_code, name, latitude, longitude, source, locality, state,
+             statefips, countyfips, state_usps, slum),
+           ~first(.x, na_rm = TRUE)),
+    # NGDA building characteristics (constant across phases)
+    across(starts_with("pct_units_elevator_ngda") | starts_with("pct_units_walkup_ngda") |
+           starts_with("pct_units_rowhouse_ngda") | starts_with("pct_units_semidetached_ngda") |
+           starts_with("pct_units_singlefamily_ngda") | starts_with("building_type_ngda"),
+           ~first(.x, na_rm = TRUE)),
+    # Variables that should be summed
+    across(c(totunits, totunitsplanned, totelderly), ~sum(.x, na.rm = TRUE)),
+    # Variables that should be averaged
+    roomsperunit = mean(roomsperunit, na.rm = TRUE),
+    # Variables that should be last
+    across(c(yearfullocc, monthfullocc, contract, initocc), ~last(.x, na_rm = TRUE))) %>%
   # Calculate the total number of units for each project_code
   group_by(project_code) %>%
   mutate(total_units_by_project = sum(totunits, na.rm = TRUE)) %>%
   # Calculate the share of units for each treatment year
   mutate(share_of_project_units_in_decade = totunits / total_units_by_project) %>%
-  ungroup() %>% 
+  ungroup() %>%
   select(-total_units_by_project)
 
 
@@ -476,12 +516,16 @@ merged_cdd_project_data_with_multiple_observations <-
 collapsed_data_with_populations <-
   collapsed_data %>% 
   left_join(psh_1977 %>% select(-project_code_full)) %>% 
-  # allocate populations and households across projects based on unit shares
-  mutate(proj_black_population_estimate = proj_black_population_estimate*share_of_project_units_in_decade,
+  # allocate populations and households across projects based on unit shares in each sub-project
+  # Basically, if there's 3 Robert Taylor Homes rows,/ we will only merge the population data once,
+  # but then we need to allocate the population data across the 3 rows based on their share of units
+  mutate(proj_total_population_estimate = proj_total_population_estimate*share_of_project_units_in_decade,
+         proj_total_households = proj_total_households*share_of_project_units_in_decade,
+         proj_black_population_estimate = proj_black_population_estimate*share_of_project_units_in_decade,
          proj_white_population_estimate = proj_white_population_estimate*share_of_project_units_in_decade,
          proj_black_households = proj_black_households*share_of_project_units_in_decade,
          proj_white_households = proj_white_households*share_of_project_units_in_decade) %>%
-  # calculate white and black share 
+  # calculate white and black share
   mutate(proj_black_share = proj_black_households/proj_total_households,
          proj_white_share = proj_white_households/proj_total_households)
  

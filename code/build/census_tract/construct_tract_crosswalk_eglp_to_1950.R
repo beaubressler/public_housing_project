@@ -17,7 +17,7 @@ reference_geoid <- "GISJOIN.1"
 output_path <- here("data", "derived", "geographic_crosswalks")
 
 # Loop through the years
-for (y in c("1930", "1940", "1960", "1970", "1980", "1990", "2000")) {
+for (y in c("1930", "1940", "1960", "1970", "1980", "1990", "2000","2010")) {
   reporting_path <- here("data", "raw", "nhgis", "gis", paste0("nhgis0027_shapefile_tl2000_us_tract_", y))
   reporting_fname <- paste0("US_tract_", y, ".shp")
   reporting_geoid <- "GISJOIN"

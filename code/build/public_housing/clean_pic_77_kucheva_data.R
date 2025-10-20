@@ -237,7 +237,48 @@ data <-
   data %>% 
   # if value of TPERMN (average household size) is approx 99.99, or less than 0, set to missing
   mutate(TPERMN = ifelse(round(TPERMN, 2) == 99.99, NA, TPERMN),
-         TPERMN = ifelse(TPERMN < 0, NA, TPERMN)) %>%
+         TPERMN = ifelse(TPERMN < 0, NA, TPERMN)) 
+
+
+## 10/14/2025: Impute missing household size based on LOCPAT (occupancy pattern code aka race) and LDESIN (elderly designation)
+# These two explain a lot of the variation in household size, and give me population estimates
+
+# create simplified LOCPAT categotries
+data <- data %>%
+  mutate(
+    locpat_simple = case_when(
+      LOCPAT == "A1" ~ "All White",
+      LOCPAT == "A2" ~ "All Black",
+      LOCPAT %in% c("A3", "A4", "A5", "A6") ~ "All Other Race",
+      LOCPAT %in% c("C1", "C2", "C3", "C4", "C5", "C6", "C7") ~ "Mixed",
+      LOCPAT %in% c("D1", "D2") ~ "No White",
+      TRUE ~ "Other"
+    )
+  )
+
+#3. Calculate mean household size for each LDESIN × LOCPAT cell:
+imputation_means <- data %>%
+  filter(!is.na(TPERMN)) %>%
+  group_by(LDESIN_label, locpat_simple) %>%
+  summarise(
+    mean_hhsize_impute = mean(TPERMN),
+    .groups = "drop"
+  )
+
+  
+# 4. Merge the means back and impute:
+data <- data %>%
+  left_join(
+    imputation_means,
+    by = c("LDESIN_label", "locpat_simple")
+  ) %>%
+  mutate(
+    tpermn_imputed = is.na(TPERMN) & !is.na(mean_hhsize_impute),
+    TPERMN = ifelse(is.na(TPERMN), mean_hhsize_impute, TPERMN)
+  ) 
+  
+
+data <- data  %>%
   mutate(
     proj_total_population_estimate = round(TPERMN * LUNTTO, 0),
     proj_white_population_estimate = round(TPERMN * LWHTTO, 0),
@@ -288,9 +329,83 @@ write_dta(data, paste0(int_data_dir, "pic77_data_cleaned_full.dta"))
 # 2. Dataset with only the variables needed for the analysis
 # project code, population by race and race shares, occupancy pattern, and elderly designation
 data_output <- data %>%
-  select(LSTATE, contains("project_code"), contains("proj_"), average_household_size, 
+  select(LSTATE, contains("project_code"), contains("proj_"), average_household_size,
          black_share, white_share,
-         LOCPAT_code, LOCPAT_label, LDESIN, LDESIN_label)
+         LOCPAT_code, LOCPAT_label, LDESIN, LDESIN_label,
+         tpermn_imputed, locpat_simple, mean_hhsize_impute)
 
 write_dta(data_output, paste0(int_data_dir, "pic77_data_for_analysis.dta"))
 
+
+# ============================================================================
+# IMPUTATION VALIDATION (Hold-out test)
+# ============================================================================
+
+cat("\n=== HOUSEHOLD SIZE IMPUTATION VALIDATION ===\n\n")
+
+# Hold-out validation: Test imputation quality on 20% of observed data
+set.seed(123)
+validation_data <- data %>%
+  filter(!is.na(average_household_size), !tpermn_imputed) %>%
+  mutate(
+    holdout = sample(c(TRUE, FALSE), n(), replace = TRUE, prob = c(0.2, 0.8)),
+    hhsize_actual = average_household_size,
+    hhsize_test = ifelse(holdout, NA, average_household_size)
+  )
+
+# Recalculate means WITHOUT holdout observations
+validation_means <- validation_data %>%
+  filter(!holdout) %>%
+  group_by(LDESIN_label, locpat_simple) %>%
+  summarise(mean_hhsize_validation = mean(hhsize_test, na.rm = TRUE), .groups = "drop")
+
+# Impute holdout values
+validation_data <- validation_data %>%
+  left_join(validation_means, by = c("LDESIN_label", "locpat_simple")) %>%
+  mutate(hhsize_imputed = ifelse(holdout, mean_hhsize_validation, hhsize_test))
+
+# Calculate errors for holdout sample
+holdout_results <- validation_data %>%
+  filter(holdout) %>%
+  mutate(
+    error = hhsize_imputed - hhsize_actual,
+    abs_error = abs(error),
+    pct_error = abs_error / hhsize_actual * 100
+  )
+
+# Summary statistics
+cat("HOLDOUT VALIDATION RESULTS (n =", nrow(holdout_results), "):\n\n")
+cat("Error distribution:\n")
+cat("  Mean error:", round(mean(holdout_results$error, na.rm = TRUE), 3), "\n")
+cat("  Median error:", round(median(holdout_results$error, na.rm = TRUE), 3), "\n\n")
+
+cat("Absolute error:\n")
+cat("  Mean:", round(mean(holdout_results$abs_error, na.rm = TRUE), 3), "\n")
+cat("  Median:", round(median(holdout_results$abs_error, na.rm = TRUE), 3), "\n\n")
+
+cat("Percent error:\n")
+cat("  Mean:", round(mean(holdout_results$pct_error, na.rm = TRUE), 1), "%\n")
+cat("  Median:", round(median(holdout_results$pct_error, na.rm = TRUE), 1), "%\n\n")
+
+# R²
+r_squared <- cor(holdout_results$hhsize_actual,
+                 holdout_results$hhsize_imputed,
+                 use = "complete.obs")^2
+cat("R² (imputed vs actual):", round(r_squared, 3), "\n\n")
+
+cat("Interpretation:\n")
+cat("  - Mean error near 0 indicates unbiased imputation\n")
+cat("  - Median % error shows typical prediction accuracy\n")
+cat("  - R² shows proportion of variance explained\n\n")
+
+# Coverage summary
+cat("=== COVERAGE SUMMARY ===\n\n")
+cat("Projects with households (total > 0):", sum(data$proj_total_households > 0, na.rm = TRUE), "\n")
+cat("  - With observed household size:", sum(!data$tpermn_imputed & data$proj_total_households > 0, na.rm = TRUE),
+    sprintf("(%.1f%%)\n", 100 * mean(!data$tpermn_imputed[data$proj_total_households > 0])))
+cat("  - With imputed household size:", sum(data$tpermn_imputed & data$proj_total_households > 0, na.rm = TRUE),
+    sprintf("(%.1f%%)\n", 100 * mean(data$tpermn_imputed[data$proj_total_households > 0], na.rm = TRUE)))
+cat("  - With population estimates:", sum(!is.na(data$proj_total_population_estimate) & data$proj_total_households > 0, na.rm = TRUE),
+    sprintf("(%.1f%%)\n\n", 100 * mean(!is.na(data$proj_total_population_estimate[data$proj_total_households > 0]))))
+
+cat("=== VALIDATION COMPLETE ===\n\n")

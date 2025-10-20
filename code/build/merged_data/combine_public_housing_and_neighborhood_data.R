@@ -34,7 +34,7 @@ tract_id_variables <- c("YEAR", "GISJOIN_1950")
 public_housing_units_minimum <- 50
 
 # Set buffer size for treatment definition (meters)
-buffer_size <- 50
+buffer_size <- 100
 
 # Functions -----
 ## Function to filter census data for specific cities -----
@@ -447,23 +447,25 @@ census_tract_data_full <-
   mutate(state_county = paste0(STATE, COUNTY))
 
 
-# Keep only cities for which tract-level data existed in 1940
-# 09/13/2024: Keep counties that exist in 1940
-counties_1940 <-
+# # Keep only cities for which tract-level data existed in 1940
+# # 09/13/2024: Keep counties that exist in 1940
+# counties_1940 <-
+#   census_tract_data_full %>% 
+#   filter(YEAR == 1940) %>%
+#   pull(state_county) %>% 
+#   unique()
+# 
+# 
+# # Samples that only contain counties that have Census tract data in 1940
+# # Note: I will do further balancing later
+census_tract_sample <-
+  census_tract_data_full 
+# %>%
+#   filter(state_county %in% counties_1940)
+
+census_tract_sample <-
   census_tract_data_full %>% 
-  filter(YEAR == 1940) %>%
-  pull(state_county) %>% 
-  unique()
-
-
-# Samples that only contain counties that have Census tract data in 1940
-# Note: I will do further balancing later
-census_tract_sample <-
-  census_tract_data_full %>%
-  filter(state_county %in% counties_1940)
-
-census_tract_sample <-
-  assign_census_cities(census_tract_sample)
+  assign_census_cities()
 
 # Convert Census data to geographic coordinate system
 census_tract_sample <-
@@ -522,18 +524,21 @@ treated_tracts <-
   filter(!is.na(treatment_year))
 
 # Calculate number of tracts per project for population splitting
+# Use both project_code_full and project_name to uniquely identify each project phase
 tracts_per_project <-
-  treated_tracts %>% 
+  treated_tracts %>%
   st_drop_geometry() %>%
-  group_by(project_name, year_completed, locality, treatment_year) %>%
-  summarise(n_tracts = n_distinct(GISJOIN_1950), .groups = "drop") %>% 
-  arrange(-n_tracts) 
+  group_by(project_code_full, project_name, year_completed, locality, treatment_year) %>%
+  summarise(n_tracts = n_distinct(GISJOIN_1950), .groups = "drop") %>%
+  arrange(-n_tracts)
 
 # Add tract count and split population estimates and units evenly across tracts
 treated_tracts <-
   treated_tracts %>%
-  left_join(tracts_per_project, by = c("project_name", "year_completed", "treatment_year")) %>%
+  left_join(tracts_per_project, by = c("project_code_full", "project_name", "year_completed", "locality", "treatment_year")) %>%
   mutate(
+    # Preserve original project size before splitting (for heterogeneity analysis)
+    original_total_public_housing_units = total_public_housing_units,
     # Split population estimates
     proj_total_population_estimate = proj_total_population_estimate / n_tracts,
     proj_black_population_estimate = proj_black_population_estimate / n_tracts,
@@ -559,19 +564,74 @@ unique_treated_tracts_panel <-
   distinct()
   
 
-# 2. Get dataset for every tract per year, of:
+# 2. Create high-rise indicator for treated tracts
+highrise_indicator <-
+  treated_tracts %>%
+  filter(!is.na(treatment_year)) %>%
+  st_drop_geometry() %>%
+  group_by(GISJOIN_1950) %>%
+  summarise(
+    has_highrise = if_else(
+      all(is.na(building_type_concorded)),
+      NA_real_,
+      as.numeric(any(building_type_concorded == "High-rise (elevator)", na.rm = TRUE))
+    ),
+    .groups = "drop"
+  )
+
+# 2b. Create project-level lookup for high-rise status and original size
+# This will be used to assign characteristics to inner ring spillover tracts
+project_characteristics_lookup <-
+  treated_tracts %>%
+  filter(!is.na(treatment_year)) %>%
+  st_drop_geometry() %>%
+  group_by(project_code_full, project_name, treatment_year) %>%
+  summarise(
+    project_has_highrise = if_else(
+      all(is.na(building_type_concorded)),
+      NA_real_,
+      as.numeric(any(building_type_concorded == "High-rise (elevator)", na.rm = TRUE))
+    ),
+    project_original_size = first(original_total_public_housing_units),
+    .groups = "drop"
+  ) %>%
+  # Create a tract-level lookup by matching back to treated tracts
+  # Each tract gets the characteristics of all projects within it
+  left_join(
+    treated_tracts %>%
+      st_drop_geometry() %>%
+      select(GISJOIN_1950, project_code_full, project_name, treatment_year) %>%
+      distinct(),
+    by = c("project_code_full", "project_name", "treatment_year")
+  ) %>%
+  # For each treated tract, aggregate across all projects in that tract
+  group_by(GISJOIN_1950, treatment_year) %>%
+  summarise(
+    # Both total and largest project size for heterogeneity analysis
+    total_original_project_size = sum(project_original_size, na.rm = TRUE),
+    largest_original_project_size = max(project_original_size, na.rm = TRUE),
+    # 1 if ANY project in tract is high-rise
+    has_highrise_project = max(project_has_highrise, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  # Replace -Inf with NA (happens when all values are NA)
+  mutate(
+    largest_original_project_size = if_else(is.infinite(largest_original_project_size), NA_real_, largest_original_project_size),
+    has_highrise_project = if_else(is.infinite(has_highrise_project), NA_real_, has_highrise_project)
+  )
+
+# 3. Get dataset for every tract per year, of:
 #. Public housing population
-#  
 public_housing_pop_estimates <-
-  treated_tracts %>% 
-  filter(!is.na(treatment_year)) %>% 
-  st_drop_geometry() %>% 
+  treated_tracts %>%
+  filter(!is.na(treatment_year)) %>%
+  st_drop_geometry() %>%
   group_by(GISJOIN_1950, YEAR, treatment_year) %>%
   summarise(total_public_housing_pop_estimate = sum(proj_total_population_estimate, na.rm = TRUE),
             black_public_housing_pop_estimate = sum(proj_black_population_estimate, na.rm = TRUE),
             white_public_housing_pop_estimate = sum(proj_white_population_estimate, na.rm = TRUE),
             total_public_housing_units = sum(total_public_housing_units, na.rm = TRUE),
-              ) %>%
+            .groups = "drop") %>% 
   mutate(total_public_housing_pop_estimate = case_when(YEAR >= treatment_year ~ total_public_housing_pop_estimate,
                                                     TRUE ~ NA_real_),
          black_public_housing_pop_estimate = case_when(YEAR >= treatment_year ~ black_public_housing_pop_estimate,
@@ -582,14 +642,15 @@ public_housing_pop_estimates <-
                                                     TRUE ~ NA_real_)) %>%
   dplyr::select(GISJOIN_1950, YEAR, treatment_year,
                 total_public_housing_pop_estimate, black_public_housing_pop_estimate,
-                white_public_housing_pop_estimate, total_public_housing_units) %>% 
+                white_public_housing_pop_estimate, total_public_housing_units) %>%
   # collapse to each year: This is necessary because some tracts have multiple public housing projects which appear in differnet
   # treatment years
   group_by(GISJOIN_1950, YEAR) %>%
   summarise(total_public_housing_pop_estimate = sum(total_public_housing_pop_estimate, na.rm = TRUE),
             black_public_housing_pop_estimate = sum(black_public_housing_pop_estimate, na.rm = TRUE),
             white_public_housing_pop_estimate = sum(white_public_housing_pop_estimate, na.rm = TRUE),
-            total_public_housing_units = sum(total_public_housing_units, na.rm = TRUE)) %>% 
+            total_public_housing_units = sum(total_public_housing_units, na.rm = TRUE),
+            .groups = "drop") %>% 
   # if a tract is 0 every year, replace with NA
   group_by(GISJOIN_1950) %>%
   mutate(all_years_pop_estimate = sum(total_public_housing_pop_estimate),
@@ -638,19 +699,24 @@ treated_tracts_aggregated_by_year <-
   ungroup()
 
 # keep a panel of treated tracts, only when they are treated
-treated_tracts_panel <- 
+treated_tracts_panel <-
   treated_tracts_aggregated_by_year %>%
   filter(YEAR >= treatment_year) %>%
   dplyr::select(GISJOIN_1950, YEAR, city, cbsa_title, treatment_year, total_public_housing_units) %>%
-  mutate(treated = 1)
+  mutate(treated = 1) %>%
+  left_join(highrise_indicator, by = "GISJOIN_1950") %>%
+  # Merge original project characteristics for heterogeneity analysis
+  left_join(project_characteristics_lookup, by = c("GISJOIN_1950", "treatment_year"))
   
 # Merge on treatment status of each tract to the Census data
 census_tract_sample_with_treatment_status <- left_join(
   census_tract_sample, 
   treated_tracts_panel %>% dplyr::select(GISJOIN_1950, YEAR, treated) %>% st_drop_geometry()) %>%
-  mutate(treated = ifelse(is.na(treated), 0, 1)) %>% 
+  mutate(treated = ifelse(is.na(treated), 0, 1)) %>%
   # merge on public housing population
-  left_join(public_housing_pop_estimates, by = c("GISJOIN_1950", "YEAR")) %>% 
+  left_join(public_housing_pop_estimates, by = c("GISJOIN_1950", "YEAR")) %>%
+  # merge on high-rise indicator
+  left_join(highrise_indicator, by = "GISJOIN_1950") %>%
   # set public housing population and units equal to 0 if treated == 0
   mutate(total_public_housing_pop_estimate = ifelse(treated == 0, 0, total_public_housing_pop_estimate),
          black_public_housing_pop_estimate = ifelse(treated == 0, 0, black_public_housing_pop_estimate),

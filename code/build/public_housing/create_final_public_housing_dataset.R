@@ -30,6 +30,10 @@ digitization_dir <- here("data", "digitization")
 chi_digitization_dir <- here(digitization_dir, "chicago")
 nyc_digitization_dir <- here(digitization_dir, "nycha")
 
+# Read NYC floor data - will merge after project code cleaning
+nyc_floors_raw <- read_xlsx(here(nyc_digitization_dir, "pdbdec1973_digitization.xlsx")) %>%
+  select(project_code, project_name, floors)
+
 # Cleveland, separately (just to merge additional names on, I suppose)
 # cleveland_projects <- read_xlsx("data/digitization/cleveland/1973_cmha_annual_report.xlsx")
 
@@ -47,7 +51,8 @@ manual_fixes <-
 
 # Apply manual fixes to digitized data ----
 digitized_projects <-
-  digitized_projects_raw %>% 
+  digitized_projects_raw %>%
+  select(-floors) %>%  # Remove floors column before manual fixes
   left_join(manual_fixes) %>% 
   # apply fixes and use hand-checked coordinates when available
   mutate(lat = case_when(
@@ -86,6 +91,9 @@ digitized_projects <-
   # NYC: if contains Nys, set federal_or_state to federal
   mutate(federal_or_state = ifelse(str_detect(project_code, "NYS"), "federal", federal_or_state),
          project_code = str_replace(project_code, "NY ", "NY-")) %>%
+  # manual project code fixes
+  mutate(project_code = ifelse(project_code == "N- 5-41", "NY-5-41", project_code),
+         project_code = ifelse(project_code == "5-149 (G)", "NY-5-149-G", project_code)) %>% 
   # SF: if contains CA-, set federal_or_state to federal
   mutate(federal_or_state = ifelse(city == "San Francisco" & str_detect(project_code, "CA-"), "federal", federal_or_state),
          project_code = ifelse(city == "San Francisco", str_replace(project_code, "CA-", "CA-1-"), project_code)) %>%
@@ -111,19 +119,34 @@ digitized_projects <-
   # replace (#) with -# in project codes
   mutate(project_code = str_replace_all(project_code, " \\(", "-"),
          project_code = str_replace_all(project_code, "\\(", "-"),
-         project_code = str_replace_all(project_code, "\\)", "")) 
-# %>% 
-#   mutate(split_codes = map(project_code, split_project_codes)) %>%
-#   unnest(split_codes) %>% 
-#   dplyr::rename(project_code_original = project_code,
-#                 project_code = split_codes)
+         project_code = str_replace_all(project_code, "\\)", ""))
+
+# Merge NYC floor data AFTER project code cleaning
+# Clean floor data to match the geocoded data cleaning
+nyc_floors_clean <- 
+  nyc_floors_raw %>%
+  mutate(project_code = toupper(project_code)) %>%
+  # Remove ) first, then replace ( with space, then replace spaces with -, then uppercase
+  mutate(project_code = str_replace_all(project_code, " \\(", "-"),
+         project_code = str_replace_all(project_code, "\\(", "-"),
+         project_code = str_replace_all(project_code, "\\)", ""),
+         project_code = str_replace_all(project_code, "NY 5", "NY-5"),
+         project_code = str_replace_all(project_code, "NY 6", "NY-6"),
+         project_code = ifelse(project_code == "NY- 5-41", "NY-5-41", project_code)
+         ) %>% 
+  select(project_code, project_name, floors)
+
+# Merge floors onto digitized projects for NYC only
+digitized_projects <- digitized_projects %>%
+  left_join(nyc_floors_clean,
+            by = c("project_code", "project_name"))
 
 # Assign race shares to NYC and Chicago digitized projects -----
 
-# For Chicago, convert black and white share based on share of families, 
+# For Chicago, convert black and white share based on share of families,
 # Then calculate population by race estimates
 chicago_data_raw <- read_xlsx(here(chi_digitization_dir, "digitization_annual_statistical_report_1973.xlsx"))
-chicago_data_race <- 
+chicago_data_race <-
   chicago_data_raw %>%
   # Fix Excel auto-formatting: Convert "Feb" back to "2"
   mutate(project_code = str_replace(project_code, "Feb", "2")) %>%
@@ -135,9 +158,10 @@ chicago_data_race <-
          white_share = number_of_families_white/ total_families) %>%
   mutate(black_pop = round(black_share * total_population),
          white_pop = round(white_share * total_population)) %>%
-  select(project_code, project_name, address_or_streets, black_pop, white_pop) %>% 
+  select(project_code, project_name, address_or_streets, black_pop, white_pop) %>%
   rename(black_pop_chicago = black_pop, white_pop_chicago = white_pop) %>%
   mutate(project_code = paste0("IL-", project_code))
+
 
 
 # For NYC: I will use data shared by Max Guennewig-Moenert  (initial_composition_ph.xlsx), which comes from NYCHA
@@ -402,7 +426,7 @@ nyc_joint_match <-
   mutate(match_type = "joint_name_match", race_data_name = joint_name)
 
 # Combine both matching approaches
-nyc_proj_race_merged <- 
+nyc_proj_race_merged <-
   bind_rows(
     nyc_manual_match %>% filter(!is.na(white_share_nyc)),
     nyc_joint_match %>% filter(!is.na(white_share_nyc))
@@ -413,7 +437,9 @@ nyc_proj_race_merged <-
     black_pop_nyc = round((black_share_nyc/100) * total_population)
   ) %>%
   # Keep project_code and project_name for unique identification
-  select(project_code, project_name, white_pop_nyc, black_pop_nyc)
+  select(project_code, project_name, white_pop_nyc, black_pop_nyc) %>%
+  # Remove duplicates - keep first match for each project_code + project_name
+  distinct(project_code, project_name, .keep_all = TRUE)
 
 
 cat("Manual matches found:", nrow(nyc_proj_race_merged), "\n")
@@ -421,6 +447,7 @@ cat("Manual matches found:", nrow(nyc_proj_race_merged), "\n")
 # Show sample matches
 cat("Sample successful matches:\n")
 print(head(nyc_proj_race_merged, 10))
+
 
 # Identify unmatched race data projects
 nyc_race_unmatched <- nyc_data_race %>%
@@ -434,9 +461,7 @@ nyc_race_unmatched <- nyc_data_race %>%
                 by = "project_name"
               ) %>%
               filter(!is.na(race_data_name)),
-            by = c("project_name" = "race_data_name")) %>%
-  select(project_name, joint_name, white_share_nyc, black_share_nyc, total_pop_nyc) %>%
-  arrange(project_name)
+            by = c("project_name" = "race_data_name")) 
 
 cat("\nUnmatched NYC race data projects:", nrow(nyc_race_unmatched), "\n")
 cat("Race data used:", nrow(nyc_data_race) - nrow(nyc_race_unmatched), "out of", nrow(nyc_data_race), "\n")
@@ -482,12 +507,13 @@ cdd_data_for_combined_data <-
            c("NEW YORK CITY", "SAN FRANCISCO", "CHICAGO",
              "BOSTON"))) %>%
   # drop scattered sites
-  filter(!str_detect(name, "Scattered"), !str_detect(name, "Scatter")) %>% 
-  select(state, locality, project_code, name, totunitsplanned,
-         yearfullocc, monthfullocc, latitude, longitude, statefips, countyfips, 
-         state_usps, slum, starts_with("proj_")) %>% 
+  filter(!str_detect(name, "Scattered"), !str_detect(name, "Scatter")) %>%
+  select(state, locality, project_code, project_code_full, name, totunitsplanned,
+         yearfullocc, monthfullocc, latitude, longitude, statefips, countyfips,
+         state_usps, slum, starts_with("proj_"),
+         ends_with("ngda")) %>%
   # define source, also note all CDD projects are federal
-  mutate(source = "CDD", federal_or_state = "federal") %>% 
+  mutate(source = "CDD", federal_or_state = "federal") %>%
   dplyr::rename(year_completed = yearfullocc,
                 month_completed = monthfullocc,
                 total_units = totunitsplanned,
@@ -522,8 +548,10 @@ digitized_data_for_combined_data <-
     city == "Washington DC" ~ "DISTRICT OF COLUMBIA",
     city == "Chicago" ~ "ILLINOIS",
     city == "Los Angeles" ~ "CALIFORNIA"
-  )) %>% 
-  dplyr::rename(proj_total_population_estimate = total_population)
+  )) %>%
+  dplyr::rename(proj_total_population_estimate = total_population) %>%
+  # Add project_code_full (same as project_code for digitized data)
+  mutate(project_code_full = project_code)
   
 
 # Figure out Boston projects
@@ -536,8 +564,10 @@ cdd_projects_boston <-
 
 digitized_projects_boston <- digitized_projects %>%
   filter(city == "Boston") %>%
-  filter(!str_detect(tolower(project_name), "scattered")) %>% 
-  filter(year_completed <= 1973) 
+  filter(!str_detect(tolower(project_name), "scattered")) %>%
+  filter(year_completed <= 1973) %>%
+  # Add project_code_full for consistency
+  mutate(project_code_full = project_code) 
 
 
 # merge boston datasets together
@@ -554,10 +584,11 @@ merged_boston_data <-
          total_units = coalesce(total_units, totunitsplanned),
          year_completed = coalesce(year_completed, yearfullocc),
          latitude = coalesce(latitude, lat),
-         longitude = coalesce(longitude, long)) %>%
-  select(state, locality, project_code, project_name, total_units,
-         year_completed, latitude, longitude, statefips, countyfips, 
-         state_usps, slum, latitude, longitude, source) %>% 
+         longitude = coalesce(longitude, long),
+         project_code_full = coalesce(project_code_full.x, project_code_full.y, project_code)) %>%
+  select(state, locality, project_code, project_code_full, project_name, total_units,
+         year_completed, latitude, longitude, statefips, countyfips,
+         state_usps, slum, source) %>% 
   mutate(city = "Boston", locality = "BOSTON", statefips = 25, countyfips = 25025, 
          statefip = 25, state_usps = "MA") %>% 
   # drop observations that are duplicates on project_code and units
@@ -578,10 +609,40 @@ combined_data <-
     proj_white_population_estimate = coalesce(proj_white_population_estimate, white_pop_nyc, white_pop_chicago),
     proj_black_population_estimate = coalesce(proj_black_population_estimate, black_pop_nyc, black_pop_chicago)
   ) %>%
-  select(state, locality, project_code, project_name, total_units, 
-         year_completed, month_completed, latitude, longitude, statefips, countyfips, 
-         statefip, state_usps, slum, source, 
-         contains("proj_")) 
+  # Create harmonized building_type variable from Chicago/NYC digitized data
+  mutate(
+    floors_max = str_extract_all(floors, "[0-9]+") %>%
+      map_chr(~ifelse(length(.x) > 0, max(as.numeric(.x)) %>% as.character(), NA_character_)) %>%
+      as.numeric(),
+    building_type_digitized = case_when(
+      # Chicago: use building_style
+      !is.na(building_style) & str_detect(tolower(building_style), "elevator") ~ "High-rise (elevator)",
+      !is.na(building_style) & str_detect(tolower(building_style), "low-rise") ~ "Mid-rise (walk-up)",
+      !is.na(building_style) & str_detect(tolower(building_style), "lr & e") ~ "Mixed",
+      # NYC: use max floors (>=7 is high-rise)
+      !is.na(floors_max) & floors_max >= 7 ~ "High-rise (elevator)",
+      !is.na(floors_max) & floors_max >= 4 ~ "Mid-rise (walk-up)",
+      !is.na(floors_max) & floors_max >= 1 ~ "Low-rise",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  # Create concorded building type variable combining all sources
+  mutate(
+    building_type_concorded = case_when(
+      # Digitized data takes priority (Chicago building_style and NYC floors)
+      !is.na(building_type_digitized) ~ building_type_digitized,
+      # NGDA data as backup
+      !is.na(building_type_ngda) ~ building_type_ngda,
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  select(state, locality, project_code, project_code_full, project_name, total_units,
+         year_completed, month_completed, latitude, longitude, statefips, countyfips,
+         statefip, state_usps, slum, source,
+         contains("proj_"),
+         floors, building_style, number_of_buildings,
+         building_type_digitized, building_type_ngda, building_type_concorded) 
+
 
 ## output ----
 write_csv(combined_data, here(working_dir, "combined_cdd_and_digitized_projects.csv"))

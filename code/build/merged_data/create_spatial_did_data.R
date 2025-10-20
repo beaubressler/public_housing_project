@@ -26,7 +26,7 @@ library(kableExtra)
 library(units)
 
 
-rm(list=ls())
+#rm(list=ls())
 
 set.seed(123)
 
@@ -70,10 +70,13 @@ census_tract_sample <-
 public_housing_data <-
   st_read(here("data", "derived", "public_housing", "working", "cleaned_housing_projects.gpkg")) 
 
-# Create a dataframe with the total number of public housing units per tract
+# Create a dataframe with project characteristics per tract
+# Includes split units, total/largest original project size, and high-rise status
 total_ph_units_per_tract <-
   treated_tracts_panel %>%
-  dplyr::select(GISJOIN_1950, total_public_housing_units) %>% 
+  dplyr::select(GISJOIN_1950, total_public_housing_units,
+                total_original_project_size, largest_original_project_size,
+                has_highrise_project) %>%
   distinct()
 
 
@@ -366,21 +369,23 @@ event_study_data_full<-
 
 #### merge on relevant variables -----
 # Prepare census data
-census_data_for_event_study <- census_tract_sample %>% 
+census_data_for_event_study <- census_tract_sample %>%
   dplyr::select(GISJOIN_1950, STATE, COUNTY, TRACTA, YEAR, city, cbsa_title,
         # population by race
-         black_share, white_share, white_pop, black_pop, total_pop, 
-        # private population 
+         black_share, white_share, white_pop, black_pop, total_pop,
+        # private population
         private_population_estimate, private_black_population_estimate, private_white_population_estimate,
         # income and housing
-         median_income, median_rent_calculated, median_home_value_calculated, 
+         median_income, median_rent_calculated, median_home_value_calculated,
         # SES measures
          pct_hs_grad, unemp_rate, lfp_rate,
          population_density,
-        # other controls 
+        # other controls
          distance_from_cbd, ur_binary_10pp, ur_binary_5pp, ur_intensity,
-         has_highway_1km, has_highway_2km,
-         distance_from_project) %>%
+         has_highway_1km, has_highway_2km, distance_to_highway_km,
+         distance_from_project,
+        # redlining variables
+         redlining_score, redlined_binary_80pp, redlined_binary_70pp, redlined_binary_50pp) %>%
   st_drop_geometry() %>% 
   # Inverse hyperbolic sine transformations
   mutate(
@@ -621,9 +626,11 @@ write_csv(unique_tracts_and_rings, unique_tracts_and_rings_output_path)
 #       4. Collapse 
 
 treatment_size_event_time_0 <-
-  total_ph_units_per_tract %>% 
-  mutate(treated_tract_id = paste(GISJOIN_1950, sep = "_")) %>% 
-  dplyr::select(treated_tract_id, total_public_housing_units) 
+  total_ph_units_per_tract %>%
+  mutate(treated_tract_id = paste(GISJOIN_1950, sep = "_")) %>%
+  dplyr::select(treated_tract_id, total_public_housing_units,
+                total_original_project_size, largest_original_project_size,
+                has_highrise_project) 
 
 # inner ring tracts (first treated) and their associated treated tract
 inner_ring_tracts_first_treated <- 
@@ -648,12 +655,27 @@ inner_ring_tracts_first_treated <- inner_ring_tracts_first_treated %>%
   dplyr::select(GISJOIN_1950, treatment_year, associated_treated_tract_id) %>% 
   distinct() 
 
-# merge on the total public housing units in event time 0 and collapse 
-inner_ring_tracts_first_treated_collapsed <- inner_ring_tracts_first_treated %>% 
-  left_join(treatment_size_event_time_0, by = c("associated_treated_tract_id" = "treated_tract_id"))  %>% 
-  # Collapse: sum 
+# merge on the total public housing units in event time 0 and collapse
+inner_ring_tracts_first_treated_collapsed <- inner_ring_tracts_first_treated %>%
+  left_join(treatment_size_event_time_0, by = c("associated_treated_tract_id" = "treated_tract_id")) %>%
+  # Collapse across all nearby treated tracts
   group_by(GISJOIN_1950, treatment_year) %>%
-  summarise(total_public_housing_units_built_nearby = sum(total_public_housing_units))
+  summarise(
+    # Sum of split units (old behavior for compatibility)
+    total_public_housing_units_built_nearby = sum(total_public_housing_units, na.rm = TRUE),
+    # Total exposure: sum split units (avoids double-counting when project spans multiple tracts)
+    total_nearby_project_size = sum(total_public_housing_units, na.rm = TRUE),
+    # Largest exposure: max of original project sizes (most salient nearby project)
+    largest_nearby_project_size = max(largest_original_project_size, na.rm = TRUE),
+    # If ANY nearby project is high-rise, mark as exposed to high-rise
+    has_nearby_highrise = max(has_highrise_project, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  # Replace -Inf with NA (happens when all values are NA)
+  mutate(
+    largest_nearby_project_size = if_else(is.infinite(largest_nearby_project_size), NA_real_, largest_nearby_project_size),
+    has_nearby_highrise = if_else(is.infinite(has_nearby_highrise), NA_real_, has_nearby_highrise)
+  )
 
 # output 
 write_csv(inner_ring_tracts_first_treated_collapsed, inner_ring_tracts_first_treated_output_path)
