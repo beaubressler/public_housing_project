@@ -60,6 +60,7 @@ tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concord
 tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
 tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
 tract_crosswalk_2000 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights2000_to_1950.csv"))
+tract_crosswalk_2010 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights2010_to_1950.csv"))
 
 # Compile tract-level Census education data ----
 
@@ -546,6 +547,65 @@ tract_education_data_2000 <-
          pct_some_college = (pop_college_no_degree + pop_college_associates +
                              pop_college_bachelors + pop_college_post_bachelors) / total_pop)
 
+### 2010 ----
+
+full_tract_data_2010 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/income/2010/nhgis0053_ds177_20105_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2010_us_tract_2010/US_tract_2010.shp",
+      file_select = starts_with("US_tract_2010")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR)) %>%
+  mutate(YEAR = 2010)
+
+#### harmonization -----
+
+tract_education_data_2010 <-
+  full_tract_data_2010 %>%
+  # keep only variables of interest - sum male and female across all 25+ age groups
+  select(any_of(tract_background_variables), contains("J14E")) %>%
+  mutate(
+    # Elementary 0-8: Less than 9th grade
+    pop_elementary_0_to_8 = (J14E012 + J14E020 + J14E028 + J14E036) +
+                           (J14E053 + J14E061 + J14E069 + J14E077),
+    # High school 1-3: 9th to 12th, no diploma
+    pop_hs_1_to_3 = (J14E013 + J14E021 + J14E029 + J14E037) +
+                   (J14E054 + J14E062 + J14E070 + J14E078),
+    # High school graduate
+    pop_hs_4 = (J14E014 + J14E022 + J14E030 + J14E038) +
+              (J14E055 + J14E063 + J14E071 + J14E079),
+    # Some college, no degree
+    pop_college_no_degree = (J14E015 + J14E023 + J14E031 + J14E039) +
+                           (J14E056 + J14E064 + J14E072 + J14E080),
+    # Associate degree
+    pop_college_associates = (J14E016 + J14E024 + J14E032 + J14E040) +
+                            (J14E057 + J14E065 + J14E073 + J14E081),
+    # Bachelor's degree
+    pop_college_bachelors = (J14E017 + J14E025 + J14E033 + J14E041) +
+                           (J14E058 + J14E066 + J14E074 + J14E082),
+    # Graduate or professional degree
+    pop_college_post_bachelors = (J14E018 + J14E026 + J14E034 + J14E042) +
+                                (J14E059 + J14E067 + J14E075 + J14E083)
+  ) %>%
+  select(any_of(tract_background_variables), contains("pop")) %>%
+  # drop if all 0
+  filter(pop_elementary_0_to_8 > 0 | pop_hs_1_to_3 > 0 | pop_hs_4 > 0 |
+           pop_college_no_degree > 0 |  pop_college_associates > 0 |
+           pop_college_bachelors > 0 | pop_college_post_bachelors > 0) %>%
+  # calculate total pop
+  mutate(total_pop = pop_elementary_0_to_8 + pop_hs_1_to_3 + pop_hs_4 +
+           pop_college_no_degree + pop_college_associates +
+           pop_college_bachelors + pop_college_post_bachelors) %>%
+  # calculate share that finished HS and share with at least some college
+  mutate(pct_hs_grad = (pop_hs_4 + pop_college_no_degree + pop_college_associates +
+                        pop_college_bachelors + pop_college_post_bachelors) / total_pop,
+         pct_some_college = (pop_college_no_degree + pop_college_associates +
+                             pop_college_bachelors + pop_college_post_bachelors) / total_pop)
 
 
 # Concord datasets to 1950 Census tracts ----
@@ -553,8 +613,8 @@ tract_education_data_2000 <-
 # 2. Weight populations by "weight" and collapse to GISJOIN_1990
 # 3. Merge geography information from 1990 NHGIS file
 
-## Loop for 1930-2000 -----
-years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000)
+## Loop for 1930-2010 -----
+years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000, 2010)
 
 for (year in years) {
   # Construct variable names and file names dynamically based on the year
@@ -703,7 +763,8 @@ tract_education_data_concorded <-
   bind_rows(tract_education_data_1930_concorded, tract_education_data_1940_concorded,
             tract_education_data_1950_concorded, tract_education_data_1960_concorded,
             tract_education_data_1970_concorded, tract_education_data_1980_concorded,
-            tract_education_data_1990_concorded, tract_education_data_2000_concorded) %>% 
+            tract_education_data_1990_concorded, tract_education_data_2000_concorded,
+            tract_education_data_2010_concorded) %>% 
   # calculate share that finished HS and share with at least some college  (based on earlier calculations)
   mutate(
     pct_hs_grad = case_when(
@@ -716,6 +777,8 @@ tract_education_data_concorded <-
                         pop_college_bachelors + pop_college_post_bachelors) / total_pop,
       YEAR == 2000 ~ (pop_hs_4 + pop_college_no_degree + pop_college_associates +
                         pop_college_bachelors + pop_college_post_bachelors) / total_pop,
+      YEAR == 2010 ~ (pop_hs_4 + pop_college_no_degree + pop_college_associates +
+                        pop_college_bachelors + pop_college_post_bachelors) / total_pop,
       TRUE ~ NA_real_),
     pct_some_college = case_when(
       YEAR == 1940 ~ (pop_college_1_to_3 + pop_college_4plus) / total_pop,
@@ -726,6 +789,8 @@ tract_education_data_concorded <-
       YEAR == 1990 ~ (pop_college_no_degree + pop_college_associates +
                         pop_college_bachelors + pop_college_post_bachelors) / total_pop,
       YEAR == 2000 ~ (pop_college_no_degree + pop_college_associates +
+                        pop_college_bachelors + pop_college_post_bachelors) / total_pop,
+      YEAR == 2010 ~ (pop_college_no_degree + pop_college_associates +
                         pop_college_bachelors + pop_college_post_bachelors) / total_pop,
       TRUE ~ NA_real_)) %>%
   select(GISJOIN_1950, YEAR, geometry, median_educ_attainment_25plus, pct_hs_grad, pct_some_college) %>% 

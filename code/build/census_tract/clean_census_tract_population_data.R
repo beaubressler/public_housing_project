@@ -22,7 +22,7 @@ geographic_crosswalk_dir <- here("data", "derived", "geographic_crosswalks")
 
 
 # Read in geographic tract crosswalks ----
-# crosswalks, 1930 to 1990
+# crosswalks, 1930 to 2010
 tract_crosswalk_1930 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1930_to_1950.csv"))
 tract_crosswalk_1940 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1940_to_1950.csv"))
 tract_crosswalk_1960 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1960_to_1950.csv"))
@@ -30,6 +30,7 @@ tract_crosswalk_1970 <- read_csv(here(geographic_crosswalk_dir, "tract_concordan
 tract_crosswalk_1980 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
 tract_crosswalk_1990 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
 tract_crosswalk_2000 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights2000_to_1950.csv"))
+tract_crosswalk_2010 <- read_csv(here(geographic_crosswalk_dir, "tract_concordance_weights2010_to_1950.csv"))
 
 # Read CBD crosswalk ----
 cbd_tracts_1950 <- read_csv(here(output_dir, "cbd_tracts_1950_concorded.csv"))
@@ -608,12 +609,35 @@ full_tract_data_2000 <-
 #### harmonization ----
 
 tract_population_data_2000 <-
-  full_tract_data_2000 %>% 
-  mutate(total_pop = FL5001, 
+  full_tract_data_2000 %>%
+  mutate(total_pop = FL5001,
          white_pop = FMR001,
          foreign_white_pop = NA,
-         black_pop = FMR002, 
+         black_pop = FMR002,
          other_pop = FMR003 + FMR004 + FMR005 + FMR006 + FMR007) %>%
+  select(any_of(tract_background_variables), contains("pop"))
+
+### 2010 ----
+
+# read in 2010 tract data
+full_tract_data_2010 <-
+  ipums_shape_full_join(
+    read_nhgis("data/raw/nhgis/tables/2010/nhgis0027_ds172_2010_tract.csv"),
+    read_ipums_sf("data/raw/nhgis/gis/nhgis0027_shapefile_tl2010_us_tract_2010/US_tract_2010.shp",
+    file_select = starts_with("US_tract_2010")), by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR)) %>%
+  mutate(YEAR = 2010)
+
+#### harmonization ----
+
+tract_population_data_2010 <-
+  full_tract_data_2010 %>%
+  mutate(total_pop = H7V001,
+         white_pop = H7X002,
+         foreign_white_pop = NA,
+         black_pop = H7X003,
+         other_pop = H7X004 + H7X005 + H7X006 + H7X007 + H7X008) %>%
   select(any_of(tract_background_variables), contains("pop"))
 
 
@@ -623,8 +647,8 @@ tract_population_data_2000 <-
 # 2. Weight populations by "weight" and collapse to GISJOIN_1950
 # 3. Merge geography information from 1990 NHGIS file
 
-## Loop for 1930-2000 ----- 
-years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000)
+## Loop for 1930-2010 -----
+years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000, 2010)
 
 for (year in years) {
   print(year)
@@ -666,8 +690,9 @@ tract_population_data_1950_concorded <-
 # might use this to compare at some point
 tract_population_data_original_tracts <-
   bind_rows(tract_population_data_1930, tract_population_data_1940,
-            tract_population_data_1950, tract_population_data_1960, tract_population_data_1970, 
-            tract_population_data_1980, tract_population_data_1990, tract_population_data_2000) %>%
+            tract_population_data_1950, tract_population_data_1960, tract_population_data_1970,
+            tract_population_data_1980, tract_population_data_1990, tract_population_data_2000,
+            tract_population_data_2010) %>%
   ungroup() %>% 
   # calculate area in square meters
   mutate(area_m2 = st_area(geometry)) %>% 
@@ -679,16 +704,17 @@ tract_population_data_original_tracts <-
          black_share = black_pop / total_pop,
          other_share = other_pop / total_pop,
          population_density = total_pop/area_m2) %>%
-  select(any_of(tract_background_variables), contains("pop"), contains("share"), population_density) %>% 
+  select(YEAR, any_of(tract_background_variables), contains("pop"), contains("share"), population_density) %>% 
   # drop rows with missing geometry
   filter(!st_is_empty(geometry)) 
 
-# tract population data concorded to 1990 tracts
+# tract population data concorded to 1950 tracts
 tract_population_data_concorded <-
   bind_rows(tract_population_data_1930_concorded, tract_population_data_1940_concorded,
             tract_population_data_1950_concorded, tract_population_data_1960_concorded,
             tract_population_data_1970_concorded, tract_population_data_1980_concorded,
-            tract_population_data_1990_concorded, tract_population_data_2000_concorded) %>%
+            tract_population_data_1990_concorded, tract_population_data_2000_concorded,
+            tract_population_data_2010_concorded) %>%
   ungroup() %>% 
   # merge on CBD indicator
   left_join(cbd_tracts_1950)  %>%
@@ -703,7 +729,7 @@ tract_population_data_concorded <-
          black_share = black_pop / total_pop,
          other_share = other_pop / total_pop,
          population_density = total_pop/area_m2) %>%
-  select(any_of(tract_background_variables), contains("pop"), contains("share"), 
+  select(GISJOIN_1950, YEAR, any_of(tract_background_variables), contains("pop"), contains("share"), 
          population_density, cbd) %>%
   # drop rows with missing geometry
   filter(!st_is_empty(geometry)) 

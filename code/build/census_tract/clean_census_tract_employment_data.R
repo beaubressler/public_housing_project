@@ -45,6 +45,7 @@ tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concord
 tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
 tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
 tract_crosswalk_2000 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights2000_to_1950.csv"))
+tract_crosswalk_2010 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights2010_to_1950.csv"))
 
 
 # Compile tract-level Census employment data ----
@@ -357,10 +358,10 @@ full_tract_data_2000 <-
 
 #### harmonization -----
 
-tract_employment_data_2000 <- 
-  full_tract_data_2000 %>% 
+tract_employment_data_2000 <-
+  full_tract_data_2000 %>%
   # keep only variables of interest
-  select(any_of(tract_background_variables), contains("GLP"), contains("GLR")) %>% 
+  select(any_of(tract_background_variables), contains("GLP"), contains("GLR")) %>%
   mutate(employed_pop = GLR001 + GLR003,  # Male employed + Female employed
          unemployed_pop = GLR002 + GLR004,  # Male unemployed + Female unemployed
          not_in_lf_pop = GLP002 + GLP004,  # Male not in LF + Female not in LF
@@ -369,13 +370,57 @@ tract_employment_data_2000 <-
          lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
   select(any_of(tract_background_variables), contains("rate"), contains("pop"))
 
+### 2010 -----
+
+full_tract_data_2010 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/employment/2010/nhgis0053_ds177_20105_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2010_us_tract_2010/US_tract_2010.shp",
+      file_select = starts_with("US_tract_2010")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR)) %>%
+  mutate(YEAR = 2010)
+
+#### harmonization -----
+
+tract_employment_data_2010 <-
+  full_tract_data_2010 %>%
+  # keep only variables of interest
+  select(any_of(tract_background_variables), contains("J6QE")) %>%
+  mutate(
+    # Sum employed across all ages for males and females
+    employed_pop = J6QE007 + J6QE014 + J6QE021 + J6QE028 + J6QE035 + J6QE042 +
+                   J6QE049 + J6QE056 + J6QE063 + J6QE070 + J6QE075 + J6QE080 + J6QE085 +
+                   J6QE093 + J6QE100 + J6QE107 + J6QE114 + J6QE121 + J6QE128 +
+                   J6QE135 + J6QE142 + J6QE149 + J6QE156 + J6QE161 + J6QE166 + J6QE171,
+    # Sum unemployed across all ages for males and females
+    unemployed_pop = J6QE008 + J6QE015 + J6QE022 + J6QE029 + J6QE036 + J6QE043 +
+                     J6QE050 + J6QE057 + J6QE064 + J6QE071 + J6QE076 + J6QE081 + J6QE086 +
+                     J6QE094 + J6QE101 + J6QE108 + J6QE115 + J6QE122 + J6QE129 +
+                     J6QE136 + J6QE143 + J6QE150 + J6QE157 + J6QE162 + J6QE167 + J6QE172,
+    # Sum not in labor force across all ages for males and females
+    not_in_lf_pop = J6QE009 + J6QE016 + J6QE023 + J6QE030 + J6QE037 + J6QE044 +
+                    J6QE051 + J6QE058 + J6QE065 + J6QE072 + J6QE077 + J6QE082 + J6QE087 +
+                    J6QE095 + J6QE102 + J6QE109 + J6QE116 + J6QE123 + J6QE130 +
+                    J6QE137 + J6QE144 + J6QE151 + J6QE158 + J6QE163 + J6QE168 + J6QE173,
+    armed_forces_pop = NA_real_,
+    unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
+    lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)
+  ) %>%
+  select(any_of(tract_background_variables), contains("rate"), contains("pop"))
+
 # Concord datasets to 1950 Census tracts ----
 # 1. Join on crosswalk to get GISJOIN_1950 and weights
 # 2. Weight populations by "weight" and collapse to GISJOIN_1950
 # 3. Merge geography information from 1950 NHGIS file
 
-## Loop for 1930-1990-----
-years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000)
+## Loop for 1930-2010-----
+years <- c(1930, 1940, 1960, 1970, 1980, 1990, 2000, 2010)
 
 for (year in years) {
   # Construct variable names and file names dynamically based on the year
@@ -414,11 +459,12 @@ tract_employment_data_concorded <-
   bind_rows(tract_employment_data_1930_concorded, tract_employment_data_1940_concorded,
             tract_employment_data_1950_concorded, tract_employment_data_1960_concorded,
             tract_employment_data_1970_concorded, tract_employment_data_1980_concorded,
-            tract_employment_data_1990_concorded, tract_employment_data_2000_concorded) %>%
+            tract_employment_data_1990_concorded, tract_employment_data_2000_concorded,
+            tract_employment_data_2010_concorded) %>%
   # calculate unemployment rate, lfp rate
   mutate(unemp_rate = unemployed_pop/(employed_pop + unemployed_pop),
          lfp_rate = (employed_pop + unemployed_pop)/(employed_pop + unemployed_pop + not_in_lf_pop)) %>%
-  select(any_of(tract_background_variables), contains("pop"), contains("rate")) %>% 
+  select(any_of(tract_background_variables), contains("pop"), contains("rate")) %>%
   # drop rows with missing geometry
   filter(!st_is_empty(geometry))
 

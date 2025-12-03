@@ -56,6 +56,7 @@ tract_crosswalk_1970 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concord
 tract_crosswalk_1980 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1980_to_1950.csv"))
 tract_crosswalk_1990 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights1990_to_1950.csv"))
 tract_crosswalk_2000 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights2000_to_1950.csv"))
+tract_crosswalk_2010 <- read_csv(paste0(geographic_crosswalk_dir, "tract_concordance_weights2010_to_1950.csv"))
 # Compile tract-level Census housing data ----
 
 # shared variables we want to keep
@@ -752,6 +753,36 @@ tract_housing_data_2000 <-
   mutate(vacant_units = NA_real_,
          total_units = NA_real_)
 
+### 2010 ----
+
+full_tract_data_2010 <-
+  ipums_shape_full_join(
+    read_nhgis(
+      "data/raw/nhgis/tables/housing/2010/nhgis0053_ds177_20105_tract.csv"
+    ),
+    read_ipums_sf(
+      "data/raw/nhgis/gis/nhgis0027_shapefile_tl2010_us_tract_2010/US_tract_2010.shp",
+      file_select = starts_with("US_tract_2010")
+    ),
+    by = "GISJOIN"
+  ) %>%
+  filter(!is.na(YEAR)) %>%
+  mutate(YEAR = 2010)
+
+#### harmonization -----
+
+tract_housing_data_2010 <-
+  full_tract_data_2010 %>%
+  dplyr::rename(median_home_value_reported = J8ME001, median_rent_reported = J80E001) %>%
+  # Convert median variables to numeric (they're character in the 2010 data)
+  mutate(median_home_value_reported = as.numeric(median_home_value_reported),
+         median_rent_reported = as.numeric(median_rent_reported)) %>%
+  # keep only variables of interest
+  select(any_of(tract_background_variables), median_home_value_reported, median_rent_reported) %>%
+  # Add missing variables as NA to maintain consistency with other years
+  mutate(vacant_units = NA_real_,
+         total_units = NA_real_)
+
 
 # Concord datasets to 1950 Census tracts ----
 # Have to do this separately for years for which we are given medians for rents and housing values (1940, 1950, 1980) 
@@ -790,8 +821,8 @@ for (year in years_with_distributions) {
   )
 }
 
-# Process years with REPORTED MEDIANS (1940, 1980, 1990, 2000) - CORRECTED method
-years_with_medians <- c(1940, 1980, 1990, 2000)
+# Process years with REPORTED MEDIANS (1940, 1980, 1990, 2000, 2010) - CORRECTED method
+years_with_medians <- c(1940, 1980, 1990, 2000, 2010)
 
 for (year in years_with_medians) {
   cat("Processing", year, "(reported medians - CORRECTED weighted average)\n")
@@ -1323,9 +1354,10 @@ tract_housing_data_1990_concorded <-
 # might use this to compare at some point
 tract_housing_data_original_tracts <-
   bind_rows(tract_housing_data_1930, tract_housing_data_1940,
-            tract_housing_data_1950, tract_housing_data_1960, tract_housing_data_1970, 
-            tract_housing_data_1980, tract_housing_data_1990, tract_housing_data_2000) %>%
-  select(any_of(tract_background_variables), contains("median")) %>% 
+            tract_housing_data_1950, tract_housing_data_1960, tract_housing_data_1970,
+            tract_housing_data_1980, tract_housing_data_1990, tract_housing_data_2000,
+            tract_housing_data_2010) %>%
+  select(any_of(tract_background_variables), contains("median")) %>%
   # drop rows with missing geometry
   filter(!st_is_empty(geometry))
 
@@ -1334,7 +1366,8 @@ tract_housing_data_concorded <-
   bind_rows(tract_housing_data_1930_concorded, tract_housing_data_1940_concorded,
             tract_housing_data_1950_concorded, tract_housing_data_1960_concorded,
             tract_housing_data_1970_concorded, tract_housing_data_1980_concorded,
-            tract_housing_data_1990_concorded, tract_housing_data_2000_concorded) %>%
+            tract_housing_data_1990_concorded, tract_housing_data_2000_concorded,
+            tract_housing_data_2010_concorded) %>%
   select(GISJOIN_1950, YEAR, contains("median"), total_units, total_units, vacancy_rate,
          share_needing_repair, share_no_water, housing_density, geometry) %>% 
   # create median_rent and median_home_value composite variables
