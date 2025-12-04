@@ -107,21 +107,31 @@ cat("\n=== HETEROGENEITY BY PROJECT CHARACTERISTICS ===\n")
 # Outcome variables for heterogeneity analysis
 heterogeneity_outcome_vars <-
   c("asinh_median_rent_calculated", "asinh_median_income",
-    "black_share", "asinh_pop_black", "asinh_pop_white",
+    "black_share", "asinh_pop_total", "asinh_pop_black", "asinh_pop_white",
     "black_pop", "white_pop",
     "unemp_rate")
+
+# Outcome variables for heterogeneity coefficient tables
+table_outcome_vars <- c(
+  "black_share",
+  "asinh_median_rent_calculated",
+  "asinh_median_income",
+  "asinh_pop_total",
+  "asinh_pop_black",
+  "asinh_pop_white"
+)
 
 # Outcome labels for plots
 race_income_labels <- c(
   "black_share" = "Black Pop Share",
-  "asinh_median_income" = "Log Median Income",
-  "asinh_pop_black" = "Log Black Pop",
-  "asinh_pop_white" = "Log White Pop",
-  "black_pop" = "Black Pop",
-  "white_pop" = "White Pop",
-  "asinh_pop_total" = "Log Total Pop",
-  "total_pop" = "Total Pop",
-  "asinh_median_rent_calculated" = "Log Median Rent",
+  "asinh_median_income" = "Median Income (asinh)",
+  "asinh_pop_black" = "Black Pop. (asinh)",
+  "asinh_pop_white" = "White Pop. (asinh)",
+  "black_pop" = "Black Pop.",
+  "white_pop" = "White Pop.",
+  "asinh_pop_total" = "Total Pop. (asinh)",
+  "total_pop" = "Total Pop.",
+  "asinh_median_rent_calculated" = "Median Rent (asinh)",
   "unemp_rate" = "Unemployment Rate"
 )
 
@@ -233,19 +243,38 @@ for (outcome in heterogeneity_outcome_vars) {
 }
 
 # Create three-group project size comparison plot (by largest)
-p_size_three_groups_largest <- create_heterogeneity_plot(
-  results_event_study_small_largest, paste0("Small (<", round(tertile_1_largest, 0), " units)"),
-  results_event_study_medium_largest, paste0("Medium (", round(tertile_1_largest, 0), "-", round(tertile_2_largest, 0), " units)"),
-  results_event_study_large_largest, paste0("Large (≥", round(tertile_2_largest, 0), " units)"),
+p_size_three_groups_largest <- create_heterogeneity_plot_clean(
+  results_event_study_small_largest, paste0("Small (<", round(tertile_1_largest, 0), ")"),
+  results_event_study_medium_largest, paste0("Medium (", round(tertile_1_largest, 0), "-", round(tertile_2_largest, 0), ")"),
+  results_event_study_large_largest, paste0("Large (≥", round(tertile_2_largest, 0), ")"),
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Largest Project Size",
-  colors = project_size_colors,
+  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
+  x_label = "Largest Project Size",
   save_name = "largest_project_size_heterogeneity_t20",
-  results_dir = heterogeneity_results_dir
+  results_dir = heterogeneity_results_dir,
+  width = 13,
+  height = 5.5
 )
 
 print(p_size_three_groups_largest)
+
+# Generate coefficient tables for all outcomes
+cat("\n--- Creating Coefficient Tables for Project Size (Largest) Heterogeneity ---\n")
+for (outcome in table_outcome_vars) {
+  for (group in group_types) {
+    create_heterogeneity_coefficient_table(
+      results_event_study_small_largest, paste0("Small (<", round(tertile_1_largest, 0), " units)"),
+      results_event_study_medium_largest, paste0("Medium (", round(tertile_1_largest, 0), "-", round(tertile_2_largest, 0), " units)"),
+      results_event_study_large_largest, paste0("Large (≥", round(tertile_2_largest, 0), " units)"),
+      outcome_var = outcome,
+      treatment_group = group,
+      save_name = "largest_project_size_heterogeneity",
+      results_dir = heterogeneity_results_dir
+    )
+  }
+}
 
 # Full event study plots for project size (largest) heterogeneity
 if (FULL_EVENT_STUDY_PLOTS$project_size_largest) {
@@ -391,19 +420,38 @@ for (outcome in heterogeneity_outcome_vars) {
 }
 
 # Create three-group project size comparison plot (by total)
-p_size_three_groups_total <- create_heterogeneity_plot(
-  results_event_study_small_total, paste0("Small (<", round(tertile_1_total, 0), " units)"),
-  results_event_study_medium_total, paste0("Medium (", round(tertile_1_total, 0), "-", round(tertile_2_total, 0), " units)"),
-  results_event_study_large_total, paste0("Large (≥", round(tertile_2_total, 0), " units)"),
+p_size_three_groups_total <- create_heterogeneity_plot_clean(
+  results_event_study_small_total, paste0("Small (<", round(tertile_1_total, 0), ")"),
+  results_event_study_medium_total, paste0("Medium (", round(tertile_1_total, 0), "-", round(tertile_2_total, 0), ")"),
+  results_event_study_large_total, paste0("Large (≥", round(tertile_2_total, 0), ")"),
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Total Project Size",
-  colors = project_size_colors,
+  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
+  x_label = "Total Project Size",
   save_name = "total_project_size_heterogeneity_t20",
-  results_dir = heterogeneity_results_dir
+  results_dir = heterogeneity_results_dir,
+  width = 13,
+  height = 5.5
 )
 
 print(p_size_three_groups_total)
+
+# Generate coefficient tables for all outcomes
+cat("\n--- Creating Coefficient Tables for Project Size (Total) Heterogeneity ---\n")
+for (outcome in table_outcome_vars) {
+  for (group in group_types) {
+    create_heterogeneity_coefficient_table(
+      results_event_study_small_total, paste0("Small (<", round(tertile_1_total, 0), " units)"),
+      results_event_study_medium_total, paste0("Medium (", round(tertile_1_total, 0), "-", round(tertile_2_total, 0), " units)"),
+      results_event_study_large_total, paste0("Large (≥", round(tertile_2_total, 0), " units)"),
+      outcome_var = outcome,
+      treatment_group = group,
+      save_name = "total_project_size_heterogeneity",
+      results_dir = heterogeneity_results_dir
+    )
+  }
+}
 
 # Full event study plots for project size (total) heterogeneity
 if (FULL_EVENT_STUDY_PLOTS$project_size_total) {
@@ -535,19 +583,38 @@ for (outcome in heterogeneity_outcome_vars) {
 }
 
 # Create three-group black share comparison plot
-p_black_three_groups <- create_heterogeneity_plot(
-  results_event_study_very_low_black, "Very Low (<1%)",
+p_black_three_groups <- create_heterogeneity_plot_clean(
+  results_event_study_very_low_black, "Low (<1%)",
   results_event_study_medium_black, "Medium (1-12%)",
   results_event_study_high_black, "High (≥12%)",
   outcomes_to_plot = c("black_pop", "white_pop"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Baseline Black Population Share",
-  colors = tipping_colors,
+  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
+  x_label = "Baseline Black Population Share",
   save_name = "baseline_black_three_groups_heterogeneity_t20",
-  results_dir = heterogeneity_results_dir
+  results_dir = heterogeneity_results_dir,
+  width = 11,
+  height = 5.5
 )
 
 print(p_black_three_groups)
+
+# Generate coefficient tables for all outcomes
+cat("\n--- Creating Coefficient Tables for Baseline Black Share Heterogeneity ---\n")
+for (outcome in table_outcome_vars) {
+  for (group in group_types) {
+    create_heterogeneity_coefficient_table(
+      results_event_study_very_low_black, "Very Low (<1%)",
+      results_event_study_medium_black, "Medium (1-12%)",
+      results_event_study_high_black, "High (≥12%)",
+      outcome_var = outcome,
+      treatment_group = group,
+      save_name = "baseline_black_three_groups_heterogeneity",
+      results_dir = heterogeneity_results_dir
+    )
+  }
+}
 
 # Full event study plots for baseline black share heterogeneity
 if (FULL_EVENT_STUDY_PLOTS$baseline_black_share) {
@@ -644,20 +711,36 @@ for (outcome in heterogeneity_outcome_vars) {
 }
 
 # Create income comparison plot
-p_income_comparison <- create_heterogeneity_plot(
-  results_list1 = results_event_study_low_income,
-  results_list2 = results_event_study_high_income,
-  label1 = "Low Income (Bottom Tercile)",
-  label2 = "High Income (Top 2 Terciles)",
+p_income_comparison <- create_heterogeneity_plot_clean(
+  results_event_study_low_income, "Low Income",
+  results_event_study_high_income, "High Income",
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Baseline Income Level",
-  colors = income_colors,
+  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
+  x_label = "Baseline Median Income",
   save_name = "baseline_income_heterogeneity_t20",
-  results_dir = heterogeneity_results_dir
+  results_dir = heterogeneity_results_dir,
+  width = 13,
+  height = 5.5
 )
 
 print(p_income_comparison)
+
+# Generate coefficient tables for all outcomes
+cat("\n--- Creating Coefficient Tables for Baseline Income Heterogeneity ---\n")
+for (outcome in table_outcome_vars) {
+  for (group in group_types) {
+    create_heterogeneity_coefficient_table(
+      results_event_study_low_income, "Low Income (Bottom Tercile)",
+      results_event_study_high_income, "High Income (Top 2 Terciles)",
+      outcome_var = outcome,
+      treatment_group = group,
+      save_name = "baseline_income_heterogeneity",
+      results_dir = heterogeneity_results_dir
+    )
+  }
+}
 
 # Full event study plots for baseline income heterogeneity
 if (FULL_EVENT_STUDY_PLOTS$baseline_income) {
@@ -754,20 +837,36 @@ if (!VARIANT %in% c("no_cbsa", "cem")) {
   }
   
   # Create NYC comparison plot
-  p_nyc_comparison <- create_heterogeneity_plot(
-    results_list1 = results_event_study_nyc,
-    results_list2 = results_event_study_non_nyc,
-    label1 = "NYC",
-    label2 = "Non-NYC",
+  p_nyc_comparison <- create_heterogeneity_plot_clean(
+    results_event_study_nyc, "NYC",
+    results_event_study_non_nyc, "Non-NYC",
     outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
     outcome_labels_map = race_income_labels,
     title_text = "Heterogeneity by NYC vs Non-NYC",
-    colors = nyc_colors,
+    subtitle_text = "Treatment effects at t=20 (20 years after construction)",
+    x_label = "Location",
     save_name = "nyc_heterogeneity_t20",
-    results_dir = heterogeneity_results_dir
+    results_dir = heterogeneity_results_dir,
+    width = 13,
+    height = 5.5
   )
-  
+
   print(p_nyc_comparison)
+
+  # Generate coefficient tables for all outcomes
+  cat("\n--- Creating Coefficient Tables for NYC Heterogeneity ---\n")
+  for (outcome in table_outcome_vars) {
+    for (group in group_types) {
+      create_heterogeneity_coefficient_table(
+        results_event_study_nyc, "NYC",
+        results_event_study_non_nyc, "Non-NYC",
+        outcome_var = outcome,
+        treatment_group = group,
+        save_name = "nyc_heterogeneity",
+        results_dir = heterogeneity_results_dir
+      )
+    }
+  }
 
   # Full event study plots for NYC heterogeneity
   if (FULL_EVENT_STUDY_PLOTS$nyc) {
@@ -853,20 +952,36 @@ for (outcome in heterogeneity_outcome_vars) {
 }
 
 # Create urban renewal comparison plot
-p_ur_comparison <- create_heterogeneity_plot(
-  results_list1 = results_event_study_ur,
-  results_list2 = results_event_study_non_ur,
-  label1 = "Urban Renewal",
-  label2 = "Non-Urban Renewal",
+p_ur_comparison <- create_heterogeneity_plot_clean(
+  results_event_study_ur, "Urban Renewal",
+  results_event_study_non_ur, "Non-Urban Renewal",
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Urban Renewal Status",
-  colors = urban_renewal_colors,
+  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
+  x_label = "Urban Renewal Status",
   save_name = "urban_renewal_heterogeneity_t20",
-  results_dir = heterogeneity_results_dir
+  results_dir = heterogeneity_results_dir,
+  width = 13,
+  height = 5.5
 )
 
 print(p_ur_comparison)
+
+# Generate coefficient tables for all outcomes
+cat("\n--- Creating Coefficient Tables for Urban Renewal Heterogeneity ---\n")
+for (outcome in table_outcome_vars) {
+  for (group in group_types) {
+    create_heterogeneity_coefficient_table(
+      results_event_study_ur, "Urban Renewal",
+      results_event_study_non_ur, "Non-Urban Renewal",
+      outcome_var = outcome,
+      treatment_group = group,
+      save_name = "urban_renewal_heterogeneity",
+      results_dir = heterogeneity_results_dir
+    )
+  }
+}
 
 # Full event study plots for urban renewal heterogeneity
 if (FULL_EVENT_STUDY_PLOTS$urban_renewal) {
@@ -980,7 +1095,7 @@ for (outcome in heterogeneity_outcome_vars) {
 }
 
 # Create high-rise comparison plot
-p_highrise_comparison <- create_heterogeneity_plot(
+p_highrise_comparison <- create_heterogeneity_plot_clean(
   results_list1 = results_event_study_highrise,
   results_list2 = results_event_study_non_highrise,
   label1 = "High-rise",
@@ -988,12 +1103,30 @@ p_highrise_comparison <- create_heterogeneity_plot(
   outcomes_to_plot = c("asinh_median_rent_calculated", "asinh_pop_black", "asinh_median_income"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by High-rise vs Non-high-rise Projects",
-  colors = highrise_colors,
+  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
+  x_label = "Project Type",
   save_name = "highrise_heterogeneity_t20",
-  results_dir = heterogeneity_results_dir
+  results_dir = heterogeneity_results_dir,
+  width = 15,   # 3 outcomes
+  height = 5.5
 )
 
 print(p_highrise_comparison)
+
+# Generate coefficient tables for all outcomes
+cat("\n--- Creating Coefficient Tables for High-rise Heterogeneity ---\n")
+for (outcome in table_outcome_vars) {
+  for (group in group_types) {
+    create_heterogeneity_coefficient_table(
+      results_event_study_highrise, "High-rise",
+      results_event_study_non_highrise, "Non-high-rise",
+      outcome_var = outcome,
+      treatment_group = group,
+      save_name = "highrise_heterogeneity",
+      results_dir = heterogeneity_results_dir
+    )
+  }
+}
 
   # Full event study plots for high-rise heterogeneity
   if (FULL_EVENT_STUDY_PLOTS$highrise) {
@@ -1040,12 +1173,12 @@ print(p_highrise_comparison)
 cat("\n=== HETEROGENEITY BY EARLY VS LATE PROJECTS ===\n")
 
 # Filter data for each time period
-tract_data_early_projects <- 
+tract_data_early_projects <-
   tract_data_matched %>%
-  filter(matched_treatment_year < 1970)
+  filter(matched_treatment_year < 1960)
 
 tract_data_late_projects <- tract_data_matched %>%
-  filter(matched_treatment_year >= 1970)
+  filter(matched_treatment_year >= 1960)
 
 # Run event studies for early projects
 results_event_study_early <- list()
@@ -1080,20 +1213,38 @@ for (outcome in heterogeneity_outcome_vars) {
 }
 
 # Create early vs late comparison plot
-p_early_late_comparison <- create_heterogeneity_plot(
+p_early_late_comparison <- create_heterogeneity_plot_clean(
   results_list1 = results_event_study_early,
   results_list2 = results_event_study_late,
-  label1 = "Early Projects (<1970)",
-  label2 = "Late Projects (≥1970)",
+  label1 = "Early (<1960)",
+  label2 = "Late (≥1960)",
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Early vs Late Projects",
-  colors = timing_colors,
+  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
+  x_label = "Construction Period",
   save_name = "early_late_projects_heterogeneity_t20",
-  results_dir = heterogeneity_results_dir
+  results_dir = heterogeneity_results_dir,
+  width = 15,   # 3 outcomes
+  height = 5.5
 )
 
 print(p_early_late_comparison)
+
+# Generate coefficient tables for all outcomes
+cat("\n--- Creating Coefficient Tables for Early/Late Project Heterogeneity ---\n")
+for (outcome in table_outcome_vars) {
+  for (group in group_types) {
+    create_heterogeneity_coefficient_table(
+      results_event_study_early, "Early Projects (<1960)",
+      results_event_study_late, "Late Projects (≥1960)",
+      outcome_var = outcome,
+      treatment_group = group,
+      save_name = "early_late_projects_heterogeneity",
+      results_dir = heterogeneity_results_dir
+    )
+  }
+}
 
 # Full event study plots for early vs late heterogeneity
 if (FULL_EVENT_STUDY_PLOTS$early_late) {
@@ -1106,8 +1257,8 @@ if (FULL_EVENT_STUDY_PLOTS$early_late) {
                        "asinh_median_income" = "Log Median Income")[outcome]
 
     p_full_treated <- create_heterogeneity_event_study_plot(
-      results_event_study_early, "Early Projects (<1970)",
-      results_event_study_late, "Late Projects (≥1970)",
+      results_event_study_early, "Early Projects (<1960)",
+      results_event_study_late, "Late Projects (≥1960)",
       outcome_var = outcome,
       outcome_label = outcome_label,
       treatment_group = "treated",
@@ -1117,8 +1268,8 @@ if (FULL_EVENT_STUDY_PLOTS$early_late) {
     )
 
     p_full_inner <- create_heterogeneity_event_study_plot(
-      results_event_study_early, "Early Projects (<1970)",
-      results_event_study_late, "Late Projects (≥1970)",
+      results_event_study_early, "Early Projects (<1960)",
+      results_event_study_late, "Late Projects (≥1960)",
       outcome_var = outcome,
       outcome_label = outcome_label,
       treatment_group = "inner",
@@ -1141,22 +1292,20 @@ cat("\n=== HETEROGENEITY BY PUBLIC HOUSING POPULATION SHARE (MECHANICAL EFFECTS)
 mechanical_effects_outcome_vars <- c(
   "asinh_median_rent_calculated", "asinh_median_income",
   "black_share", "asinh_pop_black", "asinh_pop_white",
-  "black_pop", "white_pop",
-  "asinh_pop_total", "total_pop"
+  "asinh_pop_total"
 )
 
 # Outcomes to plot for mechanical effects (all outcomes, for individual plots)
 mechanical_effects_plot_vars <- c(
   "asinh_median_income", "asinh_median_rent_calculated",
-  "asinh_pop_black", "asinh_pop_white",
-  "black_pop", "white_pop",
-  "asinh_pop_total", "total_pop"
+  "black_share", "asinh_pop_black", "asinh_pop_white",
+  "asinh_pop_total"
 )
 
 # Outcomes for combined comparison plots (log-transformed only, for consistent scale)
 mechanical_effects_combined_plot_vars <- c(
   "asinh_median_income", "asinh_median_rent_calculated",
-  "asinh_pop_black", "asinh_pop_white",
+  "black_share", "asinh_pop_black", "asinh_pop_white",
   "asinh_pop_total"
 )
 
@@ -1713,46 +1862,47 @@ t20_very_high_mech <- extract_t20_estimates(results_event_study_very_high_mech, 
 # Quintile estimates already extracted above (t20_q1, t20_q2, t20_q3, t20_q4, t20_q5)
 
 # Combine all estimates
-all_t20_het_list <- list(
-  t20_small_largest, t20_medium_largest, t20_large_largest,
-  t20_small_total, t20_medium_total, t20_large_total,
-  t20_very_low_black, t20_medium_black, t20_high_black,
-  t20_low_income, t20_high_income,
-  t20_nyc, t20_non_nyc,
-  t20_ur, t20_non_ur,
-  t20_early, t20_late,
-  t20_low_mech_20, t20_high_mech_20,
-  t20_low_mech_10, t20_high_mech_10,
-  t20_very_low_mech, t20_medium_mech, t20_very_high_mech,
-  t20_q1, t20_q2, t20_q3, t20_q4, t20_q5
-)
-
-# Add high-rise estimates if available
-if ("has_highrise_project" %in% names(tract_data_matched)) {
-  all_t20_het_list <- c(all_t20_het_list, list(t20_highrise, t20_non_highrise))
-}
-
-all_t20_het <- bind_rows(all_t20_het_list) %>%
-  mutate(
-    group = str_extract(outcome_group, "(treated|inner)$"),
-    outcome_clean = str_remove(outcome_group, "_(treated|inner)$")
-  ) %>%
-  filter(outcome_clean %in% c(heterogeneity_outcome_vars, "asinh_pop_total", "total_pop"))
-
-# Print comparison table
-comparison_table <- all_t20_het %>%
-  select(location, outcome_clean, estimate, std.error, p.value) %>%
-  arrange(outcome_clean, location) %>%
-  mutate(
-    estimate = round(estimate, 4),
-    std.error = round(std.error, 4),
-    p.value = round(p.value, 3)
-  )
-
-print(comparison_table)
-
-# Save results
-write_csv(all_t20_het, here(heterogeneity_results_dir, "all_heterogeneity_t20_estimates.csv"))
+# COMMENTED OUT: Summary table was causing timeout errors and is not essential
+# all_t20_het_list <- list(
+#   t20_small_largest, t20_medium_largest, t20_large_largest,
+#   t20_small_total, t20_medium_total, t20_large_total,
+#   t20_very_low_black, t20_medium_black, t20_high_black,
+#   t20_low_income, t20_high_income,
+#   t20_nyc, t20_non_nyc,
+#   t20_ur, t20_non_ur,
+#   t20_early, t20_late,
+#   t20_low_mech_20, t20_high_mech_20,
+#   t20_low_mech_10, t20_high_mech_10,
+#   t20_very_low_mech, t20_medium_mech, t20_very_high_mech,
+#   t20_q1, t20_q2, t20_q3, t20_q4, t20_q5
+# )
+#
+# # Add high-rise estimates if available
+# if ("has_highrise_project" %in% names(tract_data_matched)) {
+#   all_t20_het_list <- c(all_t20_het_list, list(t20_highrise, t20_non_highrise))
+# }
+#
+# all_t20_het <- bind_rows(all_t20_het_list) %>%
+#   mutate(
+#     group = str_extract(outcome_group, "(treated|inner)$"),
+#     outcome_clean = str_remove(outcome_group, "_(treated|inner)$")
+#   ) %>%
+#   filter(outcome_clean %in% c(heterogeneity_outcome_vars, "asinh_pop_total", "total_pop"))
+#
+# # Print comparison table
+# comparison_table <- all_t20_het %>%
+#   select(location, outcome_clean, estimate, std.error, p.value) %>%
+#   arrange(outcome_clean, location) %>%
+#   mutate(
+#     estimate = round(estimate, 4),
+#     std.error = round(std.error, 4),
+#     p.value = round(p.value, 3)
+#   )
+#
+# print(comparison_table)
+#
+# # Save results
+# write_csv(all_t20_het, here(heterogeneity_results_dir, "all_heterogeneity_t20_estimates.csv"))
 
 message("\n=== PART 3 COMPLETE: Heterogeneity analysis finished ===")
 message("Files saved to: ", heterogeneity_results_dir)
@@ -1779,5 +1929,4 @@ message("- mechanical_quintiles_all5_asinh_pop_black_treated.pdf")
 message("- mechanical_quintiles_all5_asinh_pop_black_spillover.pdf")
 message("- mechanical_quintiles_all5_asinh_pop_white_treated.pdf")
 message("- mechanical_quintiles_all5_asinh_pop_white_spillover.pdf")
-message("\n--- Summary Table ---")
-message("- all_heterogeneity_t20_estimates.csv")
+# Summary table commented out to avoid timeout errors

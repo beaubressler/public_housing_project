@@ -180,6 +180,140 @@ create_heterogeneity_plot <- function(...,
   return(p)
 }
 
+# Cleaner heterogeneity plot (Option B format)
+# Facets by outcome only, colors by group (Treated vs Nearby)
+# Better for publication - standard applied micro format
+create_heterogeneity_plot_clean <- function(...,
+                                            outcomes_to_plot,
+                                            outcome_labels_map,
+                                            title_text = NULL,
+                                            subtitle_text = NULL,
+                                            x_label = "",
+                                            save_name = NULL,
+                                            results_dir = NULL,
+                                            width = 11,
+                                            height = 5.5) {
+
+  # Get arguments as list
+  args <- list(...)
+
+  # Check if old named argument format is being used
+  if (all(c("results_list1", "results_list2", "label1", "label2") %in% names(args))) {
+    # Convert old format to new format
+    results_lists <- list(args$results_list1, args$results_list2)
+    labels <- c(args$label1, args$label2)
+
+    # Handle 3-group case
+    if ("results_list3" %in% names(args) && "label3" %in% names(args)) {
+      results_lists <- c(results_lists, list(args$results_list3))
+      labels <- c(labels, args$label3)
+    }
+  } else {
+    # New format: alternating results_list, label pairs
+    if (length(args) %% 2 != 0) {
+      stop("Arguments must be alternating results_list, label pairs")
+    }
+
+    results_lists <- args[seq(1, length(args), 2)]
+    labels <- unlist(args[seq(2, length(args), 2)])
+  }
+
+  # Extract t=20 estimates for all groups
+  all_estimates <- map2_dfr(results_lists, labels, ~extract_t20_estimates(.x, .y))
+
+  # Combine and clean
+  comparison_data <- all_estimates %>%
+    mutate(
+      group = str_extract(outcome_group, "(treated|inner)$"),
+      outcome_clean = str_remove(outcome_group, "_(treated|inner)$")
+    ) %>%
+    filter(outcome_clean %in% outcomes_to_plot) %>%
+    mutate(
+      clean_label = case_when(
+        outcome_clean %in% names(outcome_labels_map) ~ outcome_labels_map[outcome_clean],
+        TRUE ~ outcome_clean
+      ),
+      group_label = case_when(
+        group == "treated" ~ "Treated",
+        group == "inner" ~ "Nearby",
+        TRUE ~ group
+      ),
+      clean_label = factor(clean_label, levels = outcome_labels_map[outcomes_to_plot]),
+      group_label = factor(group_label, levels = c("Treated", "Nearby")),
+      location = factor(location, levels = labels)
+    )
+
+  # Professional colors: dark blue for treated, orange for nearby
+  group_colors <- c("Treated" = "#0072B2", "Nearby" = "#E69F00")
+
+  # Create plot
+  p <- ggplot(comparison_data, aes(x = location, y = estimate,
+                                   color = group_label, group = group_label)) +
+    geom_hline(yintercept = 0, linetype = "solid", color = "gray40", linewidth = 0.5) +
+    geom_point(size = 4, alpha = 0.9, position = position_dodge(width = 0.4)) +
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                  width = 0.25, linewidth = 0.9, alpha = 0.8,
+                  position = position_dodge(width = 0.4)) +
+    facet_wrap(~ clean_label, scales = "free_y", nrow = 1) +
+    labs(
+      title = title_text,
+      subtitle = subtitle_text,
+      x = x_label,
+      y = "Treatment Effect at t=20",
+      color = ""
+    ) +
+    scale_color_manual(values = group_colors) +
+    scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0,
+                               margin = margin(b = 8)),
+      plot.subtitle = element_text(size = 12, color = "gray40",
+                                  margin = margin(b = 12)),
+      plot.title.position = "plot",
+
+      axis.title.x = element_text(size = 13, margin = margin(t = 10)),
+      axis.title.y = element_text(size = 13, margin = margin(r = 10)),
+      axis.text.x = element_text(size = 11, color = "black"),
+      axis.text.y = element_text(size = 11, color = "black"),
+      axis.line = element_line(color = "black", linewidth = 0.4),
+      axis.ticks = element_line(color = "black", linewidth = 0.4),
+
+      strip.background = element_rect(fill = "gray92", color = "gray70", linewidth = 0.4),
+      strip.text = element_text(face = "bold", size = 12, color = "black",
+                               margin = margin(4, 4, 4, 4)),
+
+      panel.background = element_rect(fill = "white", color = NA),
+      panel.border = element_rect(color = "gray70", fill = NA, linewidth = 0.6),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.spacing.x = unit(18, "pt"),
+
+      legend.position = "bottom",
+      legend.text = element_text(size = 12),
+      legend.key.size = unit(1.2, "lines"),
+      legend.margin = margin(t = 10),
+
+      plot.margin = margin(12, 15, 10, 12)
+    )
+
+  # Save if requested
+  if (!is.null(save_name) & !is.null(results_dir)) {
+    ggsave(file.path(results_dir, paste0(save_name, ".pdf")),
+           p, width = width, height = height, device = cairo_pdf)
+
+    # Save slide version without title/subtitle
+    slides_dir <- file.path(results_dir, "slides")
+    dir.create(slides_dir, recursive = TRUE, showWarnings = FALSE)
+    p_slides <- p + labs(title = NULL, subtitle = NULL)
+    ggsave(file.path(slides_dir, paste0(save_name, ".pdf")),
+           p_slides, width = width, height = height, device = cairo_pdf)
+  }
+
+  return(p)
+}
+
 # Function to extract all coefficients (not just t=20) from event study results
 extract_all_event_time_coefs <- function(results_list, group_label) {
   estimates <- map_dfr(names(results_list), function(name) {
@@ -215,13 +349,26 @@ create_heterogeneity_event_study_plot <- function(...,
   # Get arguments as list
   args <- list(...)
 
-  # Parse alternating results_list, label pairs
-  if (length(args) %% 2 != 0) {
-    stop("Arguments must be alternating results_list, label pairs")
-  }
+  # Check if old named argument format is being used
+  if (all(c("results_list1", "results_list2", "label1", "label2") %in% names(args))) {
+    # Convert old format to new format
+    results_lists <- list(args$results_list1, args$results_list2)
+    labels <- c(args$label1, args$label2)
 
-  results_lists <- args[seq(1, length(args), 2)]
-  labels <- unlist(args[seq(2, length(args), 2)])
+    # Handle 3-group case
+    if ("results_list3" %in% names(args) && "label3" %in% names(args)) {
+      results_lists <- c(results_lists, list(args$results_list3))
+      labels <- c(labels, args$label3)
+    }
+  } else {
+    # New format: alternating results_list, label pairs
+    if (length(args) %% 2 != 0) {
+      stop("Arguments must be alternating results_list, label pairs")
+    }
+
+    results_lists <- args[seq(1, length(args), 2)]
+    labels <- unlist(args[seq(2, length(args), 2)])
+  }
 
   # Set default colors if not provided
   if (is.null(colors)) {
@@ -264,11 +411,11 @@ create_heterogeneity_event_study_plot <- function(...,
     geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4, color = "grey50") +
     labs(
       title = paste0(outcome_label, ", ", group_label_title),
-      x = "Years Relative to Construction",
+      x = "Decades Relative to Treatment",
       y = "Difference-in-Differences Estimate",
       color = ""
     ) +
-    scale_x_continuous(breaks = x_breaks) +
+    scale_x_continuous(breaks = x_breaks, labels = x_breaks / 10) +
     scale_color_manual(values = setNames(colors, labels)) +
     theme_classic(base_size = 14) +
     theme(
@@ -297,4 +444,124 @@ create_heterogeneity_event_study_plot <- function(...,
   }
 
   return(p)
+}
+
+# Create heterogeneity coefficient table showing all event times
+create_heterogeneity_coefficient_table <- function(...,
+                                                    outcome_var,
+                                                    treatment_group = "treated",
+                                                    save_name = NULL,
+                                                    results_dir = NULL) {
+
+  # Get arguments as list
+  args <- list(...)
+
+  # Check if old named argument format is being used
+  if (all(c("results_list1", "results_list2", "label1", "label2") %in% names(args))) {
+    # Convert old format to new format
+    results_lists <- list(args$results_list1, args$results_list2)
+    labels <- c(args$label1, args$label2)
+
+    # Handle 3-group case
+    if ("results_list3" %in% names(args) && "label3" %in% names(args)) {
+      results_lists <- c(results_lists, list(args$results_list3))
+      labels <- c(labels, args$label3)
+    }
+  } else {
+    # New format: alternating results_list, label pairs
+    if (length(args) %% 2 != 0) {
+      stop("Arguments must be alternating results_list, label pairs")
+    }
+
+    results_lists <- args[seq(1, length(args), 2)]
+    labels <- unlist(args[seq(2, length(args), 2)])
+  }
+
+  # Extract all event time coefficients for each group
+  all_coefs <- map2_dfr(results_lists, labels, ~extract_all_event_time_coefs(.x, .y))
+
+  # Filter to specified outcome and treatment group
+  outcome_key <- paste0(outcome_var, "_", treatment_group)
+
+  table_data <- all_coefs %>%
+    filter(outcome_group == outcome_key) %>%
+    select(heterogeneity_group, event_time, estimate, std.error, p.value)
+
+  # Check if there's any data for this outcome
+  if (nrow(table_data) == 0) {
+    cat("No data found for outcome:", outcome_var, "| group:", treatment_group, "- skipping table\n")
+    return(NULL)
+  }
+
+  # Create table with event times as rows, groups as columns
+  # Format: estimate with significance stars
+  table_formatted <- table_data %>%
+    mutate(
+      # Add significance stars
+      stars = case_when(
+        p.value < 0.01 ~ "***",
+        p.value < 0.05 ~ "**",
+        p.value < 0.10 ~ "*",
+        TRUE ~ ""
+      ),
+      # Format as "estimate (se)stars"
+      coef_formatted = sprintf("%.3f%s", estimate, stars),
+      se_formatted = sprintf("(%.3f)", std.error)
+    ) %>%
+    select(heterogeneity_group, event_time, coef_formatted, se_formatted)
+
+  # Pivot to wide format - coefficients
+  coefs_wide <- table_formatted %>%
+    select(heterogeneity_group, event_time, coef_formatted) %>%
+    pivot_wider(names_from = heterogeneity_group, values_from = coef_formatted)
+
+  # Pivot to wide format - standard errors
+  ses_wide <- table_formatted %>%
+    select(heterogeneity_group, event_time, se_formatted) %>%
+    pivot_wider(names_from = heterogeneity_group, values_from = se_formatted)
+
+  # Interleave coefficients and standard errors
+  event_times <- sort(unique(table_formatted$event_time))
+
+  final_table <- map_dfr(event_times, function(et) {
+    coef_row <- coefs_wide %>% filter(event_time == et)
+    se_row <- ses_wide %>%
+      filter(event_time == et) %>%
+      select(-event_time) %>%
+      mutate(event_time = NA_real_, .before = 1)
+
+    bind_rows(coef_row, se_row)
+  })
+
+  # Replace NA in event_time for SE rows with empty string
+  final_table <- final_table %>%
+    mutate(event_time = ifelse(is.na(event_time), "", as.character(event_time)))
+
+  # Rename event_time column
+  final_table <- final_table %>%
+    rename("Event Time" = event_time)
+
+  # Create tinytable
+  tt_table <- tt(final_table) %>%
+    format_tt(escape = FALSE) %>%
+    theme_tt(theme = "tabular")
+
+  # Save if requested
+  if (!is.null(save_name) & !is.null(results_dir)) {
+    # Create tables subdirectory
+    tables_dir <- file.path(results_dir, "tables")
+    dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
+
+    # Save table
+    save_path <- file.path(tables_dir, paste0(save_name, "_", outcome_var, "_", treatment_group, ".tex"))
+    save_tt(tt_table, save_path, overwrite = TRUE)
+
+    # Remove table wrappers
+    source(here::here("code", "helpers", "table_utilities.R"))
+    remove_table_wrappers(save_path)
+
+    cat("Saved heterogeneity table:", save_path, "\n")
+  }
+
+  return(tt_table)
 }
