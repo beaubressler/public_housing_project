@@ -132,7 +132,7 @@ tenant_project/regression_results/
 tex/presentations/
 
 # Archive folders
-*/archive/
+**/archive/
 
 # Work-in-progress/experimental directories
 code/build/census_tract/corrected/
@@ -147,6 +147,20 @@ code/learn/exploratory/analyze_ph_scale_1980.R
 code/learn/exploratory/analyze_ph_scale_t0.R
 code/learn/exploratory/create_ph_share_presentation_figures.R
 code/learn/exploratory/map_sf_public_housing_black_share.R
+
+# Full count validation/test scripts
+code/build/full_count/analyze_ed_validation_results_1930.R
+code/build/full_count/check_geocoding_score_vs_ed_match_1930.R
+code/build/full_count/diagnose_spatial_patterns_1930.R
+code/build/full_count/investigate_low_match_cities_1930.R
+code/build/full_count/validate_geocoded_ed_assignment_1930.R
+code/build/full_count/verify_ed_overlap_correlation_1930.R
+code/build/full_count/verify_spatial_averaging_mechanism_1930.R
+
+# Diagnostic scripts
+code/learn/check_median_bias_in_final_data.R
+code/learn/diagnose_chicago_sample_loss.R
+code/learn/diagnose_crosswalk_coverage.R
 
 # Temporary analysis files
 temp_*.R
