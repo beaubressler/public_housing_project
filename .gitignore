@@ -94,6 +94,7 @@ Thumbs.db
 *.nav
 *.snm
 *.vrb
+*-SAVE-ERROR
 
 # Packrat
 packrat/lib*/
