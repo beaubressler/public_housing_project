@@ -113,6 +113,8 @@ source(here(learn_dir, "create_data_source_table.R"))
 # source(here(exploratory_dir, "explore_public_housing_data.R"))
 source(here(exploratory_dir, "graph_census_data.R"))
 source(here(exploratory_dir, "google_ngram_public_housing.R"))
+source(here(exploratory_dir, "create_motivating_examples.R"))
+source(here(exploratory_dir, "describe_public_housing_sample.R"))
 
 ## Regressions -----
 ### Site selection regressions
@@ -126,6 +128,9 @@ source(here(site_selection_dir, "project_demographics_analysis.R"))
 ### Matched DiD -----
 # Run complete matched DiD analysis (all matching variants + heterogeneity)
 source(here(matched_did_dir, "run_complete_analysis.R"))
+
+## Interpretation and context -----
+source(here(exploratory_dir, "mechanical_vs_behavioral_decomposition.R"))
 
 ### Callaway-Sant'Anna staggered DiD -----
 # source(here(learn_dir, "staggered_did", "run_callaway_santanna.R"))
