@@ -25,6 +25,10 @@ set.seed(123456L)
 # ---- switches ----
 VARIANT <- get0("VARIANT", ifnotfound = "baseline")   # "baseline" | "no_cbsa"
 MATCHED_DATASET <- get0("MATCHED_DATASET", ifnotfound = "tract_data_matched_1_year.csv")
+WEIGHTING <- get0("WEIGHTING", ifnotfound = "unweighted")  # "unweighted" | "pop_weighted"
+
+# population weighting: use baseline population weights if pop_weighted
+use_pop_weights <- (WEIGHTING == "pop_weighted")
 
 # ---- basic knobs ----
 data_type   <- get0("data_type", ifnotfound = "combined")
@@ -54,8 +58,8 @@ outcome_variables <- c(
   "asinh_private_population_estimate","private_population_estimate",
   "asinh_private_black_population_estimate","private_black_population_estimate",
   "asinh_private_white_population_estimate","private_white_population_estimate",
-  "black_share","white_share","total_pop","black_pop","white_pop",
-  "asinh_pop_total","asinh_pop_black","asinh_pop_white",
+  "black_share","white_share","other_share","total_pop","black_pop","white_pop","other_pop",
+  "asinh_pop_total","asinh_pop_black","asinh_pop_white","asinh_pop_other",
   "median_income","asinh_median_income",
   "median_home_value_calculated","asinh_median_home_value_calculated",
   "median_rent_calculated","asinh_median_rent_calculated",
@@ -63,26 +67,29 @@ outcome_variables <- c(
 )
 
 outcome_labels <- c(
-  "asinh_private_population_estimate" = "Log Private Population",
-  "asinh_private_black_population_estimate" = "Log Private Black Population",
-  "asinh_private_white_population_estimate" = "Log Private White Population",
+  "asinh_private_population_estimate" = "Asinh Private Population",
+  "asinh_private_black_population_estimate" = "Asinh Private Black Population",
+  "asinh_private_white_population_estimate" = "Asinh Private White Population",
   "private_population_estimate" = "Private Population",
   "private_black_population_estimate" = "Private Black Population",
   "private_white_population_estimate" = "Private White Population",
   "black_share" = "Black Population Share",
   "white_share" = "White Population Share",
+  "other_share" = "Other Race Share",
   "total_pop" = "Total Population",
   "black_pop" = "Black Population",
   "white_pop" = "White Population",
-  "asinh_pop_total" = "Log Total Population",
-  "asinh_pop_black" = "Log Black Population",
-  "asinh_pop_white" = "Log White Population",
+  "other_pop" = "Other Race Population",
+  "asinh_pop_total" = "Asinh Total Population",
+  "asinh_pop_black" = "Asinh Black Population",
+  "asinh_pop_white" = "Asinh White Population",
+  "asinh_pop_other" = "Asinh Other Race Population",
   "median_income" = "Median Income",
   "asinh_median_income" = "Asinh Median Income",
   "median_home_value_calculated" = "Median Home Value",
   "asinh_median_home_value_calculated" = "Asinh Median Home Value",
   "median_rent_calculated" = "Median Rent",
-  "asinh_median_rent_calculated" = "Log Median Rent",
+  "asinh_median_rent_calculated" = "Asinh Median Rent",
   "total_units" = "Total Housing Units",
   "ln_total_units" = "Log Housing Units",
   "lfp_rate" = "Labor Force Participation Rate",
@@ -101,8 +108,9 @@ census_tract_sample_raw <- st_read(tract_with_treatment_status_filepath, quiet =
 treated_tracts_panel_raw <- st_read(treated_tracts_panel_filepath, quiet = TRUE) %>% st_drop_geometry()
 tracts_and_rings <- readr::read_csv(event_study_rings_filepath, show_col_types = FALSE) %>% filter(location_type != "outer")
 
-tract_data_matched <- readr::read_csv(matched_csv, show_col_types = FALSE) %>%
-  mutate(ln_total_units = log(total_units))
+tract_data_matched <- readr::read_csv(matched_csv, show_col_types = FALSE, guess_max = Inf) %>%
+  mutate(ln_total_units = log(total_units),
+         asinh_pop_other = asinh(other_pop))
 
 # ---- baseline analysis: event studies ----
 did_results_event_study <- list()
@@ -112,7 +120,8 @@ did_results_event_study_no_match_conley <- list()
 for (outcome in outcome_variables) {
   for (group in group_types) {
     message("Running: ", outcome, " | ", group)
-    results <- did_event_study(tract_data_matched, outcome, group)
+    results <- did_event_study(tract_data_matched, outcome, group,
+                               use_pop_weights = use_pop_weights)
     key <- paste(outcome, group, sep = "_")
     did_results_event_study[[key]]            <- results$twfe
     did_results_event_study_conley[[key]]     <- results$twfe_conley
@@ -139,8 +148,10 @@ baseline_means <- tract_data_matched %>%
   filter(year == baseline_year) %>%
   summarise(
     black_share = mean(black_share, na.rm = TRUE),
+    other_share = mean(other_share, na.rm = TRUE),
     black_pop   = mean(black_pop,   na.rm = TRUE),
     white_pop   = mean(white_pop,   na.rm = TRUE),
+    other_pop   = mean(other_pop,   na.rm = TRUE),
     unemp_rate  = mean(unemp_rate,  na.rm = TRUE),
     lfp_rate    = mean(lfp_rate,    na.rm = TRUE)
   ) %>%

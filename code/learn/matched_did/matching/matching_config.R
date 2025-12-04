@@ -40,14 +40,14 @@ matching_vars <- c(
 )
 
 # Exact matching variables (differ by variant)
+# Note: Redlining removed from exact matching and should be added to matching_vars
+# if you want it included in the propensity score
 exact_matching_vars_baseline <- c(
   "county_id",
-  "redlined_binary_80pp",
   "ur_binary_5pp"
 )
 
 exact_matching_vars_no_cbsa <- c(
- "redlined_binary_80pp",
   "ur_binary_5pp"
 )
 

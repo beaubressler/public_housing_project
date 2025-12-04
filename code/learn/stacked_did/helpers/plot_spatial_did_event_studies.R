@@ -32,9 +32,9 @@ create_event_study_plot <- function(reg_results_df, data, dep_var, title) {
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(title = title,
          subtitle = "",
-         x = "Years Relative to Treatment",
+         x = "Decades Relative to Treatment",
          y = "Difference in Difference Estimate") +
-    scale_x_continuous(breaks = seq(-40, 60, 10)) +
+    scale_x_continuous(breaks = seq(-40, 60, 10), labels = seq(-4, 6, 1)) +
     theme_minimal() +
     theme(legend.position = "bottom", plot.background = element_rect(fill = "white"),
           panel.grid.major.x = element_blank(),
@@ -74,11 +74,11 @@ make_overlay_plot <- function(df, outcomes, outcome_labels_map, title_text, grou
     geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4, color = "grey50") +
     labs(
       title = title_text,
-      x = "Years Relative to Construction",
+      x = "Decades Relative to Treatment",
       y = "Difference-in-Differences Estimate",
       color = ""
     ) +
-    scale_x_continuous(breaks = x_breaks) +
+    scale_x_continuous(breaks = x_breaks, labels = x_breaks / 10) +
     scale_color_manual(values = colors) +
     theme_classic(base_size = 14) +
     theme(

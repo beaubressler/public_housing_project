@@ -6,7 +6,9 @@
 
 did_event_study <- function(input_data, outcome_var, treatment_group,
                             # heterogeneity filters
-                            size = NULL, city_filter = NULL, initial_share = NULL) {
+                            size = NULL, city_filter = NULL, initial_share = NULL,
+                            # population weighting
+                            use_pop_weights = FALSE) {
   
   
   # For testing, comment out otherwise
@@ -39,17 +41,32 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
       group_treatment_year = min(matched_treatment_year, na.rm = TRUE),
       event_time = year - group_treatment_year,
       treated = ifelse(location_type == treatment_group, 1, 0)) %>%  # treated always on if in treatment group
-    ungroup() %>% 
+    ungroup() %>%
     # exclude event times for which we don't have full overlap
     filter(event_time >= -20, event_time <= 30)
-  
-  
+
+  # Apply population weighting if requested
+  if (use_pop_weights) {
+    # Get baseline population of focal tract (treated or inner depending on analysis)
+    focal_baseline_pop <- data %>%
+      filter(event_time == -10, location_type == treatment_group) %>%
+      select(match_group, matched_treatment_year, total_pop) %>%
+      distinct() %>%
+      rename(focal_baseline_pop = total_pop)
+
+    # Apply weights (join on match_group AND matched_treatment_year)
+    data <- data %>%
+      left_join(focal_baseline_pop, by = c("match_group", "matched_treatment_year")) %>%
+      mutate(weights = weights * focal_baseline_pop)
+  }
+
   # calculate pre-period mean of variable
-  pre_period_mean <-
-    data %>%
-    filter(event_time == -10) %>%
-    summarize(mean_outcome = mean(!!sym(outcome_var), na.rm = TRUE)) %>%
-    pull(mean_outcome)
+  # pre_period_mean <-
+  #   data %>%
+  #   filter(event_time == -10) %>%
+  #   #ungroup() %>%
+  #   summarize(mean_outcome = mean(!!sym(outcome_var), na.rm = TRUE)) %>%
+  #   pull(mean_outcome)
   
   # calculate baseline outcome variable (in event_time == 10)
   baseline_outcome <-
@@ -74,11 +91,11 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
   if (variant %in% c("no_cbsa", "cem")) {
     # Cross-city matching (no_cbsa) or CEM with anti-exact CBSA:
     # Add cbsa^year to control for city-specific calendar-year shocks
-    # match_group^event_time already ensures within-match-group identification
+    # match_group^year ensures within-match-group identification
     formula <- as.formula(paste(outcome_var,
                                 "~ i(event_time, treated, ref = -10)",
                                #"+ i(event_time, baseline_outcome, ref = -10)",
-    "| GISJOIN_1950^match_group +  match_group^event_time"))
+    "| GISJOIN_1950^match_group +  match_group^year"))
     # Wing et al 2024: equation (3)
     # formula <- as.formula(paste0(
     #   outcome_var, " ~ i(event_time, treated, ref = -10) | treated +  match_group"
@@ -89,7 +106,7 @@ did_event_study <- function(input_data, outcome_var, treatment_group,
     formula <- as.formula(paste(outcome_var,
                                 "~ i(event_time, treated, ref = -10) ",
                              #   "+ i(event_time, baseline_outcome, ref = -10)",
-                                "| GISJOIN_1950^match_group +  match_group^event_time"))
+                                "| GISJOIN_1950^match_group +  match_group^year"))
 
     # Wing et al 2024 equation 3
     # formula <- as.formula(paste0(

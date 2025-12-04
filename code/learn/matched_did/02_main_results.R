@@ -18,6 +18,7 @@ suppressPackageStartupMessages({
 # Load color palettes and table utilities
 source(here("code", "helpers", "color_palettes.R"))
 source(here("code", "helpers", "table_utilities.R"))
+source(here(helper_dir, "create_regression_summary_tables.R"))
 
 message("\n=== PART 2: MAIN RESULTS VISUALIZATION ===")
 
@@ -54,11 +55,11 @@ make_overlay_plot <- function(df, outcomes, outcome_labels_map, title_text, grou
     geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4, color = "grey50") +
     labs(
       title = title_text,
-      x = "Years Relative to Construction",
+      x = "Decades Relative to Treatment",
       y = "Difference-in-Differences Estimate",
       color = ""
     ) +
-    scale_x_continuous(breaks = x_breaks) +
+    scale_x_continuous(breaks = x_breaks, labels = x_breaks / 10) +
     scale_color_manual(values = colors) +
     theme_classic(base_size = 14) +
     theme(
@@ -75,7 +76,13 @@ make_overlay_plot <- function(df, outcomes, outcome_labels_map, title_text, grou
 dataset_type <- str_remove(get0("MATCHED_DATASET", ifnotfound = "tract_data_matched_1_year.csv"), "^tract_data_matched_") %>% str_remove("\\.csv$")
 # Use results_dir from 01_setup_and_models.R, append dataset_type
 # Note: results_dir = here("output", "regression_results", "matched_did", data_type, VARIANT)
-results_dir_with_dataset <- here("output", "regression_results", "matched_did", data_type, VARIANT, dataset_type)
+# If pop_weighted, add as subfolder within dataset_type
+weighting_type <- get0("WEIGHTING", ifnotfound = "unweighted")
+if (weighting_type == "pop_weighted") {
+  results_dir_with_dataset <- here("output", "regression_results", "matched_did", data_type, VARIANT, dataset_type, "pop_weighted")
+} else {
+  results_dir_with_dataset <- here("output", "regression_results", "matched_did", data_type, VARIANT, dataset_type)
+}
 dir.create(results_dir_with_dataset, recursive = TRUE, showWarnings = FALSE)
 
 slides_dir <- file.path(results_dir_with_dataset, "slides")
@@ -97,9 +104,9 @@ message("\n=== Creating Treated Neighborhood Plots ===\n")
 
 # Plot 1: Log population by race (treated)
 treated_pop_log_labels <- c(
-  "asinh_pop_total" = "Log Total Population",
-  "asinh_pop_white" = "Log White Population",
-  "asinh_pop_black" = "Log Black Population"
+  "asinh_pop_total" = "Asinh Total Population",
+  "asinh_pop_white" = "Asinh White Population",
+  "asinh_pop_black" = "Asinh Black Population"
 )
 
 treated_pop_log_plot <- make_overlay_plot(
@@ -135,9 +142,9 @@ ggsave(file.path(slides_dir, "event_study_pop_levels_by_race_treated.pdf"),
 
 # Plot 3: Log private population (treated)
 treated_private_pop_log_labels <- c(
-  "asinh_private_population_estimate" = "Private Population",
-  "asinh_private_white_population_estimate" = "Private White Population",
-  "asinh_private_black_population_estimate" = "Private Black Population"
+  "asinh_private_population_estimate" = "Asinh Private Population",
+  "asinh_private_white_population_estimate" = "Asinh Private White Population",
+  "asinh_private_black_population_estimate" = "Asinh Private Black Population"
 )
 
 treated_private_pop_log_plot <- make_overlay_plot(
@@ -176,15 +183,16 @@ ggsave(file.path(slides_dir, "event_study_private_pop_levels_treated.pdf"),
 # Plot 5: Population shares (treated)
 treated_pop_shares_labels <- c(
   "black_share" = "Black Population Share",
-  "white_share" = "White Population Share"
+  "white_share" = "White Population Share",
+  "other_share" = "Other Race Share"
 )
 
 treated_pop_shares_plot <- make_overlay_plot(
   df = coefs_clean,
-  outcomes = c("black_share", "white_share"),
+  outcomes = c("black_share", "white_share", "other_share"),
   outcome_labels_map = treated_pop_shares_labels,
   title_text = NULL,
-  colors = c(okabe_ito[["orange"]], okabe_ito[["sky_blue"]])
+  colors = c(okabe_ito[["orange"]], okabe_ito[["sky_blue"]], okabe_ito[["reddish_purple"]])
 )
 
 ggsave(file.path(results_dir_with_dataset, "event_study_pop_shares_treated.pdf"),
@@ -194,8 +202,8 @@ ggsave(file.path(slides_dir, "event_study_pop_shares_treated.pdf"),
 
 # Plot 6: Rent and income (treated)
 treated_rent_income_labels <- c(
-  "asinh_median_rent_calculated" = "Log Median Rent",
-  "asinh_median_income" = "Log Median Income"
+  "asinh_median_rent_calculated" = "Asinh Median Rent",
+  "asinh_median_income" = "Asinh Median Income"
 )
 
 treated_rent_income_plot <- make_overlay_plot(
@@ -232,7 +240,7 @@ ggsave(file.path(slides_dir, "event_study_labor_market_treated.pdf"),
 
 # Plot 8: Home values and education (treated)
 treated_home_education_labels <- c(
-  "asinh_median_home_value_calculated" = "Log Median Home Value",
+  "asinh_median_home_value_calculated" = "Asinh Median Home Value",
   "pct_hs_grad" = "HS Graduation Rate"
 )
 
@@ -255,9 +263,9 @@ message("\n=== Creating Spillover Neighborhood Plots ===\n")
 
 # Plot 8: Log population by race (spillover)
 spillover_pop_log_labels <- c(
-  "asinh_pop_total" = "Log Total Population",
-  "asinh_pop_white" = "Log White Population",
-  "asinh_pop_black" = "Log Black Population"
+  "asinh_pop_total" = "Asinh Total Population",
+  "asinh_pop_white" = "Asinh White Population",
+  "asinh_pop_black" = "Asinh Black Population"
 )
 
 spillover_pop_log_plot <- make_overlay_plot(
@@ -296,15 +304,16 @@ ggsave(file.path(slides_dir, "event_study_pop_levels_by_race_spillover.pdf"),
 # Plot 10: Population shares (spillover)
 spillover_pop_shares_labels <- c(
   "black_share" = "Black Population Share",
-  "white_share" = "White Population Share"
+  "white_share" = "White Population Share",
+  "other_share" = "Other Race Share"
 )
 
 spillover_pop_shares_plot <- make_overlay_plot(
   df = coefs_clean,
-  outcomes = c("black_share", "white_share"),
+  outcomes = c("black_share", "white_share", "other_share"),
   outcome_labels_map = spillover_pop_shares_labels,
   title_text = NULL,
-  colors = c(okabe_ito[["orange"]], okabe_ito[["sky_blue"]]),
+  colors = c(okabe_ito[["orange"]], okabe_ito[["sky_blue"]], okabe_ito[["reddish_purple"]]),
   group = "inner"
 )
 
@@ -315,8 +324,8 @@ ggsave(file.path(slides_dir, "event_study_pop_shares_spillover.pdf"),
 
 # Plot 11: Rent and income (spillover)
 spillover_rent_income_labels <- c(
-  "asinh_median_rent_calculated" = "Log Median Rent",
-  "asinh_median_income" = "Log Median Income"
+  "asinh_median_rent_calculated" = "Asinh Median Rent",
+  "asinh_median_income" = "Asinh Median Income"
 )
 
 spillover_rent_income_plot <- make_overlay_plot(
@@ -355,7 +364,7 @@ ggsave(file.path(slides_dir, "event_study_labor_market_spillover.pdf"),
 
 # Plot 13: Home values and education (spillover)
 spillover_home_education_labels <- c(
-  "asinh_median_home_value_calculated" = "Log Median Home Value",
+  "asinh_median_home_value_calculated" = "Asinh Median Home Value",
   "pct_hs_grad" = "HS Graduation Rate"
 )
 
@@ -642,9 +651,9 @@ key_outcomes <- c("black_share", "asinh_pop_black", "asinh_median_income",
 
 outcome_labels_for_table <- c(
   "black_share" = "Black Share",
-  "asinh_pop_black" = "Log Black Pop",
-  "asinh_median_income" = "Log Income",
-  "asinh_median_rent_calculated" = "Log Rent",
+  "asinh_pop_black" = "Asinh Black Pop",
+  "asinh_median_income" = "Asinh Income",
+  "asinh_median_rent_calculated" = "Asinh Rent",
   "pct_hs_grad" = "HS Grad Rate",
   "unemp_rate" = "Unemp Rate"
 )
@@ -851,15 +860,15 @@ economic_housing_outcomes <- c("asinh_median_income", "asinh_median_rent_calcula
 
 # LaTeX-compatible outcome labels for appendix tables
 pop_demo_labels <- c(
-  "asinh_pop_black" = "Log Black Pop",
-  "asinh_pop_total" = "Log Total Pop",
-  "asinh_pop_white" = "Log White Pop",
+  "asinh_pop_black" = "Asinh Black Pop",
+  "asinh_pop_total" = "Asinh Total Pop",
+  "asinh_pop_white" = "Asinh White Pop",
   "black_share" = "Black Share"
 )
 
 econ_housing_labels <- c(
-  "asinh_median_income" = "Log Median Income",
-  "asinh_median_rent_calculated" = "Log Median Rent",
+  "asinh_median_income" = "Asinh Median Income",
+  "asinh_median_rent_calculated" = "Asinh Median Rent",
   "pct_hs_grad" = "HS Grad Rate",
   "unemp_rate" = "Unemp Rate"
 )
@@ -1036,6 +1045,63 @@ tt(spillover_econ_table_tract) %>%
 remove_table_wrappers(file.path(tables_dir, "tract_clustered_spillover_economic_housing.tex"))
 
 message("Baseline tract-clustered tables saved to: ", tables_dir)
+
+# ---- Regression Summary Tables with GOF Statistics ----
+message("\n=== Creating Regression Summary Tables ===\n")
+
+# Define outcome groups
+reg_summary_pop_outcomes <- c("black_share", "asinh_pop_black", "asinh_pop_total", "asinh_pop_white")
+reg_summary_econ_outcomes <- c("asinh_median_income", "asinh_median_rent_calculated", "pct_hs_grad", "unemp_rate")
+
+# Treated - Population/Demographics Regression Summary
+treated_pop_reg_summary <- create_event_study_regression_table(
+  model_list = did_results_event_study_conley,
+  outcomes_to_show = reg_summary_pop_outcomes,
+  outcome_labels = outcome_labels,
+  group_type = "treated",
+  event_times = c(-20, 0, 10, 20, 30)
+)
+
+save_tt(treated_pop_reg_summary, file.path(tables_dir, "regression_summary_treated_population.tex"), overwrite = TRUE)
+remove_table_wrappers(file.path(tables_dir, "regression_summary_treated_population.tex"))
+
+# Treated - Economic/Housing Regression Summary
+treated_econ_reg_summary <- create_event_study_regression_table(
+  model_list = did_results_event_study_conley,
+  outcomes_to_show = reg_summary_econ_outcomes,
+  outcome_labels = outcome_labels,
+  group_type = "treated",
+  event_times = c(-20, 0, 10, 20, 30)
+)
+
+save_tt(treated_econ_reg_summary, file.path(tables_dir, "regression_summary_treated_economic.tex"), overwrite = TRUE)
+remove_table_wrappers(file.path(tables_dir, "regression_summary_treated_economic.tex"))
+
+# Spillover - Population/Demographics Regression Summary
+spillover_pop_reg_summary <- create_event_study_regression_table(
+  model_list = did_results_event_study_conley,
+  outcomes_to_show = reg_summary_pop_outcomes,
+  outcome_labels = outcome_labels,
+  group_type = "inner",
+  event_times = c(-20, 0, 10, 20, 30)
+)
+
+save_tt(spillover_pop_reg_summary, file.path(tables_dir, "regression_summary_spillover_population.tex"), overwrite = TRUE)
+remove_table_wrappers(file.path(tables_dir, "regression_summary_spillover_population.tex"))
+
+# Spillover - Economic/Housing Regression Summary
+spillover_econ_reg_summary <- create_event_study_regression_table(
+  model_list = did_results_event_study_conley,
+  outcomes_to_show = reg_summary_econ_outcomes,
+  outcome_labels = outcome_labels,
+  group_type = "inner",
+  event_times = c(-20, 0, 10, 20, 30)
+)
+
+save_tt(spillover_econ_reg_summary, file.path(tables_dir, "regression_summary_spillover_economic.tex"), overwrite = TRUE)
+remove_table_wrappers(file.path(tables_dir, "regression_summary_spillover_economic.tex"))
+
+message("Regression summary tables saved to: ", tables_dir)
 
 # ---- Effect Magnitudes Summary ----
 cat("\n=== EFFECT MAGNITUDES SUMMARY ===\n")

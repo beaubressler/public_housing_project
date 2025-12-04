@@ -65,8 +65,8 @@ create_event_study_plot <- function(reg_results_df, dep_var, title,
                   width = 0.3, size = 1.1, alpha = 0.7, position = position_dodge(width = 1)) +
     geom_point(size = 2, position = position_dodge(width = 1)) +
     geom_hline(yintercept = 0, linetype = "dashed") +
-    labs(title = title, x = "Years Relative to Treatment", y = "Difference-in-Difference Estimate") +
-    scale_x_continuous(breaks = seq(-40, 40, 10)) +
+    labs(title = title, x = "Decades Relative to Treatment", y = "Difference-in-Difference Estimate") +
+    scale_x_continuous(breaks = seq(-40, 40, 10), labels = seq(-4, 4, 1)) +
     theme_minimal() +
     theme(legend.position = "bottom",
           plot.background = element_rect(fill = "white"),

@@ -30,9 +30,9 @@ create_balance_plot <- function(tableone_obj, group_name, title = "Covariate Bal
   variable_labels <- c(
     "asinh_pop_total" = "Population",
     "black_share" = "Black Share",
-    "asinh_pop_black" = "Log Black Pop",
-    "asinh_median_income" = "Log Median Income",
-    "asinh_median_rent_calculated" = "Log Median Rent",
+    "asinh_pop_black" = "Black Pop (asinh)",
+    "asinh_median_income" = "Median Income (asinh)",
+    "asinh_median_rent_calculated" = "Median Rent (asinh)",
     "unemp_rate" = "Unemployment Rate",
     "lfp_rate" = "Labor Force Part. Rate",
     "asinh_distance_from_cbd" = "Distance from CBD",
@@ -254,6 +254,57 @@ create_balance_tables <- function(matched_data_1_year, matched_data_2_year, bala
     return(balance_df)
   }
 
+  # Function to convert CreateTableOne output to table WITH p-values for appendix
+  format_balance_table_with_pvalues <- function(tableone_obj, group_name) {
+
+    # Extract the printed output as data frame with p-values
+    table_matrix <- print(tableone_obj, smd = TRUE, test = TRUE, printToggle = FALSE)
+
+    # Convert to data frame and clean up
+    balance_df <- as.data.frame(table_matrix) %>%
+      rownames_to_column("Variable") %>%
+      # Remove the first row (sample sizes) - we'll add back manually
+      filter(Variable != "n") %>%
+      # Clean variable names - remove (mean (SD)) suffixes and map to clean names
+      mutate(
+        Variable = str_replace_all(Variable, "\\s*\\(mean \\(SD\\)\\)", ""),
+        Variable = if_else(Variable %in% names(variable_labels),
+                          variable_labels[Variable],
+                          Variable)
+      ) %>%
+      # Select columns including p-value (keep it this time!)
+      select(Variable, donor_pool, !!sym(group_name), SMD, p) %>%
+      rename(
+        "Control" = donor_pool,
+        "Std. Diff." = SMD,
+        "p-value" = p
+      )
+
+    # Rename the treatment column based on group type
+    if (group_name == "treated") {
+      balance_df <- balance_df %>% rename("Treated" = treated)
+    } else if (group_name == "inner") {
+      balance_df <- balance_df %>% rename("Spillover" = inner)
+    }
+
+    # Add sample sizes back
+    # Extract n from the original table
+    n_control <- table_matrix["n", "donor_pool"]
+    n_treated <- table_matrix["n", group_name]
+
+    balance_df <- balance_df %>%
+      add_row(
+        Variable = "N (Tracts)",
+        Control = n_control,
+        !!names(balance_df)[3] := n_treated,  # Dynamic column name
+        `Std. Diff.` = "",
+        `p-value` = "",
+        .before = 1
+      )
+
+    return(balance_df)
+  }
+
   ## ---------- 1-year matched sample ----------
   cat("\n--- 1-year pre-treatment balance ---\n")
 
@@ -391,6 +442,22 @@ create_balance_tables <- function(matched_data_1_year, matched_data_2_year, bala
       tables_slides_dir
     )
 
+    # Also save version with p-values for appendix
+    treated_balance_pvalues_2yr <- format_balance_table_with_pvalues(balance_table_treated_2yr, "treated")
+
+    pvalues_table <- tt(treated_balance_pvalues_2yr) %>%
+      format_tt(escape = FALSE) %>%
+      theme_tt(theme = "tabular")
+
+    save_tt(pvalues_table,
+            file.path(tables_slides_dir, "balance_table_treated_neighborhoods_2yr_pvalues.tex"),
+            overwrite = TRUE)
+
+    remove_table_wrappers(file.path(tables_slides_dir, "balance_table_treated_neighborhoods_2yr_pvalues.tex"))
+
+    cat("P-value version saved to:",
+        file.path(tables_slides_dir, "balance_table_treated_neighborhoods_2yr_pvalues.tex"), "\n")
+
     # Create balance plots
     # Paper version - no title
     create_balance_plot(balance_table_treated_2yr,
@@ -439,6 +506,22 @@ create_balance_tables <- function(matched_data_1_year, matched_data_2_year, bala
       tables_dir,
       tables_slides_dir
     )
+
+    # Also save version with p-values for appendix
+    spillover_balance_pvalues_2yr <- format_balance_table_with_pvalues(balance_table_inner_2yr, "inner")
+
+    pvalues_table_spillover <- tt(spillover_balance_pvalues_2yr) %>%
+      format_tt(escape = FALSE) %>%
+      theme_tt(theme = "tabular")
+
+    save_tt(pvalues_table_spillover,
+            file.path(tables_slides_dir, "balance_table_spillover_neighborhoods_2yr_pvalues.tex"),
+            overwrite = TRUE)
+
+    remove_table_wrappers(file.path(tables_slides_dir, "balance_table_spillover_neighborhoods_2yr_pvalues.tex"))
+
+    cat("P-value version saved to:",
+        file.path(tables_slides_dir, "balance_table_spillover_neighborhoods_2yr_pvalues.tex"), "\n")
 
     # Create balance plots
     # Paper version - no title

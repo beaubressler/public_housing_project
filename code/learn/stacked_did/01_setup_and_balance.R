@@ -85,7 +85,7 @@ writeLines(balance_html_treated, html_file_treated)
 
 pdf_file_treated <- file.path(balance_table_dir, "tables", "balance_table_treated_vs_outer.pdf")
 webshot(html_file_treated, pdf_file_treated, delay = 1, vwidth = 1000, vheight = 800)
-file.remove(html_file_treated)
+if (file.exists(html_file_treated)) file.remove(html_file_treated)
 
 message("Treated vs Outer balance table saved to: ", pdf_file_treated)
 
@@ -121,7 +121,7 @@ writeLines(balance_html_inner, html_file_inner)
 
 pdf_file_inner <- file.path(balance_table_dir, "tables", "balance_table_inner_vs_outer.pdf")
 webshot(html_file_inner, pdf_file_inner, delay = 1, vwidth = 1000, vheight = 800)
-file.remove(html_file_inner)
+if (file.exists(html_file_inner)) file.remove(html_file_inner)
 
 message("Inner vs Outer balance table saved to: ", pdf_file_inner)
 

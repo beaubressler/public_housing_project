@@ -113,7 +113,7 @@ dynamic_plot <- ggdid(cs_dynamic) +
   labs(
     title = "Event Study: Effect of Public Housing on Black Share",
     subtitle = "Callaway & Sant'Anna (2021) Estimator",
-    x = "Years Relative to Treatment",
+    x = "Decades Relative to Treatment",
     y = "Average Treatment Effect",
     caption = "95% pointwise and simultaneous confidence intervals"
   ) +

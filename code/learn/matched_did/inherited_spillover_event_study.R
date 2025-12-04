@@ -231,10 +231,10 @@ plot_spillover_results <- function(results_df, outcome_var) {
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(
       title = paste("Spillover Effects: Effect of public housing on", clean_label),
-      x = "Years Relative to Treatment", 
+      x = "Decades Relative to Treatment", 
       y = "Difference-in-Difference Estimate"
     ) +
-    scale_x_continuous(breaks = seq(-30, 40, 10)) +
+    scale_x_continuous(breaks = seq(-30, 40, 10), labels = seq(-3, 4, 1)) +
     theme_minimal() +
     theme(
       legend.position = "bottom",
@@ -380,7 +380,7 @@ plot_spillover_heterogeneity <- function(results_df, outcome_var, het_var) {
   het_labels <- c(
     "total_public_housing_units_tminus10" = "Project Size",
     "black_share_tminus10" = "Baseline Black Share",
-    "asinh_median_income_tminus10" = "Baseline Log Income")
+    "asinh_median_income_tminus10" = "Baseline Asinh Income")
   
   clean_outcome <- outcome_labels[[outcome_var]]
   if (is.null(clean_outcome)) clean_outcome <- outcome_var

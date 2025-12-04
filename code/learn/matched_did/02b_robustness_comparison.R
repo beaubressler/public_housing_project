@@ -17,7 +17,7 @@ dataset_years <- c("1_year", "2_year")  # Run for both
 specs_to_compare <- c("baseline", "no_cbsa", "caliper")
 spec_labels <- c(
   "baseline" = "Baseline (within county)",
-  "no_cbsa" = "PS (other CBSA)",
+  "no_cbsa" = "Cross-metro",
   "cem" = "CEM (other CBSA)",
   "caliper" = "Caliper (within county)",
   "genetic" = "Genetic (within county)"
@@ -120,10 +120,10 @@ make_robustness_plot <- function(df, outcome_var, group_filter = "treated",
     geom_point(size = 2.5, stroke = 0) +
     geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.4) +
     scale_color_brewer(palette = "Dark2") +
-    scale_x_continuous(breaks = seq(-40, 40, 10)) +
+    scale_x_continuous(breaks = seq(-40, 40, 10), labels = seq(-4, 4, 1)) +
     labs(
       title = title_text,
-      x = "Years Relative to Construction",
+      x = "Decades Relative to Treatment",
       y = "Difference-in-Differences Estimate"
     ) +
     pub_theme(14)

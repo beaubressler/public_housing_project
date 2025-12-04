@@ -29,3 +29,22 @@ remove_table_wrappers <- function(filepath) {
 
   invisible(filepath)
 }
+
+#' Get custom goodness-of-fit map for regression tables
+#'
+#' Returns a goodness-of-fit map for use with modelsummary that formats
+#' R-squared statistics with proper superscripts and uses cleaner labels.
+#'
+#' @return A tibble suitable for use as gof_map parameter in modelsummary
+#'
+#' @examples
+#' modelsummary(models, gof_map = get_gof_map_regression())
+#'
+get_gof_map_regression <- function() {
+  tibble::tribble(
+    ~raw,            ~clean,          ~fmt,
+    "nobs",          "N",             0,
+    "r.squared",     "R$^2$",         3,
+    "adj.r.squared", "Adj. R$^2$",    3
+  )
+}

@@ -16,7 +16,7 @@ dataset_years <- c("1_year", "2_year")
 specs_to_compare <- c("baseline", "no_cbsa", "caliper")
 spec_labels <- c(
   "baseline" = "Baseline (within county)",
-  "no_cbsa" = "PS (other CBSA)",
+  "no_cbsa" = "Cross-metro",
   "cem" = "CEM (other CBSA)",
   "caliper" = "Caliper (within county)",
   "genetic" = "Genetic (within county)"
