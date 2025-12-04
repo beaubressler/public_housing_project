@@ -20,7 +20,11 @@ tract_data <- st_read(
        "census_tract_sample_with_treatment_status_balanced.gpkg"),
   quiet = TRUE
 ) %>%
-  st_drop_geometry()
+  st_drop_geometry() %>%
+  # Drop tracts with area > 10 km² (geographic outliers, 13 tracts = 0.2%)
+  mutate(area_km2 = area_m2 / 1000000) %>%
+  filter(area_km2 <= 10) %>%
+  select(-area_km2)
 
 # Public housing project data - full cleaned dataset
 project_data_full <- st_read(
@@ -87,7 +91,8 @@ population_vars <- c(
 )
 
 demographic_vars <- c(
-  "black_share"
+  "black_share",
+  "other_share"
 )
 
 economic_vars <- c(
@@ -115,7 +120,7 @@ tract_summary_constant <- tract_data %>%
   ) %>%
   create_summary_stats(geographic_vars_constant, year_label = "Constant")
 
-# Create summary stats for 1940 and 1990 (time-varying)
+# Create summary stats for 1940 and 2010 (time-varying)
 tract_summary_1940 <- tract_data %>%
   filter(YEAR == 1940) %>%
   create_summary_stats(
@@ -124,19 +129,19 @@ tract_summary_1940 <- tract_data %>%
     year_label = "1940"
   )
 
-tract_summary_1990 <- tract_data %>%
-  filter(YEAR == 1990) %>%
+tract_summary_2010 <- tract_data %>%
+  filter(YEAR == 2010) %>%
   create_summary_stats(
     c(population_vars, demographic_vars, economic_vars,
       housing_vars, education_vars),
-    year_label = "1990"
+    year_label = "2010"
   )
 
 # Combine all years
 tract_summary_combined <- bind_rows(
   tract_summary_constant,
   tract_summary_1940,
-  tract_summary_1990
+  tract_summary_2010
 ) %>%
   arrange(variable, year)
 
@@ -407,6 +412,9 @@ tract_table <- tract_summary_combined %>%
   # Filter out rows with all NaN/Inf values (variables not available in all years)
   filter(!(is.nan(mean) | is.infinite(mean))) %>%
   mutate(across(c(mean, median, sd, min, max), ~round(.x, 2))) %>%
+  # Convert population variables to integers (no decimals)
+  mutate(across(c(mean, median, sd, min, max),
+                ~if_else(variable == "total_pop", as.numeric(as.integer(.x)), .x))) %>%
   mutate(
     variable = case_when(
       variable == "area_km2" ~ "Tract area (sq km)",
@@ -432,33 +440,39 @@ tract_table <- tract_summary_combined %>%
     )
   ) %>%
   select(Year = year, Variable = variable, Mean = mean, Median = median,
-         SD = sd, Min = min, Max = max)
+         SD = sd, `Min.` = min, `Max.` = max)
 
 # 4. Create slide-friendly versions ----
 
 # Compact tract summary for slides (key variables only)
 tract_table_slides <- tract_summary_combined %>%
   filter(variable %in% c(
+    "area_km2",
     "total_pop",
     "black_share"
   )) %>%
   filter(!(is.nan(mean) | is.infinite(mean))) %>%
   mutate(across(c(median, mean, sd, min, max), ~round(.x, 2))) %>%
+  # Convert population variables to integers (no decimals)
+  mutate(across(c(mean, median, sd, min, max),
+                ~if_else(variable == "total_pop", as.numeric(as.integer(.x)), .x))) %>%
   mutate(
     variable = case_when(
+      variable == "area_km2" ~ "Tract area (sq km)",
       variable == "total_pop" ~ "Total population",
       variable == "black_share" ~ "Black share",
       TRUE ~ variable
     ),
     # Add ordering factor to control display order
     variable_order = case_when(
-      variable == "Total population" ~ 1,
-      variable == "Black share" ~ 2,
+      variable == "Tract area (sq km)" ~ 1,
+      variable == "Total population" ~ 2,
+      variable == "Black share" ~ 3,
       TRUE ~ 99
     )
   ) %>%
   arrange(variable_order, year) %>%
-  select(Year = year, Variable = variable, Mean = mean, Median = median, SD = sd, Min = min, Max = max)
+  select(Year = year, Variable = variable, Mean = mean, Median = median, SD = sd, `Min.` = min, `Max.` = max)
 
 # City-level summary for slides (top 10 by total units) - using full sample
 project_summary_by_city <- project_data_full %>%
@@ -494,7 +508,7 @@ if (!dir.exists(slides_dir)) dir.create(slides_dir, recursive = TRUE)
 if (!dir.exists(figures_dir)) dir.create(figures_dir, recursive = TRUE)
 
 # Save as CSV - full tables
-write_csv(tract_table, here(output_dir, "tract_summary_statistics_1940_1990.csv"))
+write_csv(tract_table, here(output_dir, "tract_summary_statistics_1940_2010.csv"))
 write_csv(project_summary_comparison, here(output_dir, "project_summary_comparison.csv"))
 write_csv(project_source_summary, here(output_dir, "project_source_summary.csv"))
 write_csv(building_type_summary, here(output_dir, "building_type_summary.csv"))
@@ -508,8 +522,17 @@ write_csv(treatment_timing, here(slides_dir, "treatment_timing_distribution.csv"
 tract_table |>
   tt() |>
   theme_tt(theme = "tabular") |>
-  save_tt(here(output_dir, "tract_summary_statistics_1940_1990.tex"), overwrite = TRUE)
-remove_table_wrappers(here(output_dir, "tract_summary_statistics_1940_1990.tex"))
+  save_tt(here(output_dir, "tract_summary_statistics_1940_2010.tex"), overwrite = TRUE)
+remove_table_wrappers(here(output_dir, "tract_summary_statistics_1940_2010.tex"))
+
+# Post-process to remove .00 from Total population rows
+full_table_path <- here(output_dir, "tract_summary_statistics_1940_2010.tex")
+full_table_content <- readLines(full_table_path)
+# Apply gsub in a loop to catch all .00 occurrences in Total population rows
+for (i in 1:10) {
+  full_table_content <- gsub("(Total population[^\\\\]*?)(\\d+)\\.00", "\\1\\2", full_table_content, perl = TRUE)
+}
+writeLines(full_table_content, full_table_path)
 
 project_summary_comparison |>
   tt() |>
@@ -537,6 +560,15 @@ tract_table_slides |>
   style_tt(fontsize = 0.8) |>
   theme_tt(theme = "tabular") |>
   save_tt(here(slides_dir, "tract_summary_statistics_slides.tex"), overwrite = TRUE)
+
+# Post-process to remove .00 from Total population rows
+slides_table_path <- here(slides_dir, "tract_summary_statistics_slides.tex")
+slides_table_content <- readLines(slides_table_path)
+# Apply gsub in a loop to catch all .00 occurrences in Total population rows
+for (i in 1:10) {
+  slides_table_content <- gsub("(Total population[^\\\\]*?)(\\d+)\\.00", "\\1\\2", slides_table_content, perl = TRUE)
+}
+writeLines(slides_table_content, slides_table_path)
 
 project_summary_by_city |>
   tt() |>
@@ -606,7 +638,7 @@ ggsave(
 )
 
 # Print summary to console
-cat("\n=== Census Tract Summary Statistics (1940 vs 1990) ===\n")
+cat("\n=== Census Tract Summary Statistics (1940 vs 2010) ===\n")
 print(tract_table)
 
 cat("\n\n=== Public Housing Project Summary: Full vs Analysis Sample ===\n")
@@ -685,9 +717,25 @@ prematching_tab_df <- print(prematching_tab, smd = TRUE, test = TRUE, printToggl
       "lfp_rate (mean (SD))" = "Labor Force Participation Rate",
       "asinh_distance_from_cbd (mean (SD))" = "Distance from CBD (asinh)",
       "share_needing_repair (mean (SD))" = "Share Needing Major Repairs"
-    )
+    ),
+    # Add stars to SMD based on p-values
+    # p-values come as strings like "<0.001", "0.045", etc.
+    stars = case_when(
+      p == "<0.001" ~ "***",
+      TRUE ~ {
+        p_num <- suppressWarnings(as.numeric(p))
+        case_when(
+          is.na(p_num) ~ "",
+          p_num < 0.01 ~ "***",
+          p_num < 0.05 ~ "**",
+          p_num < 0.1 ~ "*",
+          TRUE ~ ""
+        )
+      }
+    ),
+    SMD = paste0(SMD, stars)
   ) %>%
-  select(-p) %>%
+  select(-p, -stars) %>%
   rename("Std. Diff." = SMD)
 
 # Add N row at top

@@ -66,7 +66,7 @@ census_tract_sample_with_treatment_status <-
 # > View(tracts_in_original_not_balanced %>% filter(city == "Richmond", TRACTA  == "0411"))
 
 ## Balance across years -----
-# Only keep tracts that are available from 1930-2000
+# Only keep tracts that are available from 1930-2010
 
 # counties in 1930
 counties_1930 <-
@@ -89,11 +89,11 @@ counties_1950 <-
   pull(state_county) %>% 
   unique()
 
-# tracts that exist in all years, 1930-2000 (need 1930 for pre-treatment of 1941-1950 projects)
+# tracts that exist in all years, 1930-2010 (need 1930 for pre-treatment of 1941-1950 projects)
 
-years_range <- seq(1930,2000, 10)
+years_range <- seq(1930,2010, 10)
 
-# get distinct tracts for each year, 1930-2000
+# get distinct tracts for each year, 1930-2010
 tracts_by_year <- 
   census_tract_sample_with_treatment_status %>% 
   filter(YEAR %in% years_range) %>% 
@@ -125,8 +125,8 @@ census_tract_sample_with_treatment_status_balanced <-
   filter(exists_all_years == 1) %>% 
   dplyr::select(-exists_all_years)
 
-## Balance on availability of variables, 1930-2000 ----
-# Variables to balance on 
+## Balance on availability of variables, 1930-2010 ----
+# Variables to balance on
 # Core variables available in all years including 1930
 balance_vars_core <- c("total_pop", "black_share",
                       "median_income",
@@ -135,12 +135,12 @@ balance_vars_core <- c("total_pop", "black_share",
 # Additional variables only available from 1940+
 balance_vars_1940_plus <- c("total_units")
 
-tracts_with_complete_vars <- 
+tracts_with_complete_vars <-
   census_tract_sample_with_treatment_status_balanced %>%
   st_drop_geometry() %>%
   group_by(GISJOIN_1950) %>%
   summarise(
-    # Check completeness for core variables across all years (1930-2000)
+    # Check completeness for core variables across all years (1930-2010)
     core_complete = all(
       !is.na(total_pop[YEAR %in% years_range]) & 
       !is.na(black_share[YEAR %in% years_range]) &
@@ -616,78 +616,65 @@ count_treated_tracts <- function(df, treated_panel) {
 }
 
 # Helper function to count projects and units
-count_projects_units <- function(df, treated_panel, ph_data) {
-  # Get treated tracts in this sample
-  tract_ids <- df %>%
+# Uses spatial join to count projects that intersect with sample tracts
+count_projects_direct <- function(tract_data, ph_data) {
+  # Get tract geometries at one time point
+  tract_geoms <- tract_data %>%
     filter(YEAR == 2000) %>%
-    st_drop_geometry() %>%
-    pull(GISJOIN_1950) %>%
-    unique()
+    select(GISJOIN_1950, geom)
 
-  # Filter treated panel
-  panel_subset <- treated_panel %>%
-    filter(GISJOIN_1950 %in% tract_ids) %>%
-    filter(YEAR == treatment_year)
-
-  # Spatial join with projects
-  if(nrow(panel_subset) == 0) {
-    return(list(n_projects = 0, n_units = 0))
-  }
-
-  panel_sf <- panel_subset %>%
-    st_as_sf(coords = c("longitude", "latitude"), crs = st_crs(ph_data))
-
-  joined <- panel_sf %>%
-    st_join(ph_data %>% select(project_code, total_public_housing_units)) %>%
-    filter(!is.na(project_code))
-
-  projects <- ph_data %>%
-    filter(project_code %in% joined$project_code)
+  # Spatial join projects to tracts
+  projects_in_tracts <- st_join(
+    ph_data,
+    tract_geoms,
+    join = st_intersects
+  ) %>%
+    filter(!is.na(GISJOIN_1950))
 
   list(
-    n_projects = nrow(projects %>% filter(!is.na(total_public_housing_units))),
-    n_units = sum(projects$total_public_housing_units, na.rm = TRUE)
+    n_projects = nrow(projects_in_tracts %>% filter(!is.na(total_public_housing_units))),
+    n_units = sum(projects_in_tracts$total_public_housing_units, na.rm = TRUE)
   )
 }
 
 # Step 0: Original sample
 step0 <- census_tract_sample_with_treatment_status_raw %>% filter(YEAR == 2000) %>% st_drop_geometry()
-projects_units_0 <- count_projects_units(census_tract_sample_with_treatment_status_raw,
-                                         treated_tracts_panel, public_housing_data)
+projects_units_0 <- count_projects_direct(census_tract_sample_with_treatment_status_raw,
+                                          public_housing_data)
 
-# Step 1: Balanced on years (1930-2000)
+# Step 1: Balanced on years (1930-2010)
 step1_data <- census_tract_sample_with_treatment_status %>%
   filter(exists_all_years == 1)
 step1 <- step1_data %>% filter(YEAR == 2000) %>% st_drop_geometry()
-projects_units_1 <- count_projects_units(step1_data, treated_tracts_panel, public_housing_data)
+projects_units_1 <- count_projects_direct(step1_data, public_housing_data)
 
 # Step 2: Complete variables
 step2_data <- census_tract_sample_with_treatment_status_balanced
 step2 <- step2_data %>% filter(YEAR == 2000) %>% st_drop_geometry()
-projects_units_2 <- count_projects_units(step2_data, treated_tracts_panel, public_housing_data)
+projects_units_2 <- count_projects_direct(step2_data, public_housing_data)
 
 # Step 3: Exclude treatments ≤1940
 step3_data <- census_tract_sample_with_treatment_status_balanced %>%
   filter(treated_1940_or_earlier == FALSE)
 step3 <- step3_data %>% filter(YEAR == 2000) %>% st_drop_geometry()
-projects_units_3 <- count_projects_units(step3_data, treated_tracts_panel, public_housing_data)
+projects_units_3 <- count_projects_direct(step3_data, public_housing_data)
 
 # Step 4: Drop small CBSAs (<30 tracts)
 step4_data <- census_tract_sample_with_treatment_status_balanced %>%
   filter(num_tracts_geq_50 == TRUE) %>%
   filter(treated_1940_or_earlier == FALSE)
 step4 <- step4_data %>% filter(YEAR == 2000) %>% st_drop_geometry()
-projects_units_4 <- count_projects_units(step4_data, treated_tracts_panel, public_housing_data)
+projects_units_4 <- count_projects_direct(step4_data, public_housing_data)
 
 # Step 5: Final balanced (population filters)
 step5 <- balanced_sample %>% filter(YEAR == 2000) %>% st_drop_geometry()
-projects_units_5 <- count_projects_units(balanced_sample, treated_tracts_panel, public_housing_data)
+projects_units_5 <- count_projects_direct(balanced_sample, public_housing_data)
 
 # Build attrition table
 attrition_table <- tibble(
   Step = c(
     "Original sample",
-    "Balanced on years (1930-2000)",
+    "Balanced on years (1930-2010)",
     "Complete variables",
     "Exclude treatments $\\leq$1940",
     "Drop CBSAs $<$30 tracts",

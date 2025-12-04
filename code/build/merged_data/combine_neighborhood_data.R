@@ -86,12 +86,12 @@ census_tract_data_full <- read_census_data()
 
 # from fc
 census_tract_data_from_full_count <-
-  read_sf(here(census_ed_tract_data_path, "tract_data_concorded_from_ed_1930_1940.gpkg")) %>% 
+  read_sf(here(census_ed_tract_data_path, "tract_data_concorded_from_ed_1930_1940.gpkg")) %>%
   dplyr::rename(employed_pop = employed,
                 unemployed_pop = unemployed,
-                not_in_lf_pop = not_in_lf) %>% 
+                not_in_lf_pop = not_in_lf) %>%
   mutate(employment_pop_ratio = employed_pop / total_pop,
-         lfp_rate) %>% 
+         lfp_rate) %>%
   # drop a couple of erroneous observations
   filter(total_pop != 0 )
 
@@ -195,8 +195,8 @@ cpi_data_raw <- read_csv(here(cpi_data_path, "USCPI_1930-2010.csv"), skip = 3,
                      col_names = c("year", "cpi"))
 
 # keep only relevant years, calculate deflator to 2000
-cpi_data <- cpi_data_raw %>% 
-  filter(year %in% seq(1930, 2000, 10)) %>% 
+cpi_data <- cpi_data_raw %>%
+  filter(year %in% seq(1930, 2010, 10)) %>%
   mutate(deflator = cpi[year == 2000] / cpi)
 
 # Calculate the 1950 to 2000 deflator for 1930 income data

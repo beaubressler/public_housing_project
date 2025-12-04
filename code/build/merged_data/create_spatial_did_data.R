@@ -353,7 +353,7 @@ tracts_and_rings <-
   dplyr::select(GISJOIN_1950, treated_id, location_type) %>%
   distinct()
 
-years <- seq(1930, 1990, by = 10)
+years <- seq(1930, 2010, by = 10)
 
 # Expand the data to include all combinations of tracts and years
 event_study_data_full <-
