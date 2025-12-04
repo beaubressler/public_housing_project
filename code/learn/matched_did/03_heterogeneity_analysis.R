@@ -250,9 +250,8 @@ p_size_three_groups_largest <- create_heterogeneity_plot_clean(
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Largest Project Size",
-  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
   x_label = "Largest Project Size",
-  save_name = "largest_project_size_heterogeneity_t20",
+  save_name = "largest_project_size_heterogeneity",
   results_dir = heterogeneity_results_dir,
   width = 13,
   height = 5.5
@@ -427,9 +426,8 @@ p_size_three_groups_total <- create_heterogeneity_plot_clean(
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Total Project Size",
-  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
   x_label = "Total Project Size",
-  save_name = "total_project_size_heterogeneity_t20",
+  save_name = "total_project_size_heterogeneity",
   results_dir = heterogeneity_results_dir,
   width = 13,
   height = 5.5
@@ -590,9 +588,8 @@ p_black_three_groups <- create_heterogeneity_plot_clean(
   outcomes_to_plot = c("black_pop", "white_pop"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Baseline Black Population Share",
-  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
   x_label = "Baseline Black Population Share",
-  save_name = "baseline_black_three_groups_heterogeneity_t20",
+  save_name = "baseline_black_three_groups_heterogeneity",
   results_dir = heterogeneity_results_dir,
   width = 11,
   height = 5.5
@@ -717,9 +714,8 @@ p_income_comparison <- create_heterogeneity_plot_clean(
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Baseline Income Level",
-  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
   x_label = "Baseline Median Income",
-  save_name = "baseline_income_heterogeneity_t20",
+  save_name = "baseline_income_heterogeneity",
   results_dir = heterogeneity_results_dir,
   width = 13,
   height = 5.5
@@ -843,9 +839,8 @@ if (!VARIANT %in% c("no_cbsa", "cem")) {
     outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
     outcome_labels_map = race_income_labels,
     title_text = "Heterogeneity by NYC vs Non-NYC",
-    subtitle_text = "Treatment effects at t=20 (20 years after construction)",
-    x_label = "Location",
-    save_name = "nyc_heterogeneity_t20",
+      x_label = "Location",
+    save_name = "nyc_heterogeneity",
     results_dir = heterogeneity_results_dir,
     width = 13,
     height = 5.5
@@ -958,9 +953,8 @@ p_ur_comparison <- create_heterogeneity_plot_clean(
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Urban Renewal Status",
-  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
   x_label = "Urban Renewal Status",
-  save_name = "urban_renewal_heterogeneity_t20",
+  save_name = "urban_renewal_heterogeneity",
   results_dir = heterogeneity_results_dir,
   width = 13,
   height = 5.5
@@ -1103,9 +1097,8 @@ p_highrise_comparison <- create_heterogeneity_plot_clean(
   outcomes_to_plot = c("asinh_median_rent_calculated", "asinh_pop_black", "asinh_median_income"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by High-rise vs Non-high-rise Projects",
-  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
   x_label = "Project Type",
-  save_name = "highrise_heterogeneity_t20",
+  save_name = "highrise_heterogeneity",
   results_dir = heterogeneity_results_dir,
   width = 15,   # 3 outcomes
   height = 5.5
@@ -1221,9 +1214,8 @@ p_early_late_comparison <- create_heterogeneity_plot_clean(
   outcomes_to_plot = c("asinh_median_income", "asinh_pop_black", "asinh_pop_white"),
   outcome_labels_map = race_income_labels,
   title_text = "Heterogeneity by Early vs Late Projects",
-  subtitle_text = "Treatment effects at t=20 (20 years after construction)",
   x_label = "Construction Period",
-  save_name = "early_late_projects_heterogeneity_t20",
+  save_name = "early_late_projects_heterogeneity",
   results_dir = heterogeneity_results_dir,
   width = 15,   # 3 outcomes
   height = 5.5
@@ -1415,7 +1407,7 @@ p_mechanical_20 <- create_heterogeneity_plot(
   outcome_labels_map = race_income_labels,
   title_text = "Mechanical vs Endogenous Effects: 20% Threshold",
   colors = c("#2E7D32", "#C62828"),  # Green for low, red for high
-  save_name = "mechanical_effects_20pct_heterogeneity_t20",
+  save_name = "mechanical_effects_20pct_heterogeneity",
   results_dir = heterogeneity_results_dir
 )
 
@@ -1472,7 +1464,7 @@ p_mechanical_10 <- create_heterogeneity_plot(
   outcome_labels_map = race_income_labels,
   title_text = "Mechanical vs Endogenous Effects: 10% Threshold",
   colors = c("#2E7D32", "#C62828"),  # Green for low, red for high
-  save_name = "mechanical_effects_10pct_heterogeneity_t20",
+  save_name = "mechanical_effects_10pct_heterogeneity",
   results_dir = heterogeneity_results_dir
 )
 
@@ -1571,7 +1563,7 @@ p_mechanical_three <- create_heterogeneity_plot(
   outcome_labels_map = race_income_labels,
   title_text = "Mechanical Effects by PH Population Share at t=0 (Terciles)",
   colors = c("#1B5E20", "#F57C00", "#B71C1C"),  # Dark green, orange, dark red
-  save_name = "mechanical_effects_terciles_heterogeneity_t20",
+  save_name = "mechanical_effects_terciles_heterogeneity",
   results_dir = heterogeneity_results_dir
 )
 
@@ -1723,7 +1715,7 @@ p_mechanical_quintiles <- create_heterogeneity_plot(
   outcome_labels_map = race_income_labels,
   title_text = "Mechanical Effects by PH Population Share at t=0 (Quintiles: Q1, Q3, Q5)",
   colors = c("#1B5E20", "#F57C00", "#B71C1C"),  # Dark green, orange, dark red
-  save_name = "mechanical_effects_quintiles_135_heterogeneity_t20",
+  save_name = "mechanical_effects_quintiles_135_heterogeneity",
   results_dir = heterogeneity_results_dir
 )
 
@@ -1734,14 +1726,14 @@ print(p_mechanical_quintiles)
 cat("\n--- Creating 5-quintile comparison plots ---\n")
 
 # We'll need to manually create these since create_heterogeneity_plot only handles 2-3 groups
-# Extract t=20 estimates for all quintiles
-t20_q1 <- extract_t20_estimates(results_event_study_q1_mech, paste0("Q1 (<", round(quintile_1_mech*100, 1), "%)"))
-t20_q2 <- extract_t20_estimates(results_event_study_q2_mech, paste0("Q2 (", round(quintile_1_mech*100, 1), "-", round(quintile_2_mech*100, 1), "%)"))
-t20_q3 <- extract_t20_estimates(results_event_study_q3_mech, paste0("Q3 (", round(quintile_2_mech*100, 1), "-", round(quintile_3_mech*100, 1), "%)"))
-t20_q4 <- extract_t20_estimates(results_event_study_q4_mech, paste0("Q4 (", round(quintile_3_mech*100, 1), "-", round(quintile_4_mech*100, 1), "%)"))
-t20_q5 <- extract_t20_estimates(results_event_study_q5_mech, paste0("Q5 (>=", round(quintile_4_mech*100, 1), "%)"))
+# Extract estimates at t=1 and t=3 for all quintiles
+het_q1 <- extract_event_time_estimates(results_event_study_q1_mech, paste0("Q1 (<", round(quintile_1_mech*100, 1), "%)"))
+het_q2 <- extract_event_time_estimates(results_event_study_q2_mech, paste0("Q2 (", round(quintile_1_mech*100, 1), "-", round(quintile_2_mech*100, 1), "%)"))
+het_q3 <- extract_event_time_estimates(results_event_study_q3_mech, paste0("Q3 (", round(quintile_2_mech*100, 1), "-", round(quintile_3_mech*100, 1), "%)"))
+het_q4 <- extract_event_time_estimates(results_event_study_q4_mech, paste0("Q4 (", round(quintile_3_mech*100, 1), "-", round(quintile_4_mech*100, 1), "%)"))
+het_q5 <- extract_event_time_estimates(results_event_study_q5_mech, paste0("Q5 (>=", round(quintile_4_mech*100, 1), "%)"))
 
-all_quintiles_t20 <- bind_rows(t20_q1, t20_q2, t20_q3, t20_q4, t20_q5) %>%
+all_quintiles_het <- bind_rows(het_q1, het_q2, het_q3, het_q4, het_q5) %>%
   mutate(
     group = str_extract(outcome_group, "(treated|inner)$"),
     outcome_clean = str_remove(outcome_group, "_(treated|inner)$")
@@ -1758,7 +1750,7 @@ dir.create(slides_dir, recursive = TRUE, showWarnings = FALSE)
 for (outcome_var in mechanical_effects_plot_vars) {
   outcome_label <- race_income_labels[outcome_var]
 
-  plot_data_treated <- all_quintiles_t20 %>%
+  plot_data_treated <- all_quintiles_het %>%
     filter(outcome_clean == outcome_var, group == "treated")
 
   # Regular version
@@ -1815,112 +1807,90 @@ for (outcome_var in mechanical_effects_plot_vars) {
 
 cat("Five-quintile plots saved (treated neighborhoods only, slides versions in /slides/)\n")
 
-# ---- Extract and Compare t=20 Coefficients ----
+# ---- Extract and Compare Heterogeneity Coefficients (t=1 and t=3) ----
 
-cat("\n=== T=20 COEFFICIENT COMPARISONS ===\n")
+cat("\n=== HETEROGENEITY COEFFICIENT EXTRACTION (t=1 and t=3) ===\n")
 
-# Extract t=20 estimates for all heterogeneity analyses
-t20_small_largest <- extract_t20_estimates(results_event_study_small_largest, "Small Projects (Largest)")
-t20_medium_largest <- extract_t20_estimates(results_event_study_medium_largest, "Medium Projects (Largest)")
-t20_large_largest <- extract_t20_estimates(results_event_study_large_largest, "Large Projects (Largest)")
+# Extract estimates at t=1 and t=3 for all heterogeneity analyses
+het_small_largest <- extract_event_time_estimates(results_event_study_small_largest, "Small Projects (Largest)")
+het_medium_largest <- extract_event_time_estimates(results_event_study_medium_largest, "Medium Projects (Largest)")
+het_large_largest <- extract_event_time_estimates(results_event_study_large_largest, "Large Projects (Largest)")
 
-t20_small_total <- extract_t20_estimates(results_event_study_small_total, "Small Projects (Total)")
-t20_medium_total <- extract_t20_estimates(results_event_study_medium_total, "Medium Projects (Total)")
-t20_large_total <- extract_t20_estimates(results_event_study_large_total, "Large Projects (Total)")
+het_small_total <- extract_event_time_estimates(results_event_study_small_total, "Small Projects (Total)")
+het_medium_total <- extract_event_time_estimates(results_event_study_medium_total, "Medium Projects (Total)")
+het_large_total <- extract_event_time_estimates(results_event_study_large_total, "Large Projects (Total)")
 
-t20_very_low_black <- extract_t20_estimates(results_event_study_very_low_black, "Very Low Black Share")
-t20_medium_black <- extract_t20_estimates(results_event_study_medium_black, "Medium Black Share")
-t20_high_black <- extract_t20_estimates(results_event_study_high_black, "High Black Share")
+het_very_low_black <- extract_event_time_estimates(results_event_study_very_low_black, "Very Low Black Share")
+het_medium_black <- extract_event_time_estimates(results_event_study_medium_black, "Medium Black Share")
+het_high_black <- extract_event_time_estimates(results_event_study_high_black, "High Black Share")
 
-t20_low_income <- extract_t20_estimates(results_event_study_low_income, "Low Income")
-t20_high_income <- extract_t20_estimates(results_event_study_high_income, "High Income")
+het_low_income <- extract_event_time_estimates(results_event_study_low_income, "Low Income")
+het_high_income <- extract_event_time_estimates(results_event_study_high_income, "High Income")
 
-t20_nyc <- extract_t20_estimates(results_event_study_nyc, "NYC")
-t20_non_nyc <- extract_t20_estimates(results_event_study_non_nyc, "Non-NYC")
+het_nyc <- extract_event_time_estimates(results_event_study_nyc, "NYC")
+het_non_nyc <- extract_event_time_estimates(results_event_study_non_nyc, "Non-NYC")
 
 # Only extract high-rise estimates if they were computed
 if ("has_highrise_project" %in% names(tract_data_matched)) {
-  t20_highrise <- extract_t20_estimates(results_event_study_highrise, "High-rise")
-  t20_non_highrise <- extract_t20_estimates(results_event_study_non_highrise, "Non-high-rise")
+  het_highrise <- extract_event_time_estimates(results_event_study_highrise, "High-rise")
+  het_non_highrise <- extract_event_time_estimates(results_event_study_non_highrise, "Non-high-rise")
 }
 
-t20_ur <- extract_t20_estimates(results_event_study_ur, "Urban Renewal")
-t20_non_ur <- extract_t20_estimates(results_event_study_non_ur, "Non-Urban Renewal")
+het_ur <- extract_event_time_estimates(results_event_study_ur, "Urban Renewal")
+het_non_ur <- extract_event_time_estimates(results_event_study_non_ur, "Non-Urban Renewal")
 
-t20_early <- extract_t20_estimates(results_event_study_early, "Early Projects")
-t20_late <- extract_t20_estimates(results_event_study_late, "Late Projects")
+het_early <- extract_event_time_estimates(results_event_study_early, "Early Projects")
+het_late <- extract_event_time_estimates(results_event_study_late, "Late Projects")
 
 # Extract mechanical effects estimates
-t20_low_mech_20 <- extract_t20_estimates(results_event_study_low_mech_20, "Low Mechanical (<20%)")
-t20_high_mech_20 <- extract_t20_estimates(results_event_study_high_mech_20, "High Mechanical (≥20%)")
-t20_low_mech_10 <- extract_t20_estimates(results_event_study_low_mech_10, "Low Mechanical (<10%)")
-t20_high_mech_10 <- extract_t20_estimates(results_event_study_high_mech_10, "High Mechanical (≥10%)")
-t20_very_low_mech <- extract_t20_estimates(results_event_study_very_low_mech, "Very Low Mechanical (Tercile)")
-t20_medium_mech <- extract_t20_estimates(results_event_study_medium_mech, "Medium Mechanical (Tercile)")
-t20_very_high_mech <- extract_t20_estimates(results_event_study_very_high_mech, "Very High Mechanical (Tercile)")
+het_low_mech_20 <- extract_event_time_estimates(results_event_study_low_mech_20, "Low Mechanical (<20%)")
+het_high_mech_20 <- extract_event_time_estimates(results_event_study_high_mech_20, "High Mechanical (≥20%)")
+het_low_mech_10 <- extract_event_time_estimates(results_event_study_low_mech_10, "Low Mechanical (<10%)")
+het_high_mech_10 <- extract_event_time_estimates(results_event_study_high_mech_10, "High Mechanical (≥10%)")
+het_very_low_mech <- extract_event_time_estimates(results_event_study_very_low_mech, "Very Low Mechanical (Tercile)")
+het_medium_mech <- extract_event_time_estimates(results_event_study_medium_mech, "Medium Mechanical (Tercile)")
+het_very_high_mech <- extract_event_time_estimates(results_event_study_very_high_mech, "Very High Mechanical (Tercile)")
 
-# Quintile estimates already extracted above (t20_q1, t20_q2, t20_q3, t20_q4, t20_q5)
+# Combine all estimates and save
+all_het_estimates <- bind_rows(
+  het_small_largest, het_medium_largest, het_large_largest,
+  het_small_total, het_medium_total, het_large_total,
+  het_very_low_black, het_medium_black, het_high_black,
+  het_low_income, het_high_income,
+  het_nyc, het_non_nyc,
+  het_ur, het_non_ur,
+  het_early, het_late,
+  het_low_mech_20, het_high_mech_20,
+  het_low_mech_10, het_high_mech_10,
+  het_very_low_mech, het_medium_mech, het_very_high_mech
+)
 
-# Combine all estimates
-# COMMENTED OUT: Summary table was causing timeout errors and is not essential
-# all_t20_het_list <- list(
-#   t20_small_largest, t20_medium_largest, t20_large_largest,
-#   t20_small_total, t20_medium_total, t20_large_total,
-#   t20_very_low_black, t20_medium_black, t20_high_black,
-#   t20_low_income, t20_high_income,
-#   t20_nyc, t20_non_nyc,
-#   t20_ur, t20_non_ur,
-#   t20_early, t20_late,
-#   t20_low_mech_20, t20_high_mech_20,
-#   t20_low_mech_10, t20_high_mech_10,
-#   t20_very_low_mech, t20_medium_mech, t20_very_high_mech,
-#   t20_q1, t20_q2, t20_q3, t20_q4, t20_q5
-# )
-#
-# # Add high-rise estimates if available
-# if ("has_highrise_project" %in% names(tract_data_matched)) {
-#   all_t20_het_list <- c(all_t20_het_list, list(t20_highrise, t20_non_highrise))
-# }
-#
-# all_t20_het <- bind_rows(all_t20_het_list) %>%
-#   mutate(
-#     group = str_extract(outcome_group, "(treated|inner)$"),
-#     outcome_clean = str_remove(outcome_group, "_(treated|inner)$")
-#   ) %>%
-#   filter(outcome_clean %in% c(heterogeneity_outcome_vars, "asinh_pop_total", "total_pop"))
-#
-# # Print comparison table
-# comparison_table <- all_t20_het %>%
-#   select(location, outcome_clean, estimate, std.error, p.value) %>%
-#   arrange(outcome_clean, location) %>%
-#   mutate(
-#     estimate = round(estimate, 4),
-#     std.error = round(std.error, 4),
-#     p.value = round(p.value, 3)
-#   )
-#
-# print(comparison_table)
-#
-# # Save results
-# write_csv(all_t20_het, here(heterogeneity_results_dir, "all_heterogeneity_t20_estimates.csv"))
+# Add high-rise estimates if available
+if ("has_highrise_project" %in% names(tract_data_matched)) {
+  all_het_estimates <- bind_rows(all_het_estimates, het_highrise, het_non_highrise)
+}
+
+# Save results
+write_csv(all_het_estimates, here(heterogeneity_results_dir, "all_heterogeneity_estimates.csv"))
+cat("Saved heterogeneity estimates to:", here(heterogeneity_results_dir, "all_heterogeneity_estimates.csv"), "\n")
 
 message("\n=== PART 3 COMPLETE: Heterogeneity analysis finished ===")
 message("Files saved to: ", heterogeneity_results_dir)
 message("\n--- Project Characteristics ---")
-message("- project_size_three_groups_heterogeneity_t20.pdf")
+message("- project_size_three_groups_heterogeneity.pdf")
 message("\n--- Baseline Neighborhood Characteristics ---")
-message("- baseline_black_three_groups_heterogeneity_t20.pdf")
-message("- baseline_income_heterogeneity_t20.pdf")
+message("- baseline_black_three_groups_heterogeneity.pdf")
+message("- baseline_income_heterogeneity.pdf")
 message("\n--- Geographic/Policy Characteristics ---")
-message("- nyc_heterogeneity_t20.pdf")
-message("- highrise_heterogeneity_t20.pdf")
-message("- urban_renewal_heterogeneity_t20.pdf")
-message("- early_late_projects_heterogeneity_t20.pdf")
+message("- nyc_heterogeneity.pdf")
+message("- highrise_heterogeneity.pdf")
+message("- urban_renewal_heterogeneity.pdf")
+message("- early_late_projects_heterogeneity.pdf")
 message("\n--- Mechanical Effects Analysis ---")
-message("- mechanical_effects_10pct_heterogeneity_t20.pdf")
-message("- mechanical_effects_20pct_heterogeneity_t20.pdf")
-message("- mechanical_effects_terciles_heterogeneity_t20.pdf")
-message("- mechanical_effects_quintiles_135_heterogeneity_t20.pdf (Q1, Q3, Q5)")
+message("- mechanical_effects_10pct_heterogeneity.pdf")
+message("- mechanical_effects_20pct_heterogeneity.pdf")
+message("- mechanical_effects_terciles_heterogeneity.pdf")
+message("- mechanical_effects_quintiles_135_heterogeneity.pdf (Q1, Q3, Q5)")
 message("- mechanical_quintiles_all5_asinh_median_income_treated.pdf")
 message("- mechanical_quintiles_all5_asinh_median_income_spillover.pdf")
 message("- mechanical_quintiles_all5_asinh_median_rent_calculated_treated.pdf")

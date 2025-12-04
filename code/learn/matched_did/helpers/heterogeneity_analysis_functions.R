@@ -10,32 +10,38 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(scales)
   library(RColorBrewer)
+  library(ggh4x)  # For facetted_pos_scales to set per-facet y-axis limits
 })
 
-# Extract t=20 estimates from event study results
-extract_t20_estimates <- function(results_list, location_label) {
+# Extract estimates at specified event time(s) from event study results
+# event_times can be a single value or vector (e.g., c(10, 30) for t=1 and t=3)
+extract_event_time_estimates <- function(results_list, location_label, event_times = c(10, 30)) {
   estimates <- map_dfr(names(results_list), function(name) {
     model <- results_list[[name]]
     coefs <- tidy(model)
 
-    # Extract t=20 estimate
-    t20_coef <- coefs %>%
-      filter(str_detect(term, "event_time::20:treated")) %>%
-      select(estimate, std.error, p.value)
+    # Extract estimates at each specified event time
+    map_dfr(event_times, function(et) {
+      et_coef <- coefs %>%
+        filter(str_detect(term, paste0("event_time::", et, ":treated"))) %>%
+        select(estimate, std.error, p.value)
 
-    if(nrow(t20_coef) > 0) {
-      tibble(
-        outcome_group = name,
-        location = location_label,
-        estimate = t20_coef$estimate,
-        std.error = t20_coef$std.error,
-        p.value = t20_coef$p.value,
-        conf.low = estimate - 1.96 * std.error,
-        conf.high = estimate + 1.96 * std.error
-      )
-    } else {
-      NULL
-    }
+      if(nrow(et_coef) > 0) {
+        tibble(
+          outcome_group = name,
+          location = location_label,
+          event_time = et,
+          event_time_label = paste0("t=", et / 10),
+          estimate = et_coef$estimate,
+          std.error = et_coef$std.error,
+          p.value = et_coef$p.value,
+          conf.low = estimate - 1.96 * std.error,
+          conf.high = estimate + 1.96 * std.error
+        )
+      } else {
+        NULL
+      }
+    })
   })
   return(estimates)
 }
@@ -45,10 +51,17 @@ create_heterogeneity_plot <- function(...,
                                       outcomes_to_plot,
                                       outcome_labels_map,
                                       title_text,
-                                      subtitle_text = "Treatment effects at t=20",
+                                      subtitle_text = NULL,
                                       colors = NULL,
                                       save_name = NULL,
-                                      results_dir = NULL) {
+                                      results_dir = NULL,
+                                      event_times = c(10, 30)) {
+
+  # Set default subtitle if not provided
+  if (is.null(subtitle_text)) {
+    time_labels <- paste0("t=", event_times / 10, collapse = " and ")
+    subtitle_text <- paste0("Treatment effects at ", time_labels)
+  }
 
   # Get arguments as list
   args <- list(...)
@@ -73,8 +86,8 @@ create_heterogeneity_plot <- function(...,
     colors <- RColorBrewer::brewer.pal(max(3, length(labels)), "Set1")[1:length(labels)]
   }
 
-  # Extract t=20 estimates for all groups
-  all_estimates <- map2_dfr(results_lists, labels, ~extract_t20_estimates(.x, .y))
+  # Extract estimates at specified event times for all groups
+  all_estimates <- map2_dfr(results_lists, labels, ~extract_event_time_estimates(.x, .y, event_times = event_times))
 
   # Combine and clean
   comparison_data <- all_estimates %>%
@@ -100,16 +113,18 @@ create_heterogeneity_plot <- function(...,
       # Order factors
       clean_label = factor(clean_label, levels = outcome_labels_map[outcomes_to_plot]),
       group_label = factor(group_label, levels = c("Treated Tracts", "Nearby Tracts")),
-      location = factor(location, levels = labels)
+      location = factor(location, levels = labels),
+      event_time_label = factor(event_time_label, levels = paste0("t=", event_times / 10))
     )
 
   # Create plot with publication-quality formatting
+  # Facet by event_time (rows within group) and outcome (columns)
   p <- ggplot(comparison_data, aes(x = location, y = estimate, color = location)) +
     geom_hline(yintercept = 0, linetype = "solid", color = "gray30", linewidth = 0.4) +
     geom_point(size = 3.5, alpha = 0.9, shape = 16) +
     geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
                   width = 0.15, linewidth = 1, alpha = 0.8) +
-    facet_grid(group_label ~ clean_label, scales = "free_y",
+    facet_grid(event_time_label + group_label ~ clean_label, scales = "free_y",
                labeller = labeller(clean_label = label_wrap_gen(width = 12))) +
     labs(
       title = title_text,
@@ -181,7 +196,7 @@ create_heterogeneity_plot <- function(...,
 }
 
 # Cleaner heterogeneity plot (Option B format)
-# Facets by outcome only, colors by group (Treated vs Nearby)
+# Facets by outcome and event time, colors by group (Treated vs Nearby)
 # Better for publication - standard applied micro format
 create_heterogeneity_plot_clean <- function(...,
                                             outcomes_to_plot,
@@ -192,7 +207,14 @@ create_heterogeneity_plot_clean <- function(...,
                                             save_name = NULL,
                                             results_dir = NULL,
                                             width = 11,
-                                            height = 5.5) {
+                                            height = 5.5,
+                                            event_times = c(10, 30)) {
+
+  # Set default subtitle if not provided
+  if (is.null(subtitle_text)) {
+    time_labels <- paste0("t=", event_times / 10, collapse = " and ")
+    subtitle_text <- paste0("Treatment effects at ", time_labels)
+  }
 
   # Get arguments as list
   args <- list(...)
@@ -218,8 +240,8 @@ create_heterogeneity_plot_clean <- function(...,
     labels <- unlist(args[seq(2, length(args), 2)])
   }
 
-  # Extract t=20 estimates for all groups
-  all_estimates <- map2_dfr(results_lists, labels, ~extract_t20_estimates(.x, .y))
+  # Extract estimates at specified event times for all groups
+  all_estimates <- map2_dfr(results_lists, labels, ~extract_event_time_estimates(.x, .y, event_times = event_times))
 
   # Combine and clean
   comparison_data <- all_estimates %>%
@@ -240,13 +262,14 @@ create_heterogeneity_plot_clean <- function(...,
       ),
       clean_label = factor(clean_label, levels = outcome_labels_map[outcomes_to_plot]),
       group_label = factor(group_label, levels = c("Treated", "Nearby")),
-      location = factor(location, levels = labels)
+      location = factor(location, levels = labels),
+      event_time_label = factor(event_time_label, levels = paste0("t=", event_times / 10))
     )
 
   # Professional colors: dark blue for treated, orange for nearby
   group_colors <- c("Treated" = "#0072B2", "Nearby" = "#E69F00")
 
-  # Create plot
+  # Create plot - facet by outcome (columns) and event time (rows)
   p <- ggplot(comparison_data, aes(x = location, y = estimate,
                                    color = group_label, group = group_label)) +
     geom_hline(yintercept = 0, linetype = "solid", color = "gray40", linewidth = 0.5) +
@@ -254,12 +277,12 @@ create_heterogeneity_plot_clean <- function(...,
     geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
                   width = 0.25, linewidth = 0.9, alpha = 0.8,
                   position = position_dodge(width = 0.4)) +
-    facet_wrap(~ clean_label, scales = "free_y", nrow = 1) +
+    facet_grid(event_time_label ~ clean_label, scales = "free_y") +
     labs(
       title = title_text,
       subtitle = subtitle_text,
       x = x_label,
-      y = "Treatment Effect at t=20",
+      y = "Treatment Effect",
       color = ""
     ) +
     scale_color_manual(values = group_colors) +
@@ -298,17 +321,98 @@ create_heterogeneity_plot_clean <- function(...,
       plot.margin = margin(12, 15, 10, 12)
     )
 
-  # Save if requested
+  # Save if requested - save separate files for each event time
   if (!is.null(save_name) & !is.null(results_dir)) {
+    # Save combined version with both event times
     ggsave(file.path(results_dir, paste0(save_name, ".pdf")),
-           p, width = width, height = height, device = cairo_pdf)
+           p, width = width, height = height * length(event_times) / 2, device = cairo_pdf)
 
     # Save slide version without title/subtitle
     slides_dir <- file.path(results_dir, "slides")
     dir.create(slides_dir, recursive = TRUE, showWarnings = FALSE)
     p_slides <- p + labs(title = NULL, subtitle = NULL)
     ggsave(file.path(slides_dir, paste0(save_name, ".pdf")),
-           p_slides, width = width, height = height, device = cairo_pdf)
+           p_slides, width = width, height = height * length(event_times) / 2, device = cairo_pdf)
+
+    # Also save separate files for each event time with matched y-axes
+    # First, calculate y-axis limits for each outcome across both event times
+    y_limits_by_outcome <- comparison_data %>%
+      group_by(clean_label) %>%
+      summarize(
+        y_min = min(conf.low, na.rm = TRUE),
+        y_max = max(conf.high, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      # Add some padding
+      mutate(
+        y_range = y_max - y_min,
+        y_min = y_min - 0.05 * y_range,
+        y_max = y_max + 0.05 * y_range
+      )
+
+    for (et in event_times) {
+      et_label <- paste0("t", et / 10)
+      et_data <- comparison_data %>% filter(event_time == et)
+
+      p_single <- ggplot(et_data, aes(x = location, y = estimate,
+                                       color = group_label, group = group_label)) +
+        geom_hline(yintercept = 0, linetype = "solid", color = "gray40", linewidth = 0.5) +
+        geom_point(size = 4, alpha = 0.9, position = position_dodge(width = 0.4)) +
+        geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                      width = 0.25, linewidth = 0.9, alpha = 0.8,
+                      position = position_dodge(width = 0.4)) +
+        facet_wrap(~ clean_label, scales = "free_y", nrow = 1) +
+        labs(
+          title = title_text,
+          subtitle = paste0("Treatment effects at ", et_label),
+          x = x_label,
+          y = paste0("Treatment Effect at ", et_label),
+          color = ""
+        ) +
+        scale_color_manual(values = group_colors) +
+        scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
+        # Apply consistent y-axis limits across event times using ggh4x or manual limits
+        ggh4x::facetted_pos_scales(
+          y = lapply(unique(et_data$clean_label), function(outcome) {
+            limits <- y_limits_by_outcome %>% filter(clean_label == outcome)
+            scale_y_continuous(limits = c(limits$y_min, limits$y_max),
+                             labels = scales::number_format(accuracy = 0.01))
+          })
+        ) +
+        theme_minimal(base_size = 14) +
+        theme(
+          plot.title = element_text(size = 16, face = "bold", hjust = 0, margin = margin(b = 8)),
+          plot.subtitle = element_text(size = 12, color = "gray40", margin = margin(b = 12)),
+          plot.title.position = "plot",
+          axis.title.x = element_text(size = 13, margin = margin(t = 10)),
+          axis.title.y = element_text(size = 13, margin = margin(r = 10)),
+          axis.text.x = element_text(size = 11, color = "black"),
+          axis.text.y = element_text(size = 11, color = "black"),
+          axis.line = element_line(color = "black", linewidth = 0.4),
+          axis.ticks = element_line(color = "black", linewidth = 0.4),
+          strip.background = element_rect(fill = "gray92", color = "gray70", linewidth = 0.4),
+          strip.text = element_text(face = "bold", size = 12, color = "black", margin = margin(4, 4, 4, 4)),
+          panel.background = element_rect(fill = "white", color = NA),
+          panel.border = element_rect(color = "gray70", fill = NA, linewidth = 0.6),
+          panel.grid.major.y = element_blank(),
+          panel.grid.minor.y = element_blank(),
+          panel.grid.major.x = element_blank(),
+          panel.spacing.x = unit(18, "pt"),
+          legend.position = "bottom",
+          legend.text = element_text(size = 12),
+          legend.key.size = unit(1.2, "lines"),
+          legend.margin = margin(t = 10),
+          plot.margin = margin(12, 15, 10, 12)
+        )
+
+      ggsave(file.path(results_dir, paste0(save_name, "_", et_label, ".pdf")),
+             p_single, width = width, height = height, device = cairo_pdf)
+
+      # Slides version
+      p_single_slides <- p_single + labs(title = NULL, subtitle = NULL)
+      ggsave(file.path(slides_dir, paste0(save_name, "_", et_label, ".pdf")),
+             p_single_slides, width = width, height = height, device = cairo_pdf)
+    }
   }
 
   return(p)

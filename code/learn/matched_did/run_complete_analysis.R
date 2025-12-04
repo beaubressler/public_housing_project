@@ -9,8 +9,8 @@ suppressPackageStartupMessages({
 #variants_to_run <- c("baseline", "no_cbsa", "caliper")  # Uncomment to run only genetic variant for testing
 variants_to_run <- c("baseline")  # Uncomment to run only genetic variant for testing
 
-# datasets_to_run <- c("tract_data_matched_1_year.csv", "tract_data_matched_2_year.csv")
-datasets_to_run <- "tract_data_matched_2_year.csv"  # Uncomment to run only 2-year dataset for testing
+datasets_to_run <- c("tract_data_matched_1_year.csv", "tract_data_matched_2_year.csv")
+#datasets_to_run <- "tract_data_matched_2_year.csv"  # Uncomment to run only 2-year dataset for testing
 
 # weighting_to_run <- c("unweighted", "pop_weighted")
 #weighting_to_run <- c("unweighted","pop_weighted")

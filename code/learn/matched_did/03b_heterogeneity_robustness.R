@@ -1,5 +1,5 @@
 ## 03b_heterogeneity_robustness.R
-## Compare heterogeneity estimates (t=20) across matching specifications
+## Compare heterogeneity estimates (t=1 and t=3) across matching specifications
 
 library(tidyverse)
 library(here)
@@ -60,7 +60,7 @@ for (dataset_year in dataset_years) {
   # Read and combine heterogeneity estimates from all specs -----
   all_het <- map_dfr(specs_to_compare, function(spec) {
     het_file <- here(results_base_dir, spec, "heterogeneity", dataset_year,
-                     "all_heterogeneity_t20_estimates.csv")
+                     "all_heterogeneity_estimates.csv")
 
     if (!file.exists(het_file)) {
       warning("File not found: ", het_file)
@@ -133,7 +133,7 @@ for (dataset_year in dataset_years) {
       labs(
         title = title_text,
         x = NULL,
-        y = "Treatment Effect at t=20"
+        y = "Treatment Effect"
       ) +
       pub_theme(14) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
