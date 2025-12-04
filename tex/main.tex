@@ -14,6 +14,8 @@
 \usepackage{threeparttable, subcaption}
 \usepackage{comment}
 
+
+
 % For modelsummary tables
 \usepackage{tabularray}
 \usepackage{float}
@@ -68,7 +70,32 @@
 \usepackage{epigraph}
 % Has to be LAST package loaded?
 \usepackage[bookmarks]{hyperref}
+% make citations blue
+\hypersetup{
+    colorlinks=true,
+    linkcolor=[rgb]{0,0,1},
+    citecolor=[rgb]{0,0,1},
+    filecolor=[rgb]{0,0,1},
+    urlcolor=[rgb]{0,0,1}
+}
 
+\DeclareFieldFormat{citehyperref}{%
+  \DeclareFieldAlias{bibhyperref}{default}%
+  \bibhyperref{#1}}
+
+\DeclareCiteCommand{\cite}
+  {\usebibmacro{prenote}}
+  {\usebibmacro{citeindex}%
+   \printtext[citehyperref]{\usebibmacro{cite}}}
+  {\multicitedelim}
+  {\usebibmacro{postnote}}
+
+\DeclareCiteCommand{\parencite}[\mkbibparens]
+  {\usebibmacro{prenote}}
+  {\usebibmacro{citeindex}%
+   \printtext[citehyperref]{\usebibmacro{cite}}}
+  {\multicitedelim}
+  {\usebibmacro{postnote}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Commands and environments.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -95,17 +122,20 @@
 
 
 \title{\Large Building Segregation: The Long-Run Neighborhood Effects of American Public Housing
-\thanks{I am grateful to Giovanni Peri, Santiago Perez, Chris Meissner and Marianne Bitler for their valuable feedback.
-I would also like to thank Alessandro Caiumi, Rowena Gray, and seminar participants of the UC Davis applied micro and economic history seminars for helpful comments.
-Thank you to Max Guennewig-Moenert for sharing data on New York City public housing populations and to D. Bradford Hunt for sharing data on Chicago public housing. 
-Stephanie Smith, Reece Doyle, and Andrew Shamardin provided excellent help in digitizing and checking data.}}
+\thanks{I am grateful to Giovanni Peri, Santiago Perez, Christopher Meissner and Marianne Bitler for their valuable feedback.
+I would also like to thank seminar participants of the UC Davis Applied Micro and Economic History seminars, and participants at the 2025 Economic History Association Meetings.
+I extend special thanks to Maximilian Guennewig-Moenert for sharing data on the population of New York City public housing projects, to Yana Kucheva for sharing the \textit{1977 Picture of Subsidized Housing} data, and to D. Bradford Hunt for sharing data on Chicago public housing. 
+Stephanie Smith, Reece Doyle, and Andrew Shamardin provided excellent assistance in digitizing and checking data.}}
 
 \author{
     Beau Bressler \\ UC Davis \\
     \small{\url{blbressler@ucdavis.edu}} 
 }
 
-\date{\today}
+
+\date{\today
+\\ Click \href{https://beaubressler.github.io/papers/public_housing_neighborhoods/jmp.pdf}{\textit{here}} for the latest version of the paper.}
+
 
 \begin{document}
 \maketitle
@@ -115,7 +145,7 @@ Stephanie Smith, Reece Doyle, and Andrew Shamardin provided excellent help in di
 
 \vspace{0.1in}
 
-\centerline{\large {PRELIMINARY DRAFT: PLEASE DO NOT CITE}}
+% \centerline{\large {PRELIMINARY DRAFT: PLEASE DO NOT CITE}}
 
 \newpage
 \setstretch{1.3}
@@ -126,6 +156,7 @@ Stephanie Smith, Reece Doyle, and Andrew Shamardin provided excellent help in di
 \input{sections/data}
 \input{sections/site_selection}
 \input{sections/neighborhood_effects}
+\input{sections/mechanisms_and_heterogeneity.tex}
 \input{sections/opportunity_insights}
 \input{sections/conclusion}
 
@@ -140,7 +171,7 @@ Stephanie Smith, Reece Doyle, and Andrew Shamardin provided excellent help in di
 
 % Appendices
 %\input{sections/appendix}
-%\input{appendices/appendix_data_construction}
+\input{appendices/appendix_data_construction}
 %\input{appendices/spatial_did_appendix}
 %\input{appendices/callaway_santanna_appendix}
 \input{appendices/robustness_appendix}

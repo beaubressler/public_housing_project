@@ -1,10 +1,12 @@
-\section{Robustness Checks: Alternative Matching Specifications}
+\section{Robustness Checks: Alternative Matching Specifications and Standard Errors}\label{app:robustness_appendix}
 
-This appendix presents full event study coefficient tables for alternative matching specifications discussed in the main text. The baseline specification uses propensity score matching with exact matching on CBSA and redlining status. Here we present results from two alternative specifications: (1) caliper matching, which adds a caliper restriction to ensure treated and control units are sufficiently similar, and (2) matching without CBSA exact matching, which allows controls from different metropolitan areas. For these alternative specifications, we present results with Conley (1999) spatially-correlated standard errors. A separate section presents baseline specification results using standard errors clustered at the census tract level.
+This appendix presents full event study coefficient tables for alternative matching specifications discussed in the main text.
 
-\subsection{Caliper Matching}
-
-\begin{table}[t!]
+\subsection{Alternative Matching Specifications}
+Here, I present the full set of coefficients from two alternative specifications:
+First, I present results using the baseline matching specification but adding a caliper restriction of 0.2 standard deviations of the propensity score to drop poor matches.
+Second, I run a specification  matching without CBSA exact matching, which allows controls from different metropolitan areas.
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{Caliper Matching: Treated Neighborhoods, Population and Demographics (Conley SEs)}
@@ -12,12 +14,14 @@ This appendix presents full event study coefficient tables for alternative match
     \input{../output/regression_results/matched_did/combined/caliper/2_year/tables/treated_population_demographics.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for treated neighborhoods using caliper matching with propensity score caliper restriction. Outcomes include Log Black Pop, Log Total Pop, Log White Pop, and Black Share. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 50km cutoff. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for treated neighborhoods using caliper matching with propensity score caliper restriction. Outcomes include asinh(Black Pop), asinh(Total Pop), asinh(White Pop), and Black Share. Asinh denotes the inverse hyperbolic sine transformation. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 2km cutoff. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
-\begin{table}[t!]
+\bigskip
+
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{Caliper Matching: Treated Neighborhoods, Economic and Housing Outcomes (Conley SEs)}
@@ -25,12 +29,14 @@ This appendix presents full event study coefficient tables for alternative match
     \input{../output/regression_results/matched_did/combined/caliper/2_year/tables/treated_economic_housing.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for treated neighborhoods using caliper matching with propensity score caliper restriction. Outcomes include Log Median Income, Log Median Rent, HS Grad Rate, and Unemp Rate. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 50km cutoff. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for treated neighborhoods using caliper matching with propensity score caliper restriction. Outcomes include asinh(Median Income), asinh(Median Rent), HS Grad Rate, and Unemp Rate. Asinh denotes the inverse hyperbolic sine transformation. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 2km cutoff. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
-\begin{table}[t!]
+\bigskip
+
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{Caliper Matching: Spillover Neighborhoods, Population and Demographics (Conley SEs)}
@@ -38,12 +44,14 @@ This appendix presents full event study coefficient tables for alternative match
     \input{../output/regression_results/matched_did/combined/caliper/2_year/tables/spillover_population_demographics.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using caliper matching with propensity score caliper restriction. Outcomes include Log Black Pop, Log Total Pop, Log White Pop, and Black Share. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 50km cutoff. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using caliper matching with propensity score caliper restriction. Outcomes include asinh(Black Pop), asinh(Total Pop), asinh(White Pop), and Black Share. Asinh denotes the inverse hyperbolic sine transformation. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 2km cutoff. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01. Significance stars are assigned using full-precision coefficients and standard errors; displayed values are rounded to three decimal places.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
-\begin{table}[t!]
+\bigskip
+
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{Caliper Matching: Spillover Neighborhoods, Economic and Housing Outcomes (Conley SEs)}
@@ -51,16 +59,14 @@ This appendix presents full event study coefficient tables for alternative match
     \input{../output/regression_results/matched_did/combined/caliper/2_year/tables/spillover_economic_housing.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using caliper matching with propensity score caliper restriction. Outcomes include Log Median Income, Log Median Rent, HS Grad Rate, and Unemp Rate. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 50km cutoff. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using caliper matching with propensity score caliper restriction. Outcomes include asinh(Median Income), asinh(Median Rent), HS Grad Rate, and Unemp Rate. Asinh denotes the inverse hyperbolic sine transformation. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 2km cutoff. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
 \clearpage
 
-\subsection{Matching Without CBSA Restriction}
-
-\begin{table}[t!]
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{No CBSA Restriction: Treated Neighborhoods, Population and Demographics (Conley SEs)}
@@ -68,12 +74,14 @@ This appendix presents full event study coefficient tables for alternative match
     \input{../output/regression_results/matched_did/combined/no_cbsa/2_year/tables/treated_population_demographics.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for treated neighborhoods using propensity score matching without CBSA exact matching restriction, allowing controls from different metropolitan areas. Outcomes include Log Black Pop, Log Total Pop, Log White Pop, and Black Share. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 50km cutoff. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for treated neighborhoods using propensity score matching without CBSA exact matching restriction, allowing controls from different metropolitan areas. Outcomes include asinh(Black Pop), asinh(Total Pop), asinh(White Pop), and Black Share. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 2km cutoff. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
-\begin{table}[t!]
+\bigskip
+
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{No CBSA Restriction: Treated Neighborhoods, Economic and Housing Outcomes (Conley SEs)}
@@ -81,12 +89,14 @@ This appendix presents full event study coefficient tables for alternative match
     \input{../output/regression_results/matched_did/combined/no_cbsa/2_year/tables/treated_economic_housing.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for treated neighborhoods using propensity score matching without CBSA exact matching restriction, allowing controls from different metropolitan areas. Outcomes include Log Median Income, Log Median Rent, HS Grad Rate, and Unemp Rate. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 50km cutoff. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for treated neighborhoods using propensity score matching without CBSA exact matching restriction, allowing controls from different metropolitan areas. Outcomes include asinh(Median Income), asinh(Median Rent), HS Grad Rate, and Unemp Rate. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 2km cutoff. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
-\begin{table}[t!]
+\bigskip
+
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{No CBSA Restriction: Spillover Neighborhoods, Population and Demographics (Conley SEs)}
@@ -94,12 +104,14 @@ This appendix presents full event study coefficient tables for alternative match
     \input{../output/regression_results/matched_did/combined/no_cbsa/2_year/tables/spillover_population_demographics.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using propensity score matching without CBSA exact matching restriction, allowing controls from different metropolitan areas. Outcomes include Log Black Pop, Log Total Pop, Log White Pop, and Black Share. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 50km cutoff. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using propensity score matching without CBSA exact matching restriction, allowing controls from different metropolitan areas. Outcomes include asinh(Black Pop), asinh(Total Pop), asinh(White Pop), and Black Share. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 2km cutoff. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
-\begin{table}[t!]
+\bigskip
+
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{No CBSA Restriction: Spillover Neighborhoods, Economic and Housing Outcomes (Conley SEs)}
@@ -107,7 +119,7 @@ This appendix presents full event study coefficient tables for alternative match
     \input{../output/regression_results/matched_did/combined/no_cbsa/2_year/tables/spillover_economic_housing.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using propensity score matching without CBSA exact matching restriction, allowing controls from different metropolitan areas. Outcomes include Log Median Income, Log Median Rent, HS Grad Rate, and Unemp Rate. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 50km cutoff. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using propensity score matching without CBSA exact matching restriction, allowing controls from different metropolitan areas. Outcomes include asinh(Median Income), asinh(Median Rent), HS Grad Rate, and Unemp Rate. Standard errors account for spatial correlation following \textcite{conleyGMMEstimationCross1999} with 2km cutoff. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
@@ -116,11 +128,10 @@ This appendix presents full event study coefficient tables for alternative match
 
 \clearpage
 
-\section{Baseline Specification: Tract-Level Clustered Standard Errors}
+\subsection{Baseline Specification: Tract-Level Clustered Standard Errors}
+This section presents event study coefficients for the baseline matching specification using standard errors clustered at the census tract level, rather than using \textcite{conleyGMMEstimationCross1999} spatially-correlated standard errors used in the main text.
 
-This section presents event study coefficients for the baseline matching specification (propensity score matching with exact matching on CBSA and redlining status) using standard errors clustered at the census tract level, rather than the Conley (1999) spatially-correlated standard errors used in the main text.
-
-\begin{table}[t!]
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{Baseline Matching: Treated Neighborhoods, Population and Demographics (Tract-Clustered SEs)}
@@ -128,12 +139,14 @@ This section presents event study coefficients for the baseline matching specifi
     \input{../output/regression_results/matched_did/combined/baseline/2_year/tables/tract_clustered_treated_population_demographics.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for treated neighborhoods using baseline propensity score matching with exact matching on CBSA and redlining status. Outcomes include Log Black Pop, Log Total Pop, Log White Pop, and Black Share. Standard errors are clustered at the census tract level. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for treated neighborhoods using baseline propensity score matching with exact matching on CBSA and urban renewal status. Outcomes include asinh(Black Pop), asinh(Total Pop), asinh(White Pop), and Black Share. Standard errors are clustered at the census tract level. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
-\begin{table}[t!]
+\bigskip
+
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{Baseline Matching: Treated Neighborhoods, Economic and Housing Outcomes (Tract-Clustered SEs)}
@@ -141,12 +154,14 @@ This section presents event study coefficients for the baseline matching specifi
     \input{../output/regression_results/matched_did/combined/baseline/2_year/tables/tract_clustered_treated_economic_housing.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for treated neighborhoods using baseline propensity score matching with exact matching on CBSA and redlining status. Outcomes include Log Median Income, Log Median Rent, HS Grad Rate, and Unemp Rate. Standard errors are clustered at the census tract level. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for treated neighborhoods using baseline propensity score matching with exact matching on CBSA and urban renewal status. Outcomes include asinh(Median Income), asinh(Median Rent), HS Grad Rate, and Unemp Rate. Standard errors are clustered at the census tract level. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
-\begin{table}[t!]
+\bigskip
+
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{Baseline Matching: Spillover Neighborhoods, Population and Demographics (Tract-Clustered SEs)}
@@ -154,12 +169,14 @@ This section presents event study coefficients for the baseline matching specifi
     \input{../output/regression_results/matched_did/combined/baseline/2_year/tables/tract_clustered_spillover_population_demographics.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using baseline propensity score matching with exact matching on CBSA and redlining status. Outcomes include Log Black Pop, Log Total Pop, Log White Pop, and Black Share. Standard errors are clustered at the census tract level. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using baseline propensity score matching with exact matching on CBSA and redlining status. Outcomes include asinh(Black Pop), asinh(Total Pop), asinh(White Pop), and Black Share. Standard errors are clustered at the census tract level. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}
 
-\begin{table}[t!]
+\bigskip
+
+\begin{table}[H]
     \centering
     \begin{threeparttable}
     \caption{Baseline Matching: Spillover Neighborhoods, Economic and Housing Outcomes (Tract-Clustered SEs)}
@@ -167,7 +184,7 @@ This section presents event study coefficients for the baseline matching specifi
     \input{../output/regression_results/matched_did/combined/baseline/2_year/tables/tract_clustered_spillover_economic_housing.tex}
     \begin{tablenotes}
     \small
-    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using baseline propensity score matching with exact matching on CBSA and redlining status. Outcomes include Log Median Income, Log Median Rent, HS Grad Rate, and Unemp Rate. Standard errors are clustered at the census tract level. Reference period is 10 years before public housing construction (event time = -10). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
+    \item \textit{Notes:} Event study coefficients for spillover neighborhoods (adjacent to treated tracts) using baseline propensity score matching with exact matching on CBSA and redlining status. Outcomes include asinh(Median Income), asinh(Median Rent), HS Grad Rate, and Unemp Rate. Standard errors are clustered at the census tract level. Reference period is one decade before public housing construction ($t = -1$). Statistical significance is denoted by: *p$<$0.1, **p$<$0.05, ***p$<$0.01.
     \end{tablenotes}
   \end{threeparttable}
 \end{table}

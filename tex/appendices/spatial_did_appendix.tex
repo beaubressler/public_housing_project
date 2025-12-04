@@ -44,11 +44,11 @@ This approach ensures that our control groups represent genuinely untreated area
 Our spatial DiD specification exploits variation in treatment timing across projects and spatial variation across rings within each project. For tract $i$ associated with project $p$ in year $t$, we estimate:
 
 \begin{align}
-y_{ipt} = &\alpha + \sum_{r \in \{inner, outer\}} \sum_{\tau \neq -10} \beta_{r\tau} \mathbf{1}[\text{Ring}_{ip} = r] \times \mathbf{1}[\text{EventTime}_{pt} = \tau] \nonumber \\
+y_{ipt} = &\alpha + \sum_{r \in \{inner, outer\}} \sum_{\tau \neq -1} \beta_{r\tau} \mathbf{1}[\text{Ring}_{ip} = r] \times \mathbf{1}[\text{EventTime}_{pt} = \tau] \nonumber \\
 &+ \gamma_{pt} + \delta_{pr} + \theta_{p,UR} \times t + \phi_{p,HWY} \times t + \varepsilon_{ipt}
 \end{align}
 
-where $y_{ipt}$ is the demographic outcome of interest, $\mathbf{1}[\text{Ring}_{ip} = r]$ indicates whether tract $i$ is in ring $r$ relative to project $p$, and $\mathbf{1}[\text{EventTime}_{pt} = \tau]$ indicates the number of decades relative to project $p$'s opening in year $t$. The coefficients $\beta_{r\tau}$ capture the effect of being in ring $r$ at event time $\tau$ relative to the treated tract at event time $-10$.
+where $y_{ipt}$ is the demographic outcome of interest, $\mathbf{1}[\text{Ring}_{ip} = r]$ indicates whether tract $i$ is in ring $r$ relative to project $p$, and $\mathbf{1}[\text{EventTime}_{pt} = \tau]$ indicates the number of decades relative to project $p$'s opening in year $t$. The coefficients $\beta_{r\tau}$ capture the effect of being in ring $r$ at event time $\tau$ relative to the treated tract at event time $t = -1$.
 
 \subsubsection{Fixed Effects Structure}
 

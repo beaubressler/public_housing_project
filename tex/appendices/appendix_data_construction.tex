@@ -1,3 +1,5 @@
+\begin{comment}
+
 \section{Public Housing Data Construction}
 \label{app:data_construction}
 
@@ -195,48 +197,145 @@ Total & 7,143 & 979,970 \\
 \subsubsection{Spatial Distribution}
 
 The dataset provides comprehensive coverage of public housing construction across the United States, with particular strength in major metropolitan areas where digitized records supplement administrative data. Projects are distributed across urban, suburban, and rural contexts, enabling analysis of heterogeneous treatment effects across different geographic settings.
+\end{comment}
+
+\section{Public Housing Data Construction}
+\label{app:public_housing_data}
+
+%\subsection{Sources}\label{app:project_population}
+\subsection{Estimating Public Housing Project Populations}\label{app:project_population}
+This section describes the methodology for estimating the population of each public housing project using the 1977 Picture of Subsidized Households (PIC77) dataset. The PIC77 dataset contains household-level demographic information for public housing residents, including the number of households in the project, racial composition, household size, income, and age structure.
+However, it does not provide direct population counts.
+
+To estimate total, white, and Black populations for each project $p$, I multiply the number of households for group $r$ by the average household size:  
+$$
+\text{Population}_{pr} = \text{Households}_{pr} \times \text{Average Household Size}_{p}.
+$$
+
+One challenge is that approximately 42\% of projects lack household size data. To address this, I impute missing values using two categorical variables that explain substantial variation in household composition: (i) \textit{elderly designation} (all elderly, some elderly, or none) and (ii) \textit{racial composition} (simplified into six categories: all white, all Black, all other race, mixed, no white, and other).  For each elderly designation $\times$ racial composition cell, I calculate the mean household size across all projects with non-missing data. Missing household size values are then imputed using the corresponding cell mean. This imputation strategy leverages the fact that elderly projects have systematically smaller household sizes, and household size varies by the racial composition of the project.
+
+This approach assumes that average household size is constant across racial groups within each project. While household size may vary by race in the general population, this assumption is reasonable within public housing projects where unit size allocations are determined by family size rather than race, and eligibility criteria are applied uniformly across racial groups.
+
+To validate the imputation strategy, I conducted a hold-out test where 20\% of projects with observed household size were randomly set to missing and then imputed using the cell means calculated from the remaining 80\%. The imputation has an an $R^2$ of 0.46 and is essentially unbiased, with a mean error of -0.01 persons.
+
 
 \section{Census Tract Data Construction and Harmonization}
-\label{app:census_data}
 
-This section describes the construction of a consistent panel of census tract-level neighborhood characteristics spanning 1930-1990, which serves as the outcome data for analyzing public housing effects.
+\subsection{Data Sources and Variable Availability}\label{app:tract_data_sources}
 
-\subsection{Spatial Standardization to 1950 Census Tract Boundaries}
+I construct tract-level neighborhood characteristics from two primary sources: published Census tabulations from NHGIS \parencite{mansonNationalHistoricalGeographic2022} and full-count Census microdata from IPUMS \parencite{rugglesIPUMSUSAVersion2022}. The two sources play complementary roles.
 
-\subsubsection{Motivation for 1950 Tract Standard}
+For 1950 onward, NHGIS provides comprehensive tract-level tabulations for all tracted areas, including population by race, housing characteristics, and socioeconomic measures. I use these tabulations as the primary data source for these decades.
 
-Census tract boundaries changed substantially across decades as urban areas grew and the Census Bureau refined geographic definitions. To enable longitudinal analysis, all census data from 1930-1990 are harmonized to 1950 census tract boundaries (GISJOIN\_1950) using area-weighted crosswalks. The 1950 standard was chosen because:
+For 1930 and 1940, NHGIS tract coverage is limited to select cities. I therefore supplement NHGIS data with tract-level aggregates constructed from full-count Census microdata, using enumeration district to tract crosswalks from the Urban Transition Historical GIS Project \parencite{loganUrbanTransitionHistorical2020}. For tracts where both sources are available, I use the NHGIS tabulations; for tracts covered only in the full-count data, I use the microdata-based estimates. This approach maximizes geographic coverage while maintaining consistency with published Census figures where available.
 
-\begin{itemize}
-    \item 1950 represents the midpoint of the analysis period (1930-1990)
-    \item Tract definitions in 1950 provide good coverage of urban areas where public housing was concentrated
-    \item Most public housing projects were built after 1940, making 1950 boundaries contemporaneous with treatment
-    \item 1950 boundaries balance stability with sufficient geographic resolution for spatial analysis
-\end{itemize}
+Table \ref{tab:variable_availability} summarizes the data format for key variables by decade. The format determines how I calculate tract-level values when harmonizing to 1950 boundaries (see Section \ref{app:tract_harmonization}).
 
-\subsubsection{Area-Weighted Crosswalk Construction}
+\begin{table}[h]
+\centering
+\caption{Census Tract Variable Data Formats by Decade}
+\label{tab:variable_availability}
+\begin{tabular}{lccccccccc}
+\toprule
+Variable & 1930 & 1940 & 1950 & 1960 & 1970 & 1980 & 1990 & 2000 & 2010 \\
+\midrule
+Population by race & Count$^a$ & Count$^a$ & Count & Count & Count & Count & Count & Count & Count \\
+Median income & FC & FC & Dist. & Dist. & Dist. & Rep. & Rep. & Rep. & Rep. \\
+Median rent & Dist.$^a$ & Rep. & Rep. & Dist. & Dist. & Rep. & Rep. & Rep. & Rep. \\
+Median home value & Dist.$^a$ & Rep. & Rep. & Dist. & Dist. & Rep. & Rep. & Rep. & Rep. \\
+Employment/LFP & FC & FC & Count & Count & Count & Count & Count & Count & Count \\
+Education & --- & FC & Count & Count & Count & Count & Count & Count & Count \\
+\bottomrule
+\multicolumn{10}{p{0.95\textwidth}}{\footnotesize \textit{Notes:} ``Count'' = raw counts from NHGIS (\cite{mansonNationalHistoricalGeographic2022}). ``Rep.'' = reported median from NHGIS. ``Dist.'' = median calculated from frequency distributions. ``FC'' = constructed from full-count Census microdata (\cite{rugglesIPUMSUSAVersion2022}). $^a$NHGIS coverage limited to select cities; full-count microdata used for remaining cities.}
+\end{tabular}
+\end{table}
 
-Geographic crosswalks between each decade's tract boundaries and 1950 tract boundaries were constructed using area-weighted interpolation, adapting the methodology of Eckert et al. (2020):
+The Census Bureau's reporting practices for median variables changed substantially over time. Median family income was first reported at the tract level in 1980; earlier decades provide only frequency distributions (1950--1970) or require construction from microdata (1930--1940). For housing variables, the Census reported medians in 1940, 1950, and 1980 onward, but provided only distributions in 1960 and 1970.
 
-\begin{enumerate}
-    \item \textbf{Spatial Intersection}: For each source year (1930, 1940, 1960, 1970, 1980, 1990), census tract shapefiles are spatially intersected with 1950 tract boundaries to identify overlapping areas.
-    
-    \item \textbf{Weight Calculation}: For each source tract, weights are calculated as the proportion of the tract's area that falls within each 1950 tract:
+For variables reported as frequency distributions, I calculate medians using midpoint interpolation (described below). For all economic variables, I construct a composite measure that uses reported medians when available and calculates medians from distributions otherwise, ensuring consistent coverage across decades.
+
+\subsubsection{Calculating Medians from Categorical Distributions}
+\label{app:median_calculation}
+
+For census years that report only frequency distributions across income, rent, or home value ranges, I calculate medians using a midpoint interpolation method. For each tract, I first calculate
+cumulative household counts across the income, rent, or value ranges reported by the Census Bureau. I then identify the first range where the cumulative frequency exceeds 50\% of total households.
+Finally, I assign the midpoint of that range as the median value.
+
+Formally, let $n_i$ denote the number of households in range $i$, with bounds $[L_i, U_i]$. The median is calculated as:
+
+\begin{equation}
+\text{Median} = \frac{L_m + U_m}{2}
+\end{equation}
+
+where $m$ is the first range satisfying $\sum_{i=1}^{m} n_i \geq \frac{1}{2} \sum_{i=1}^{N} n_i$. For top-coded categories (e.g., ``\$25,000 or more''), I use the lower bound since the upper bound
+is undefined.
+
+For example, the 1960 Census reports median income as 13 frequency bins: <\$1,000, \$1,000-\$2,000, \$2,000-\$3,000, ..., \$25,000+. If a tract has 1,000 families and the cumulative count first
+exceeds 500 at the \$5,000-\$7,500 range, I assign median income as \$6,250. Similarly, for 1970 median rent, the Census provides 15 bins ranging from <\$20 to \$500+, and the same midpoint
+interpolation method is applied.
+
+When crosswalking census tracts across decades to consistent 1950 boundaries (see Section \ref{app:tract_harmonization} for details), the methodology differs depending on whether medians are
+reported or calculated. For years with reported medians (income: 1980+; rent/value: 1940, 1950, 1980+), I use population-weighted averaging of median values when aggregating across source tracts.
+For years with distributions (income: 1950-1970; rent/value: 1930, 1960, 1970), I reallocate the count of households in each income or rent range using area weights, sum across source tracts, and then calculate the median from the resulting distribution. This distinction is critical because medians are intensive variables that should be averaged rather than summed, as explained in Section \ref{app:tract_harmonization}.
+
+All monetary values are converted to real 2000 dollars using the Consumer Price Index (CPI-U) from \textcite{officerMeasuringWorth2025}. The adjustment is applied after calculating medians (for
+distribution years) or using reported medians (for other years), but before crosswalking to 1950 tract boundaries.
+
+
+\subsection{Tract Boundary Harmonization}
+\label{app:tract_harmonization}
+
+This section describes the geographic harmonization of Census tract-level data to consistent boundaries.
+My baseline analysis harmonizes all tract-level data from 1930 to 2010 to 1950 Census tract boundaries using an area reweighting approach following \textcite{eckertMethodConstructGeographical2020}.
+
+I proceed as follows.
+First, for each source year, I spatially intersect census tract shapefiles with 1950 tract boundaries to identify overlapping areas.
+Next, for each source tract $i$, I calculate weights as the proportion of the tract's area that falls within each 1950 tract $j$:
     $$w_{ij} = \frac{\text{Area}(\text{Tract}_i \cap \text{Tract}_{1950,j})}{\text{Area}(\text{Tract}_i)}$$
-    
-    \item \textbf{Weight Normalization}: Weights are renormalized to ensure they sum to 1 for each source tract, accounting for minor geometric inconsistencies in shapefiles.
-    
-    \item \textbf{Population Reallocation}: Census variables are reallocated to 1950 tract boundaries using these weights:
-    $$\text{Population}_{1950,j} = \sum_{i} w_{ij} \times \text{Population}_{i}$$
-\end{enumerate}
+Weights are normalized to sum to one for each source tract to account for minor geometric inconsistencies.
 
+Finally, I use these weights to estimate count and median variables in the 1950 tract geography. 
+This proceeds slightly differently for count-based variables and median-based variables. 
+
+For each 1950 tract $j$, count variables such as population, housing units, and employment are harmonized by simply summing the weighted contributions from all overlapping source tracts:
+    $$
+    X_{j} = \sum_{i \in I_j} w_{ij} \cdot X_i
+    $$
+where $X_i$ represents the count variable in source tract $i$ and $I_j$ is the set of all source tracts overlapping with 1950 target tract $j$.
+This method assumes that outcome variables are uniformly distributed within each source tract, which may introduce measurement error in areas where populations are spatially concentrated within tract boundaries.
+For instance, if a source tract contains a spatially concentrated Black population but overlaps evenly with multiple 1950 tracts, the method would allocate residents uniformly across those tracts, potentially attenuating spatial estimates of segregation.
+
+For median variables such as median income, median rent, and median home value, tract-level estimates are calculated as weighted averages across source tracts:
+    $$\tilde{X}_j = \frac{\sum_{i \in I_j} w_{ij} \cdot \tilde{X}_i}{\sum_{i \in I_j} w_{ij}}$$
+The weights $w_{ij}$ are based solely on area overlap. This follows from the uniform-within-tract assumption described above: under the assumption that population (and the relevant subpopulations for each median) are uniformly distributed within each source tract, the share of a tract's population falling into a target tract is proportional to the area share $w_{ij}$.\footnote{Population weighting would require sub-tract spatial information on these subpopulations (renter households for median rent, families for median income), which is unavailable.}
+This weighted-average approach is mathematically equivalent to using target-tract area shares, as recommended by \textcite{eckertMethodConstructGeographical2020} for intensive variables, because the denominator renormalizes contributions to sum to one for each target tract. This approach is applied to median family income (1980, 1990, 2000), median contract rent (1940, 1980, 1990, 2000), and median home value (1940, 1980, 1990, 2000).
+
+
+
+\begin{figure}[h]
+    \subfloat[Split Pattern: One 1980 tract → Multiple 1950 tracts]{
+        \includegraphics[width=0.9\textwidth]{../output/figures/crosswalk_visualization/chicago_crosswalk_weights_complex.pdf}
+    }
+
+    \subfloat[Merge Pattern: Multiple 1980 tracts → One 1950 tract]{
+        \includegraphics[width=0.9\textwidth]{../output/figures/crosswalk_visualization/chicago_crosswalk_weights_merge.pdf}
+    }
+    \caption{Census Tract Harmonization Examples}
+    \label{fig:crosswalk_examples}
+    \note{These figures demonstrate the area-reweighting methodology for harmonizing 1980 census tracts to 1950 boundaries in Chicago. Panel (a) shows a split pattern where one 1980
+source tract is divided across multiple 1950 target tracts, with weights representing the proportion of area allocated to each target. Panel (b) shows a merge pattern where multiple 1980 source
+tracts contribute to a single 1950 target tract.}
+\end{figure}
+
+
+\begin{comment}
 \subsection{Data Sources and Variable Construction}
 
 \subsubsection{NHGIS Tract-Level Data}
 
 Neighborhood characteristics are compiled from National Historical Geographic Information System (NHGIS) tract-level tabulations covering:
 
-\begin{itemize}
+\begin{itemize} 
     \item \textbf{Population Demographics}: Total population, population by race (White, Black, other), population by age structure
     \item \textbf{Housing Characteristics}: Total housing units, tenure (owner/renter), housing quality measures, rent levels
     \item \textbf{Economic Indicators}: Occupation distributions, employment status, income measures (where available)
@@ -351,34 +450,5 @@ For census years where median values are reported as categorical ranges rather t
     \item \textbf{Midpoint Conversion}: For final analysis, identified median ranges are converted to midpoint values (e.g., \$1,000-\$1,500 range becomes \$1,250) except for open-ended upper categories where reasonable upper bounds are assigned.
 \end{enumerate}
 
-This methodology is implemented through a standardized function (\texttt{calculate\_median\_from\_census}) applied consistently across multiple variables including income, housing values, and rental costs for both full-count census data (1930, 1940) and NHGIS tabulations (1960, 1970).
 
-\subsection{Data Limitations and Considerations}
-
-\subsubsection{Measurement Error}
-
-\begin{enumerate}
-    \item \textbf{Geocoding Precision}: While systematic verification procedures were employed, some measurement error in project coordinates is inevitable, particularly for projects defined by street boundaries rather than specific addresses.
-    
-    \item \textbf{Temporal Precision}: Exact completion dates are sometimes approximated, particularly for projects with phased construction.
-    
-    \item \textbf{Unit Count Reconciliation}: Minor discrepancies exist between administrative sources regarding total unit counts.
-\end{enumerate}
-
-\subsubsection{Coverage Limitations}
-
-\begin{enumerate}
-    \item \textbf{Scattered-Site Projects}: Projects explicitly described as "scattered sites" were excluded due to inability to assign precise locations.
-    
-    \item \textbf{Racial Composition Data}: Comprehensive racial composition data are available only for New York City and Chicago projects.
-    
-    \item \textbf{Rural Projects}: Coverage may be less complete for rural areas not well-represented in administrative datasets.
-\end{enumerate}
-
-\subsubsection{Data Integration Challenges}
-
-The integration of multiple data sources with different collection methodologies, time periods, and geographic precision requirements necessitated extensive harmonization efforts. While systematic procedures were employed to ensure consistency, researchers should be aware that this dataset represents a reconstruction of historical records with the attendant limitations of such efforts.
-
-\subsection{Replication and Data Availability}
-
-All data processing scripts and digitization templates are available in the project repository. The Google Maps API key used for geocoding would need to be replaced by replicators. Raw digitized data files and intermediate processing outputs are preserved to enable verification and extension of the dataset.
+\end{comment}

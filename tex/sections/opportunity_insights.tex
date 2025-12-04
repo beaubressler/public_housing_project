@@ -1,30 +1,37 @@
 \section{Did Public Housing Create Low-Opportunity Neighborhoods}\label{sec:opportunity_insights}
 
-I have shown that public housing had large and persistent effects on neighborhood population, racial and economic composition, and housing markets.  
+I have shown that public housing had significant and persistent effects on neighborhood population, racial and economic composition, and housing markets.  
 I next ask whether these changes translated to differences in long-run neighborhood opportunity for children who grew up in these neighborhoods.
 
-I explore this question by merging in tract-level data from the Opportunity Atlas (\cite{chettyOpportunityAtlasMapping2018}).
-These data contain measures of long-run upward mobility and incarceration for children born from 1978-1983 who had parents at the 25th percentile of the national income distribution.
+I explore this question by merging tract-level data from the Opportunity Atlas (\cite{chettyOpportunityAtlasMapping2018}).
+These data include measures of long-run upward mobility and incarceration for children born from 1978 to 1983 whose parents were at the 25th percentile of the national income distribution.
 I will refer to these children as ``low-income children''.
 In particular, I use tract-level measures of the mean household income rank in adulthood in 2014-2015 and the share of these children who were incarcerated as of April 1st, 2010, at the 2010 Census tract level.
-I concord these data to 1950 tract boundaries using my tract crosswalks along with population counts for the number of relevant children in each tract contained in the Opportunity Atlas data.
-I then match these data to the matched pairs of public housing tracts, nearby tracts, and controls tracts used in Section \ref{sec:neighborhood_effects}.
+I concord these data to 1950 tract boundaries using my tract crosswalks, along with population counts of relevant children in each tract from the Opportunity Atlas data.
+I then match these data to the matched pairs of public housing tracts, nearby tracts, and control tracts used in Section \ref{sec:neighborhood_effects}.
 
 I then estimate the following regression model separately for public housing tracts and nearby tracts:
 \begin{equation}\label{eq:opportunity_insights}
-Y_{im} = \beta \text{Treated}_{i} + \mu_{m} + \epsilon_{im}
+Y_{im} = \beta \text{Treated}_{i} + X'_{i,1980}\gamma + \mu_{m} + \epsilon_{im}
 \end{equation}
 
-where $Y_{i}$ is the Opportunity Atlas outcome of interest (mean income rank or incarceration rate for low-income children) in tract $i$.
-$\beta$ captures the average difference in average outcome between each public housing (or nearby) tract and its matched control tract.
+where $Y_{i}$ denotes the Opportunity Atlas outcome of interest, either the mean income rank or the incarceration rate for low-income children, in tract $i$, $\mu_{m}$ denotes a matched-pair fixed effect, and $X_{i,1980}$ is a vector of tract characteristics in 1980 (Black share, median income, total population, unemployment rate, and median rent).
+The variable $\text{Treated}_{i}$ is an indicator for whether tract $i$ is a public housing tract (or a nearby tract).
+The coefficient $\beta$ captures the average difference in outcome between each treated tract and its matched control tract, conditional on 1980 neighborhood characteristics.
+Since most public housing projects were built before 1980, the 1980 characteristics are themselves affected by public housing and should therefore be considered ``bad controls'' in the usual causal inference sense. However, including these controls allows me to distinguish between effects operating through observable neighborhood composition versus the presence of public housing itself.
 
-Table \ref{tab:opportunity_insights_ph} presents results for public housing tracts and nearby tracts.
-Columns 1 and 2 present results for public housing tracts, while Columns 3 and 4 present results for nearby tracts.
-Low-income children who lived in public housing tracts, as well as the nearby tracts, have significantly lower upward mobility rates and higher incarceration rates compared to their matched controls:
-They have on average a 1.7 percentage point lower income rank in adulthood (Column 1) and a 0.6 percentage point higher incarceration rate (Column 2).
-This translates to a 4.6\% (.24 standard deviation) lower income rank, and an 18.8\% (.23 standard deviation) higher incarceration rate compared to matched controls.
-The difference between nearby tracts and their matched controls is about half as large (Columns 3 and 4) but are still statistically significant.
+Tables \ref{tab:opportunity_insights_treated} and \ref{tab:opportunity_insights_inner} present results for public housing tracts and nearby tracts, respectively.
+I estimate specifications both without controls (Columns 1 and 3) and with controls for 1980 neighborhood characteristics (Columns 2 and 4).
 
-These results suggest that the presence of public housing projects may have created lasting low-opportunity neighborhoods.
-Still, one should take these results as suggestive, rather than causal:
-Since we do not observe mobility and incarceration rates before public housing is constructed, one cannot rule out the possibility that the treated and nearby neighborhoods were already lower-opportunity areas prior to public housing construction.
+Children who lived in public housing tracts experienced significantly worse outcomes: a 1.8 percentage point lower income rank and a 0.6 percentage point higher incarceration rate compared to matched controls (Table \ref{tab:opportunity_insights_treated}, Columns 1 and 3).
+About a quarter of this effect persists after controlling for 1980 neighborhood characteristics, such as Black share and median income (Columns 2 and 4), suggesting that public housing had effects on neighborhood upward mobility and incarceration rates even beyond simply changing observable demographics.
+
+By contrast, the apparent spillover effects on nearby tracts appear to reflect selection rather than true spillovers.
+While nearby tracts initially show worse outcomes (Table \ref{tab:opportunity_insights_inner}, Columns 1 and 3), these differences completely disappear when controlling for 1980 neighborhood characteristics (Columns 2 and 4).
+These results imply that neighborhoods closer to public housing experienced worse outcomes simply because they were poorer and more Black by 1980, not because proximity to public housing directly reduced opportunity.
+The adverse effects of public housing on upward mobility were therefore geographically concentrated within immediate project tracts themselves.
+
+Taken together, these results suggest that public housing shaped neighborhood opportunity through two channels: by altering observable neighborhood composition, and to a lesser extent, through additional effects of the projects themselves.
+However, one should interpret these results cautiously.
+The matched-pair fixed effects controls for pre-treatment neighborhood differences, but we cannot observe pre-treatment mobility outcomes.
+Thus, we should not necessarily interpret these estimates as causal estimates of public housing on upward mobility. 
