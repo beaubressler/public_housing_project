@@ -42,15 +42,22 @@ holc_data <-
 
 
 # Keep only one of each unique 1950 census tract ----
-census_tracts <- 
-  census_tracts_raw %>% 
-  group_by(GISJOIN_1950) %>% 
-  filter(row_number() == 1) %>% 
-  ungroup() %>% 
+census_tracts <-
+  census_tracts_raw %>%
+  group_by(GISJOIN_1950) %>%
+  filter(row_number() == 1) %>%
+  ungroup() %>%
   # correct invalid geometries
-  st_make_valid() %>% 
+  st_make_valid() %>%
   # keep only the columns we need
   select(GISJOIN_1950)
+
+# Calculate actual tract areas for denominator in redlining share calculation
+tract_areas <-
+  census_tracts %>%
+  mutate(actual_tract_area = st_area(geom)) %>%
+  st_drop_geometry() %>%
+  select(GISJOIN_1950, actual_tract_area)
 
 ## Intersect holc ratings with Census tracts, and pick rating with largest share of tract -----
 # A single tracts can have multiple ratings (since the HOLC maps do not track with 1990 census tracts)
@@ -117,26 +124,27 @@ tract_holc_scores <-
 ## Create redlining binary equal to 1 if >=80% of tract area is in HOLC grade D area ----
 # this follows Weiwu (2024)
 
-# NOTE: This df contains all tracts which have some interaction with "Grade D" HOLC area. So 
-# need to edit redlined_binary in other data too 
-redlined_binary <- 
+# NOTE: This df contains all tracts which have some interaction with "Grade D" HOLC area. So
+# need to edit redlined_binary in other data too
+redlined_binary <-
   tract_holc_intersections %>%
   mutate(intersection_area = st_area(geom)) %>%
-  group_by(GISJOIN_1950) %>%
-  mutate(tract_total_area = sum(intersection_area)) %>%
-  ungroup() %>%
+  # Join actual tract areas (not just HOLC-mapped area)
+  left_join(tract_areas, by = "GISJOIN_1950") %>%
   # keep only grade D
   filter(grade == "D") %>%
-  mutate(redlined_share = intersection_area / tract_total_area) %>%
   group_by(GISJOIN_1950) %>%
   summarize(
-    total_grade_d_share = sum(redlined_share, na.rm = TRUE)  # Sum share of Grade D coverage
+    total_grade_d_area = sum(intersection_area, na.rm = TRUE),
+    actual_tract_area = first(actual_tract_area)
   ) %>%
   ungroup() %>%
+  # Calculate share of total tract area that is Grade D
+  mutate(total_grade_d_share = as.numeric(total_grade_d_area / actual_tract_area)) %>%
   # Create binary flag: 1 if 80% or more of the tract is Grade D, 0 otherwise
-  mutate(redlined_binary_80pp = ifelse(as.numeric(total_grade_d_share) >= 0.8, 1, 0),
-         redlined_binary_70pp = ifelse(as.numeric(total_grade_d_share) >= 0.7, 1, 0),
-         redlined_binary_50pp = ifelse(as.numeric(total_grade_d_share) >= 0.5, 1, 0)) %>% 
+  mutate(redlined_binary_80pp = ifelse(total_grade_d_share >= 0.8, 1, 0),
+         redlined_binary_70pp = ifelse(total_grade_d_share >= 0.7, 1, 0),
+         redlined_binary_50pp = ifelse(total_grade_d_share >= 0.5, 1, 0)) %>%
   st_drop_geometry()
 
 
