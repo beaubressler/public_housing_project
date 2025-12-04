@@ -134,6 +134,20 @@ tex/presentations/
 # Archive folders
 */archive/
 
+# Work-in-progress/experimental directories
+code/build/census_tract/corrected/
+code/learn/augsynth_test/
+code/learn/bartik_iv/
+code/helpers/census_region_mapping.R
+
+# Exploratory scripts not needed in repo
+code/learn/exploratory/check_ph_share_distribution.R
+code/learn/exploratory/visualize_incomplete_coverage.R
+code/learn/exploratory/analyze_ph_scale_1980.R
+code/learn/exploratory/analyze_ph_scale_t0.R
+code/learn/exploratory/create_ph_share_presentation_figures.R
+code/learn/exploratory/map_sf_public_housing_black_share.R
+
 # Temporary analysis files
 temp_*.R
 compare_*.R
