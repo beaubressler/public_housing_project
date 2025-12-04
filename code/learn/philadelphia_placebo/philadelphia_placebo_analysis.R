@@ -8,6 +8,7 @@ library(here)
 library(sf)
 library(modelsummary)
 library(tinytable)
+library(tableone)
 
 rm(list = ls())
 
@@ -27,6 +28,9 @@ dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
 # load matching function
 source(here("code", "helpers", "matching_functions.R"))
 
+# load table utilities
+source(here("code", "helpers", "table_utilities.R"))
+
 # Step 1: Load proposed locations shapefile -----
 cat("Loading proposed Philadelphia public housing locations...\n")
 
@@ -44,12 +48,14 @@ print(st_crs(proposed_locations))
 # Step 2: Load census tract data -----
 cat("\nLoading census tract sample...\n")
 
-census_tract_sample <- st_read(here(merged_data_dir, "census_tract_sample_with_treatment_status_balanced.gpkg"))
+# Use non-balanced sample for descriptive analysis (Steps 2-6.5)
+# This ensures all proposed locations map to tracts
+census_tract_sample_descriptive <- st_read(here(merged_data_dir, "census_tract_sample_with_treatment_status_all.gpkg"))
 
 treated_tracts_panel_raw <- st_read(treated_tracts_panel_filepath)
 
 # Filter to Philadelphia only
-philly_tracts <- census_tract_sample %>%
+philly_tracts <- census_tract_sample_descriptive %>%
   filter(city == "Philadelphia")
 
 cat("Philadelphia tracts found:", nrow(philly_tracts %>% distinct(GISJOIN_1950)), "unique tracts\n")
@@ -167,40 +173,46 @@ descriptive_comparison <- philly_1940_data %>%
   select(location_type, variable, mean_sd) %>%
   pivot_wider(names_from = location_type, values_from = mean_sd)
 
-# Calculate differences and t-tests
-difference_tests_philly <- philly_1940_data %>%
-  select(location_type, all_of(comparison_vars)) %>%
-  pivot_longer(cols = -location_type, names_to = "variable", values_to = "value") %>%
-  group_by(variable) %>%
-  summarise(
-    proposed_mean = mean(value[location_type == "Proposed Only"], na.rm = TRUE),
-    actual_mean = mean(value[location_type == "Actual Public Housing"], na.rm = TRUE),
-    diff = proposed_mean - actual_mean,
-    t_stat = tryCatch({
-      t.test(value[location_type == "Proposed Only"],
-             value[location_type == "Actual Public Housing"])$statistic
-    }, error = function(e) NA),
-    p_value = tryCatch({
-      t.test(value[location_type == "Proposed Only"],
-             value[location_type == "Actual Public Housing"])$p.value
-    }, error = function(e) NA),
-    .groups = 'drop'
-  ) %>%
-  mutate(
-    diff_formatted = sprintf("%.3f", diff),
-    significance = case_when(
-      is.na(p_value) ~ "",
-      p_value < 0.001 ~ "***",
-      p_value < 0.01 ~ "**",
-      p_value < 0.05 ~ "*",
-      TRUE ~ ""
-    ),
-    diff_sig = paste0(diff_formatted, significance)
-  )
+# Use CreateTableOne for consistency with balance tables
+philadelphia_tableone <- CreateTableOne(
+  vars = comparison_vars,
+  strata = "location_type",
+  data = philly_1940_data,
+  test = TRUE
+)
 
-# Combine into final comparison table
-philadelphia_comparison_table <- descriptive_comparison %>%
-  left_join(difference_tests_philly, by = "variable") %>%
+cat("Philadelphia comparison using tableone:\n")
+print(philadelphia_tableone, smd = TRUE, test = TRUE)
+
+# Extract SMD and p-values from tableone object (following balance table approach)
+table_matrix <- print(philadelphia_tableone, smd = TRUE, test = TRUE, printToggle = FALSE)
+
+# Convert to data frame and format
+philadelphia_comparison_df <- as.data.frame(table_matrix) %>%
+  rownames_to_column("variable") %>%
+  filter(variable != "n") %>%  # Remove sample size row
+  mutate(
+    # Clean variable names
+    variable = str_replace_all(variable, "\\s*\\(mean \\(SD\\)\\)", "")
+  ) %>%
+  select(variable, `Actual Public Housing`, `Proposed Only`, SMD, p) %>%
+  rename(
+    "Std. Diff." = SMD,
+    "p_value" = p
+  ) %>%
+  # Add significance stars to Std. Diff. based on p-values
+  mutate(
+    p_numeric = suppressWarnings(as.numeric(p_value)),
+    `Std. Diff.` = case_when(
+      is.na(p_numeric) ~ `Std. Diff.`,
+      p_numeric < 0.01 ~ paste0(`Std. Diff.`, "***"),
+      p_numeric < 0.05 ~ paste0(`Std. Diff.`, "**"),
+      p_numeric < 0.10 ~ paste0(`Std. Diff.`, "*"),
+      TRUE ~ `Std. Diff.`
+    )
+  ) %>%
+  select(-p_value, -p_numeric) %>%
+  # Map variable names to clean labels
   mutate(
     Variable = case_when(
       variable == "black_share" ~ "Black Share",
@@ -214,8 +226,10 @@ philadelphia_comparison_table <- descriptive_comparison %>%
       TRUE ~ variable
     )
   ) %>%
-  select(Variable, `Actual Public Housing`, `Proposed Only`, diff_sig) %>%
-  rename("Difference" = diff_sig)
+  select(Variable, `Actual Public Housing`, `Proposed Only`, `Std. Diff.`)
+
+# Final table for output
+philadelphia_comparison_table <- philadelphia_comparison_df
 
 cat("=== PHILADELPHIA: PROPOSED VS ACTUAL LOCATIONS (1940) ===\n")
 print(philadelphia_comparison_table)
@@ -225,26 +239,87 @@ n_proposed <- sum(philly_1940_data$location_type == "Proposed Only")
 n_actual <- sum(philly_1940_data$location_type == "Actual Public Housing")
 
 # Create publication-ready table
-note_text <- paste0("Sample includes ", n_proposed, " proposed-only locations and ", n_actual, " actual public housing locations. ",
-                   "Difference column shows mean difference (Proposed - Actual) with standard errors in parentheses where applicable. ",
-                   "\\\\ Significance levels: * p<0.05, ** p<0.01, *** p<0.001.")
-
-philly_comparison_table_formatted <- philadelphia_comparison_table %>%
-  tt(caption = "1940 Neighborhood Characteristics: Proposed vs Actual Public Housing Locations in Philadelphia",
-     notes = note_text) %>%
-  style_tt(bootstrap_class = "table table-striped") %>%
-  format_tt(escape = FALSE)
+# Note: Don't include caption/notes in tt() call - these will be added manually in LaTeX
+# with threeparttable wrapper
+philly_comparison_table_formatted <- philadelphia_comparison_table |>
+  tt() |>
+  format_tt(escape = FALSE) |>
+  theme_tt(theme = "tabular")
 
 # Print formatted table
 print(philly_comparison_table_formatted)
 
-# Save to LaTeX file
-save_tt(philly_comparison_table_formatted, 
-         file.path(results_dir, "philadelphia_proposed_vs_actual_characteristics.tex"),
-         overwrite = TRUE)
+# Save to LaTeX file and strip table wrappers for threeparttable compatibility
+philly_table_path <- file.path(results_dir, "philadelphia_proposed_vs_actual_characteristics.tex")
+save_tt(philly_comparison_table_formatted, philly_table_path, overwrite = TRUE)
+remove_table_wrappers(philly_table_path)
+
+# Create slides version (simpler version for presentations)
+slides_dir <- file.path(results_dir, "slides")
+dir.create(slides_dir, recursive = TRUE, showWarnings = FALSE)
+
+philly_comparison_table_slides <- philadelphia_comparison_table |>
+  tt(caption = "1940 Characteristics: Proposed vs Actual Locations") |>
+  style_tt(font_size = 1.0) |>
+  format_tt(escape = FALSE) |>
+  theme_tt(theme = "tabular")
+
+save_tt(philly_comparison_table_slides,
+        file.path(slides_dir, "philadelphia_proposed_vs_actual_characteristics.tex"),
+        overwrite = TRUE)
+
+
+
+# Step 6.5 Map of Philadelphia -----
+cat("\n=== CREATING PHILADELPHIA MAP ===\n")
+
+# Get Philadelphia tracts with 1940 data (already using non-balanced sample from Step 2)
+philly_tracts_1940_all <- philly_tracts %>%
+  filter(YEAR == 1940)
+
+cat("Philadelphia tracts (1940):", nrow(philly_tracts_1940_all), "\n")
+
+# Create map
+philly_map <- ggplot() +
+  # Base layer: Philadelphia census tracts with 1940 Black share
+  geom_sf(data = philly_tracts_1940_all,
+          aes(fill = black_share),
+          color = "gray80", linewidth = 0.2) +
+  scale_fill_viridis_c(option = "plasma",
+                       name = "Black Share\n(1940)",
+                       labels = scales::percent_format()) +
+  # All proposed locations
+  geom_sf(data = proposed_locations,
+          color = "#d62728", size = 2.5, shape = 16) +
+  # Styling
+  theme_void() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    legend.position = "right",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
+  ) +
+  labs(
+    title = "Philadelphia: Proposed Public Housing Locations (1956)",
+    caption = "Red dots = Proposed locations"
+  )
+
+philly_map
+# Save map
+ggsave(file.path(results_dir, "philadelphia_proposed_locations_map.pdf"),
+       philly_map, width = 10, height = 8)
+
+ggsave(file.path(slides_dir, "philadelphia_proposed_locations_map.pdf"),
+       philly_map, width = 10, height = 8)
+
+cat("Philadelphia map saved\n")
+
 
 # Step 7: Set up placebo matching following existing methodology -----
 cat("\n=== PHILADELPHIA PLACEBO MATCHING SETUP ===\n")
+
+# Load balanced sample for placebo analysis (needs balanced panel for event study)
+census_tract_sample <- st_read(here(merged_data_dir, "census_tract_sample_with_treatment_status_balanced.gpkg"))
 
 # First, get the actual Philadelphia treatment years to inform placebo timing
 actual_philly_treatment_timing <- census_tract_sample %>%
@@ -529,11 +604,11 @@ comparison_plot <- plot_data %>%
   # Styling
   scale_color_manual(values = c("Placebo" = "gray50", "Treated" = "#d62728"), 
                      name = "Analysis") +
-  scale_x_continuous(breaks = seq(-20, 30, 10)) +
+  scale_x_continuous(breaks = seq(-20, 30, 10), labels = seq(-2, 3, 1)) +
   facet_wrap(~ variable_label, scales = "free_y", ncol = 2) +
   labs(
     title = "Philadelphia Placebo Test: Proposed vs Actual Public Housing Locations",
-    x = "Years Relative to Treatment",
+    x = "Decades Relative to Treatment",
     y = "Difference-in-Differences Estimate"
   ) +
   pub_theme(14)
