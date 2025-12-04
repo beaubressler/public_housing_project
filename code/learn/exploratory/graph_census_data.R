@@ -230,9 +230,9 @@ cbsa_data <-
   ) %>%
   ungroup()
 
-# mainland us
-states <- 
-  tigris::states(cb = TRUE) %>%
+# mainland us - use full resolution to capture Florida and Texas southern tips
+states <-
+  tigris::states(cb = FALSE) %>%
   filter(!STUSPS %in% c("HI", "AK", "PR"))  # Exclude Hawaii, Alaska, and Puerto Rico
 states <- st_transform(states, st_crs(cbsa_data))
 
@@ -241,7 +241,7 @@ states <- st_transform(states, st_crs(cbsa_data))
 mainland_bbox <- st_bbox(c(
   xmin = -125,  # Western edge
   xmax = -65,   # Eastern edge
-  ymin = 24,    # Southern edge
+  ymin = 22,    # Southern edge (captures Florida Keys and southern Texas)
   ymax = 50     # Northern edge
 ), crs = st_crs(states))  # Use the CRS of cbsa_data
 
@@ -291,9 +291,19 @@ ggplot() +
 #     title = "Geographic Coverage of Sample"
 #   )
 
-# save map 
+# save map
 ggsave(
   here(map_dir, "cbsa_coverage_map.pdf"),
+  width = 13.5, height = 9.5, units = "in",
+  dpi = 450, bg = "white",
+  device = cairo_pdf,
+  limitsize = FALSE
+)
+
+# save slide version (larger text, cleaner)
+dir.create(here(map_dir, "slides"), showWarnings = FALSE, recursive = TRUE)
+ggsave(
+  here(map_dir, "slides", "cbsa_coverage_map.pdf"),
   width = 13.5, height = 9.5, units = "in",
   dpi = 450, bg = "white",
   device = cairo_pdf,

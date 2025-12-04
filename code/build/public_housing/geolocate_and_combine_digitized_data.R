@@ -319,18 +319,22 @@ sf_geocoded_1973_google_with_fixes <-
       distance_between_first_and_last_street_address_km > 1 & distance_between_street_and_name_address_km < 1 ~ long_name_with_city,
       TRUE ~ long)
   ) %>%
-  # manual fixes 
+  # manual fixes
   mutate(lat = case_when(
     project_name == "Holly Courts" ~ lat_name_with_city,
     project_name == "Yerba Buena Annex" ~ lat_name_with_city,
     project_name == "Sunnydale" ~ lat_last_two_streets,
     project_name == "Hunters Point" ~ lat_last_two_streets,
+    # Manual fix for CA-17A geocoding error (Earl St in Mission instead of Hunter's Point)
+    project_code == "CA-17A" & grepl("Earl.*Kiska", address_or_streets) ~ 37.729,
     TRUE ~ lat),
     long = case_when(
       project_name == "Holly Courts" ~ long_name_with_city,
       project_name == "Yerba Buena Annex" ~ long_name_with_city,
       project_name == "Sunnydale" ~ long_last_two_streets,
       project_name == "Hunters Point" ~ long_last_two_streets,
+      # Manual fix for CA-17A geocoding error (Earl St in Mission instead of Hunter's Point)
+      project_code == "CA-17A" & grepl("Earl.*Kiska", address_or_streets) ~ -122.378,
       TRUE ~ long)) %>% 
   # if missing now, use the first two streets
   mutate(lat = case_when(
@@ -347,6 +351,7 @@ sf_geocoded_1973_google_with_fixes <-
     project_name == "Yerba Buena Annex" ~ "name_with_city",
     project_name == "Sunnydale" ~ "last_two_streets",
     project_name == "Hunters Point" ~ "last_two_streets",
+    project_code == "CA-17A" & grepl("Earl.*Kiska", address_or_streets) ~ "manual_fix",
     is.na(lat) ~ "first_two_streets",
     TRUE ~ "first_two_streets"
   ))

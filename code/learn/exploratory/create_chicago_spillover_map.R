@@ -17,9 +17,31 @@ census_tract_sample_indexed_unique <- read_sf(here(merged_data_dir, "census_trac
   filter(row_number() == 1) %>%
   mutate(tract_id = row_number())
 
-# Read Chicago public housing project locations (from balanced sample)
-chicago_projects <- read_sf(here("data", "derived", "public_housing", "working", data_type, "public_housing_sample_balanced.gpkg")) %>%
+# Read Chicago public housing project locations
+# Filter to only projects whose tracts are in the analysis (treated_tracts_panel_balanced)
+# This ensures map consistency with actual analysis sample
+
+# Get list of treated tracts in the analysis
+treated_tracts_panel <- read_sf(here(merged_data_dir, "treated_tracts_panel_balanced.gpkg")) %>%
+  filter(city == "Chicago") %>%
+  st_drop_geometry() %>%
+  distinct(GISJOIN_1950)
+
+# Read all projects in balanced sample
+all_chicago_projects <- read_sf(here("data", "derived", "public_housing", "working", data_type, "public_housing_sample_balanced.gpkg")) %>%
   filter(locality == "CHICAGO")
+
+# Spatial join to get tract for each project
+chicago_projects_with_tracts <- st_join(
+  all_chicago_projects,
+  census_tract_sample_indexed_unique %>% select(GISJOIN_1950, geom),
+  join = st_within
+)
+
+# Filter to only projects in tracts that are actually in the analysis
+chicago_projects <- chicago_projects_with_tracts %>%
+  filter(GISJOIN_1950 %in% treated_tracts_panel$GISJOIN_1950) %>%
+  select(all_of(names(all_chicago_projects)))
 
 # Get Chicago tracts ----
 chicago_tracts <- census_tract_sample_indexed_unique %>%
@@ -36,8 +58,8 @@ chicago_rings_with_geom <- chicago_tracts %>%
   mutate(location_type = ifelse(is.na(location_type), "other", location_type)) %>%
   # Create display category - only label treated and inner
   mutate(display_category = case_when(
-    location_type == "treated" ~ "Public Housing Projects",
-    location_type == "inner" ~ "Spillover Areas",
+    location_type == "treated" ~ "Treated",
+    location_type == "inner" ~ "Nearby",
     TRUE ~ "Other Areas"
   ))
 
@@ -48,21 +70,22 @@ chicago_spillover_map <- ggplot() +
           color = "white",
           size = 0.15) +
   geom_sf(data = chicago_projects,
-          aes(shape = "Project Locations"),
           color = "black",
-          size = 0.9) +
+          size = 0.9,
+          shape = 16,
+          show.legend = FALSE) +
   scale_fill_manual(
     values = c(
-      "Public Housing Projects" = "#d73027",
-      "Spillover Areas" = "#4575b4",
-      "Other Areas" = "#969696"
+      "Treated" = "#d73027",
+      "Nearby" = "#4575b4",
+      "Other Areas" = "gray"
     ),
-    breaks = c("Public Housing Projects", "Spillover Areas"),  # Only show these in legend
+    breaks = c("Treated", "Nearby"),
     name = ""
   ) +
   labs(
-    title = "Public Housing Projects and Spillover Areas: Chicago",
-    subtitle = "Census tracts with public housing (1941-1973) and adjacent spillover zones"
+    title = NULL,
+    subtitle = NULL
   ) +
   theme_void() +
   theme(
@@ -71,13 +94,13 @@ chicago_spillover_map <- ggplot() +
     legend.background = element_rect(fill = "white", color = NA),
     plot.title = element_text(hjust = 0.5, face = "bold", size = 18, margin = margin(b = 5)),
     plot.subtitle = element_text(hjust = 0.5, size = 12, color = "gray40", margin = margin(b = 20)),
-    legend.position = "bottom",
+    legend.position = "right",
     legend.key.size = unit(1, "cm"),
     legend.text = element_text(size = 14),
-    legend.margin = margin(t = 20),
+    legend.margin = margin(l = 20),
     plot.margin = margin(20, 20, 20, 20)
   ) +
-  guides(fill = guide_legend(nrow = 1, byrow = TRUE, override.aes = list(color = NA)))
+  guides(fill = guide_legend(ncol = 1, byrow = TRUE, override.aes = list(color = NA)))
 
 # Save high-quality versions ----
 ggsave(here("output", "figures", "chicago_spillover_all_tracts.pdf"),
@@ -95,8 +118,21 @@ ggsave(here("output", "figures", "chicago_spillover_all_tracts_clean.pdf"),
        width = 10, height = 8,
        dpi = 300, device = "pdf")
 
+# Save slide versions (in slides subdirectory) - NO TITLE for slides
+dir.create(here("output", "figures", "slides"), showWarnings = FALSE, recursive = TRUE)
+
+chicago_spillover_no_title <- chicago_spillover_map +
+  labs(title = NULL, subtitle = NULL) +
+  theme(plot.margin = margin(10, 20, 20, 20))
+
+ggsave(here("output", "figures", "slides", "chicago_spillover_all_tracts_clean.pdf"),
+       chicago_spillover_no_title,
+       width = 10, height = 8,
+       dpi = 300, device = "pdf")
+
 cat("Publication-quality Chicago spillover maps with all tracts saved:\n")
 cat("- chicago_spillover_all_tracts.pdf (with subtitle)\n")
 cat("- chicago_spillover_all_tracts_clean.pdf (title only)\n")
-cat("- chicago_spillover_all_tracts.png\n")
+cat("- chicago_spillover_all_tracts_no_title.pdf (no title - for slides)\n")
+cat("- Slide versions saved to slides/ subdirectory\n")
 cat("Shows all Chicago tracts with only treated and spillover areas labeled\n")

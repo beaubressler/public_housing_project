@@ -37,6 +37,10 @@ source(here(census_tract_build_dir, "create_cbd_crosswalk.R"))
 source(here(census_tract_build_dir, "construct_ed_to_tract_crosswalk_eglp_1950.R"))
 
 ##  Clean Census tract data from NHGIS -------
+
+# NOTE: Pulled 2010 Census tract data from NHGIS API, commenting out 
+#source(here(census_tract_build_dir, "download_2010_nhgis_data.R"))
+
 # population by race
 source(here(census_tract_build_dir, "clean_census_tract_population_data.R"))
 # median years of education and share of people who finished HS
@@ -108,6 +112,7 @@ source(here(learn_dir, "create_data_source_table.R"))
 ## Data exploration
 # source(here(exploratory_dir, "explore_public_housing_data.R"))
 source(here(exploratory_dir, "graph_census_data.R"))
+source(here(exploratory_dir, "google_ngram_public_housing.R"))
 
 ## Regressions -----
 ### Site selection regressions
