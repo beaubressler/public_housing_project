@@ -218,7 +218,7 @@ model_0_lpm <- feols(
     asinh_median_income_1940 +
     # Housing quality
     # share_needing_repair_1940 + 
-    asinh_median_rent_calculated_1940 
+    asinh_median_rent_calculated_1940
     | county_id,
   data = site_selection_data,
   vcov_conley(lat = "lat", lon = "lon", cutoff = 2)
@@ -344,6 +344,9 @@ fe_row_1940 <- tibble::tribble(
   "County fixed effects", "Yes", "Yes", "Yes", "Yes"
 )
 
+# Helper to extract Conley vcov from model
+conley_vcov <- function(x) vcov_conley(x, lat = "lat", lon = "lon", cutoff = 2)
+
 # Output LPM results
 models_1940_lpm <- list(
   "(1)" = model_0_lpm,
@@ -356,7 +359,8 @@ site_selection_table <- modelsummary(
   models_1940_lpm,
   coef_omit = "(Intercept)",
   coef_map = variable_labels_1940,
-  stars = TRUE,
+  vcov = conley_vcov,
+  stars = c('*' = 0.1, '**' = 0.05, '***' = 0.01),
   fmt = 3,
   gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
   add_rows = fe_row_1940,
@@ -452,6 +456,7 @@ share_needing_repair_effect_relative
 # --- Urban renewal ---
 urban_renewal_effect <- coef(model_3_lpm)["ur_binary_5pp"]
 urban_renewal_effect_relative <- urban_renewal_effect / baseline_prob
+urban_renewal_effect
 urban_renewal_effect_relative
 
 # Print summary -----
@@ -461,4 +466,306 @@ cat("Treated tracts:", sum(site_selection_data$treated), "\n")
 
 
 
-# Probit -----
+# Logit -----
+# -------------------------
+# Logit (with county FE + Conley SE)
+# -------------------------
+library(fixest)            # you already loaded
+library(modelsummary)      # you already loaded
+library(marginaleffects)   # install.packages("marginaleffects") if needed
+
+## Helper: Conley vcov for fixest objects
+conley2 <- function(m) vcov_conley(m, lat = "lat", lon = "lon", cutoff = 2)
+
+## Model 0 (parsimonious)
+model_0_logit <- feglm(
+  treated ~
+    black_share_1940 +
+    asinh_total_pop_1940 +
+    asinh_median_income_1940 +
+    asinh_median_rent_calculated_1940 |
+    county_id,
+  data = site_selection_data,
+  family = binomial(link = "logit")
+)
+
+## Model 1 (full)
+model_1_logit <- feglm(
+  treated ~
+    black_share_1940 +
+    asinh_total_pop_1940 +
+    asinh_median_income_1940 +
+    pct_hs_grad_1940 +
+    unemp_rate_1940 +
+    lfp_rate_1940 +
+    asinh_median_rent_calculated_1940 +
+    asinh_distance_from_cbd +
+    cbd +
+    redlined_binary_80pp |
+    county_id,
+  data = site_selection_data,
+  family = binomial(link = "logit")
+)
+
+## Model 2 (add housing quality robustness)
+model_2_logit <- feglm(
+  treated ~
+    black_share_1940 +
+    asinh_total_pop_1940 +
+    asinh_median_income_1940 +
+    pct_hs_grad_1940 +
+    unemp_rate_1940 +
+    lfp_rate_1940 +
+    asinh_median_rent_calculated_1940 +
+    share_needing_repair_1940 +
+    asinh_distance_from_cbd +
+    cbd +
+    redlined_binary_80pp |
+    county_id,
+  data = site_selection_data,
+  family = binomial(link = "logit")
+)
+
+## Model 3 (add mid-century policies)
+model_3_logit <- feglm(
+  treated ~
+    black_share_1940 +
+    asinh_total_pop_1940 +
+    asinh_median_income_1940 +
+    pct_hs_grad_1940 +
+    unemp_rate_1940 +
+    lfp_rate_1940 +
+    asinh_median_rent_calculated_1940 +
+    asinh_distance_from_cbd +
+    cbd +
+    redlined_binary_80pp +
+    asinh_distance_to_highway_km + ur_binary_5pp |
+    county_id,
+  data = site_selection_data,
+  family = binomial(link = "logit")
+)
+
+# -------------------------
+# Table A: Odds Ratios (exp(beta)) with Conley SEs
+# -------------------------
+models_1940_logit <- list(
+  "(1)" = model_0_logit,
+  "(2)" = model_1_logit,
+  "(3)" = model_2_logit,
+  "(4)" = model_3_logit
+)
+
+# modelsummary can exponentiate coefficients for logit to show ORs
+logit_or_table <- modelsummary(
+  models_1940_logit,
+  coef_map  = variable_labels_1940,
+  coef_omit = "(Intercept)",
+  exponentiate = TRUE,              # odds ratios
+  vcov = conley2,                   # Conley(2km)
+  stars = TRUE,
+  fmt = 3,
+  gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
+  gof_map  = get_gof_map_regression(),
+  add_rows = fe_row_1940,
+  output = "tinytable"
+) |>
+  theme_tt(theme = "tabular")
+
+logit_or_path <- here(site_selection_output_dir, "site_selection_1940_logit_or.tex")
+save_tt(logit_or_table, logit_or_path, overwrite = TRUE)
+remove_table_wrappers(logit_or_path)
+
+# -------------------------
+# Table B: Average Marginal Effects (AME) with Conley SEs
+# (Do this for your headline model; repeat for others if desired)
+# -------------------------
+# marginaleffects works with fixest::feglm; supply vcov func for SEs
+ame_m3 <- marginaleffects::avg_slopes(
+  model_3_logit,
+  variables = c(
+    "black_share_1940",
+    "asinh_total_pop_1940",
+    "asinh_median_income_1940",
+    "pct_hs_grad_1940",
+    "unemp_rate_1940",
+    "lfp_rate_1940",
+    "asinh_median_rent_calculated_1940",
+    "asinh_distance_from_cbd",
+    "cbd",
+    "redlined_binary_80pp",
+    "asinh_distance_to_highway_km",
+    "ur_binary_5pp"
+  )
+)
+
+# format AME table
+ame_tbl <- ame_m3 |>
+  dplyr::mutate(term = dplyr::recode(term, !!!variable_labels_1940)) |>
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value)
+
+ame_tt <- tt(ame_tbl,
+             columns = c("term","estimate","std.error","conf.low","conf.high","p.value"),
+             cn = c("Variable","AME","SE","CI low","CI high","p")) |>
+  format_tt(digits = 3) |>
+  theme_tt(theme = "tabular")
+
+ame_path <- here(site_selection_output_dir, "site_selection_1940_logit_ame.tex")
+save_tt(ame_tt, ame_path, overwrite = TRUE)
+remove_table_wrappers(ame_path)
+
+# =========================
+# AUC + LPM diagnostics + Marginal Effects (clean)
+# =========================
+library(pROC)
+library(dplyr)
+library(ggplot2)
+library(marginaleffects)
+
+# --- helper for AUC from fixest models ---
+auc_from_fixest <- function(model, y_full = NULL, data_full = NULL) {
+  p <- as.numeric(fitted(model))
+  y <- model$y
+  if (is.null(y)) {
+    if (is.null(y_full)) stop("Provide y_full if model$y is NULL.")
+    y <- y_full
+  }
+  if (!is.null(data_full)) {
+    p_all <- tryCatch(predict(model, newdata = data_full, type = "response"), error = function(e) NULL)
+    if (!is.null(p_all)) {
+      keep <- !is.na(p_all)
+      y <- y_full[keep]
+      p <- p_all[keep]
+    }
+  }
+  roc(y, p, quiet = TRUE)$auc
+}
+
+# =========================
+# 1) AUC
+# =========================
+
+# LOGIT
+auc_logit <- auc_from_fixest(
+  model_3_logit,
+  y_full    = site_selection_data$treated,
+  data_full = site_selection_data
+)
+
+# LPM
+p_lpm   <- as.numeric(fitted(model_3_lpm))
+keep_lpm <- !is.na(p_lpm)
+y_lpm    <- site_selection_data$treated[keep_lpm]
+auc_lpm  <- roc(y_lpm, p_lpm[keep_lpm], quiet = TRUE)$auc
+
+cat(sprintf("AUC (Logit): %.3f\n", as.numeric(auc_logit)))
+cat(sprintf("AUC (LPM)  : %.3f\n", as.numeric(auc_lpm)))
+
+# Optional overlay ROC plot
+roc_logit <- roc(model_3_logit$y, fitted(model_3_logit), quiet = TRUE)
+roc_lpm   <- roc(y_lpm, p_lpm[keep_lpm], quiet = TRUE)
+plot(roc_lpm,  col = "black", lwd = 2, main = "ROC: LPM vs Logit")
+plot(roc_logit, add = TRUE, col = "gray50", lwd = 2, lty = 2)
+legend("bottomright",
+       c(sprintf("LPM  (AUC=%.3f)", as.numeric(auc_lpm)),
+         sprintf("Logit(AUC=%.3f)", as.numeric(auc_logit))),
+       col = c("black", "gray50"), lwd = 2, lty = c(1,2), bty = "n")
+
+# =========================
+# 2) LPM diagnostics
+# =========================
+pred_lpm <- p_lpm
+cat("Share < 0  :", mean(pred_lpm < 0, na.rm = TRUE), "\n")
+cat("Share > 1  :", mean(pred_lpm > 1, na.rm = TRUE), "\n")
+cat("Range [min,max]:", paste(range(pred_lpm, na.rm = TRUE), collapse = " , "), "\n")
+hist(pred_lpm, breaks = 40, main = "LPM predicted values", xlab = "Predicted P(treated)")
+
+# =========================
+# 3) Marginal effects (MEM, +10pp diff, and by-risk-decile)
+# =========================
+
+# Conley(2km) vcov for marginaleffects
+conley2 <- function(m) vcov_conley(m, lat = "lat", lon = "lon", cutoff = 2)
+
+## 3a) MEM (derivative at the mean) for all regressors
+mem_all <- slopes(model_3_logit, newdata = "mean", vcov = conley2)   # <- use slopes(), not marginaleffects()
+summary(mem_all)
+
+## 3b) MEM for black_share, then scale to +10pp (linear scaling)
+mem_black <- slopes(
+  model_3_logit,
+  variables = "black_share_1940",
+  newdata   = "mean",
+  vcov      = conley2
+)
+summary(mem_black)
+
+mem_black_10pp <- transform(mem_black,
+                            estimate  = estimate * 0.10,
+                            std.error = std.error * 0.10,
+                            conf.low  = conf.low  * 0.10,
+                            conf.high = conf.high * 0.10
+)
+mem_black_10pp[, c("term","estimate","std.error","conf.low","conf.high","p.value")]
+
+# Marginal effects by risk decile
+# ==================================================
+# Function: marginal effects by risk decile for any variable
+# ==================================================
+get_me_by_decile <- function(model, var, data, vcov_fun = NULL) {
+  # Predicted probabilities
+  p_full <- predict(model, newdata = data, type = "response")
+  idx <- !is.na(p_full)
+  nd <- data[idx, ]
+  nd$p_hat <- p_full[idx]
+  nd$risk_decile <- dplyr::ntile(nd$p_hat, 10)
+  
+  # Compute marginal effects by risk decile
+  ame <- slopes(
+    model,
+    variables = var,
+    by = "risk_decile",
+    newdata = nd,
+    vcov = vcov_fun
+  )
+  
+  # Add +10pp scaling for convenience
+  ame <- ame |>
+    mutate(
+      est_10pp = estimate * 0.10,
+      se_10pp  = std.error * 0.10,
+      lo_10pp  = conf.low  * 0.10,
+      hi_10pp  = conf.high * 0.10
+    )
+  
+  # Quick plot
+  plt <- ggplot(ame, aes(risk_decile, estimate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = .2) +
+    labs(
+      x = "Decile of predicted risk (logit p̂)",
+      y = paste0("Marginal effect on P(treated)\n(per 1.0 in ", var, ")"),
+      title = paste("Marginal effect of", var, "by baseline risk")
+    ) +
+    theme_minimal()
+  
+  list(table = ame, plot = plt)
+}
+
+# Optionally keep your Conley SEs (or set vcov_fun = NULL)
+conley2 <- function(m) vcov_conley(m, lat = "lat", lon = "lon", cutoff = 2)
+
+# Run for several variables
+me_black     <- get_me_by_decile(model_3_logit, "black_share_1940", site_selection_data, conley2)
+me_income    <- get_me_by_decile(model_3_logit, "asinh_median_income_1940", site_selection_data, conley2)
+me_redlined  <- get_me_by_decile(model_3_logit, "redlined_binary_80pp", site_selection_data, conley2)
+me_unemp     <- get_me_by_decile(model_3_logit, "unemp_rate_1940", site_selection_data, conley2)
+
+# View tables
+head(me_black$table)
+head(me_income$table)
+
+# Show plots
+me_black$plot
+me_income$plot
+me_redlined$plot
+me_unemp$plot

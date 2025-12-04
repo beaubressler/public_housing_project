@@ -326,9 +326,10 @@ racial_composition_models <- list(
 
 racial_comp_table <- modelsummary(
   racial_composition_models,
-  stars = TRUE,
+  stars = c('*' = 0.1, '**' = 0.05, '***' = 0.01),
   fmt = 3,
   gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
+  gof_map = get_gof_map_regression(),
   coef_rename = c(
     "baseline_black_share" = "Black Share",
     "baseline_log_income" = "Asinh Median Income",
@@ -361,9 +362,10 @@ highrise_models <- list(
 
 highrise_table <- modelsummary(
   highrise_models,
-  stars = TRUE,
+  stars = c('*' = 0.1, '**' = 0.05, '***' = 0.01),
   fmt = 3,
   gof_omit = "AIC|BIC|Log.Lik|F|RMSE|Std.Errors|Within",
+  gof_map = get_gof_map_regression(),
   coef_rename = c(
     "baseline_black_share" = "Black Share",
     "baseline_log_income" = "Asinh Median Income",
