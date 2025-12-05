@@ -24,9 +24,10 @@ library(here)
 digitization_dir <- "data/digitization/"
 out_dir <- "data/derived/public_housing/working/"
 
-# My (Beau Bressler's) Google Maps project API key 
-# Note: Replicator would need their own
-google_maps_api_key <- 'AIzaSyAKOGqu6O3qASvrrnjQ0GFMn6ChlcjJ_QA'
+# Google Maps API key - load from environment variable
+# Set in terminal: export GOOGLE_MAPS_API_KEY="your_key_here"
+# Or create a .Renviron file with: GOOGLE_MAPS_API_KEY=your_key_here
+google_maps_api_key <- Sys.getenv("GOOGLE_MAPS_API_KEY")
 
 # set google api key
 Sys.setenv(GOOGLEGEOCODE_API_KEY = google_maps_api_key)
